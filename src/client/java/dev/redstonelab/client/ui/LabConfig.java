@@ -266,8 +266,8 @@ public final class LabConfig {
 	public static final Hotkey REMOVE_METER = new Hotkey("removeMeter", "BACKSPACE", false, "Remove the meter you look at, else the newest");
 	public static final Hotkey CLEAR_METERS = new Hotkey("clearMeters", "R,M", false, "Remove all meters");
 	public static final Hotkey PAUSE_TIMELINE = new Hotkey("pauseTimeline", "R,SPACE", false, "Freeze / unfreeze");
-	public static final Hotkey REWIND = new Hotkey("rewind", "R,LEFT", true, "1 tick back (freezes). Hold to repeat");
-	public static final Hotkey FORWARD = new Hotkey("forward", "R,RIGHT", true, "1 tick forward. Back at now it runs again");
+	public static final Hotkey REWIND = new Hotkey("rewind", "R,BACKSPACE", true, "1 tick back (freezes). Hold to repeat");
+	public static final Hotkey FORWARD = new Hotkey("forward", "R,ENTER", true, "1 tick forward. Back at now it runs again");
 	public static final Hotkey CLEAR_PISTONS = new Hotkey("clearPistons", "P", false, "Hide piston previews");
 	public static final Hotkey GROUPS = new Hotkey("meterGroups", "R,G", false, "Meter groups (click one to switch)");
 	public static final Hotkey OPEN_SETTINGS = new Hotkey("openSettings", "R,C", false, "This menu");
@@ -325,6 +325,13 @@ public final class LabConfig {
 			}
 		} catch (IOException | RuntimeException e) {
 			RedstoneLab.LOGGER.warn("Could not read {}", file, e);
+		}
+		// Old defaults (before 0.3.2) move to the new ones.
+		if (REWIND.value.equals(KeyCombo.parse("R,LEFT"))) {
+			REWIND.reset();
+		}
+		if (FORWARD.value.equals(KeyCombo.parse("R,RIGHT"))) {
+			FORWARD.reset();
 		}
 	}
 

@@ -18,7 +18,7 @@ import dev.redstonelab.client.ClientPistons;
 import dev.redstonelab.client.ClientState;
 
 /**
- * Key combos ("R + Left": hold R, press Left) and what they do. Fed from the keyboard mixin; a
+ * Key combos ("R + Enter": hold R, press Enter) and what they do. Fed from the keyboard mixin; a
  * combo that fires swallows its last key, so the game doesn't also react to it.
  */
 public final class LabKeys {

@@ -75,19 +75,27 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			this.record(context, 70, "/rlab meter expect B 3  ->  wrong pulses turn red");
 			world.getServer().runOnServer(server -> MeterFeature.expect(player(server), "B", null, null, true));
 
-			// Real keys: hold R, press Left = 1 tick back (freezes the timeline).
+			// Real keys: hold R, press Backspace = 1 tick back (freezes the timeline), Enter = forward.
+			int metersBefore = context.computeOnClient(client -> ClientState.SCOPE.size());
 			context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
-			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
+			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE);
+			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE);
+			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER);
 			context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
-			context.waitTick();
+			context.waitTicks(5);
 			boolean frozen = context.computeOnClient(client -> LabKeys.paused && LabKeys.scroll == 1);
 			if (!frozen) {
-				throw new AssertionError("R + Left should freeze the timeline 1 tick back");
+				throw new AssertionError("R + Backspace twice, R + Enter once: should be frozen 1 tick back, is "
+						+ context.computeOnClient(client -> LabKeys.paused + " " + LabKeys.scroll));
+			}
+			// R + Backspace must not also remove a meter (plain Backspace does that).
+			if (context.computeOnClient(client -> ClientState.SCOPE.size()) != metersBefore) {
+				throw new AssertionError("R + Backspace removed a meter");
 			}
 			for (int step = 0; step <= 6; step++) {
 				int scroll = step;
 				context.runOnClient(client -> LabKeys.scroll = scroll);
-				this.record(context, 14, "Frozen (R+Space). R+Left = 1 tick back: everything that happened, in order");
+				this.record(context, 14, "Frozen (R+Space). R+Backspace = 1 tick back: everything that happened, in order");
 			}
 			context.takeScreenshot("still-frozen");
 			context.runOnClient(client -> LabKeys.setPaused(false));
@@ -132,14 +140,19 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			world.getServer().runOnServer(server -> server.getCommands().performPrefixedCommand(
 					player(server).createCommandSourceStack(), "rlab meter"));
 			this.record(context, 80, "No client mod? /rlab meter shows it in chat (and boss bars)");
-			context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = true);
+			context.runOnClient(client -> {
+				LabConfig.SHOW_TIMELINE.value = true;
+				client.gui.getChat().clearMessages(false);
+			});
 			context.setScreen(() -> new LabConfigScreen(null));
 			this.record(context, 40, "Settings: R + C. No other mods needed");
+			context.takeScreenshot("still-settings");
 			context.clickScreenButton("Hotkeys");
 			this.record(context, 40, "Hotkeys: click one, press the keys (e.g. hold R, press Left)");
 			context.takeScreenshot("still-hotkeys");
 			context.setScreen(() -> null);
 			context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = true);
+			this.pistonGuideShot(context, world);
 			this.firingOrder(context, world);
 			this.clientPreviewsMatchServer(context, world);
 		}
@@ -148,6 +161,51 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	/** Three still pistons for the guide: pushes 4 (slime), blocked (obsidian), too many. */
+	private void pistonGuideShot(ClientGameTestContext context, TestSingleplayerContext world) {
+		BlockPos[] shown = new BlockPos[3];
+		world.getServer().runOnServer(server -> {
+			ServerPlayer player = player(server);
+			ServerLevel level = player.level();
+			// One block up, so the slime doesn't grab the ground.
+			BlockPos o = base.offset(12, 1, -14);
+			java.util.function.BiConsumer<BlockPos, net.minecraft.world.level.block.state.BlockState> set = (p, st) -> level.setBlock(p, st, 2 | 16);
+			net.minecraft.world.level.block.state.BlockState east = Blocks.STICKY_PISTON.defaultBlockState().setValue(BlockStateProperties.FACING, Direction.EAST);
+			// 1: slime with stone stuck to it.
+			shown[0] = o;
+			set.accept(o, east);
+			set.accept(o.east(), Blocks.SLIME_BLOCK.defaultBlockState());
+			set.accept(o.east().above(), Blocks.STONE.defaultBlockState());
+			set.accept(o.east().south(), Blocks.STONE.defaultBlockState());
+			set.accept(o.east(2), Blocks.STONE.defaultBlockState());
+			// 2: obsidian in the way.
+			shown[1] = o.south(4);
+			set.accept(shown[1], east);
+			set.accept(shown[1].east(), Blocks.STONE.defaultBlockState());
+			set.accept(shown[1].east(2), Blocks.OBSIDIAN.defaultBlockState());
+			// 3: 13 blocks.
+			shown[2] = o.south(8);
+			set.accept(shown[2], east);
+			for (int i = 1; i <= 13; i++) {
+				set.accept(shown[2].east(i), (i % 2 == 0 ? Blocks.STONE : Blocks.OAK_PLANKS).defaultBlockState());
+			}
+			player.teleportTo(level, o.getX() - 5.5, o.getY() + 6, o.getZ() + 4.5, java.util.Set.of(), 0f, 0f, false);
+			player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, o.offset(6, 0, 4).getCenter());
+		});
+		context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = false);
+		context.waitTicks(10);
+		context.runOnClient(client -> {
+			ClientPistons.clear();
+			for (BlockPos p : shown) {
+				ClientPistons.toggle(p);
+			}
+		});
+		// Let the action bar text fade.
+		context.waitTicks(80);
+		context.takeScreenshot("still-guide-pistons");
+		context.runOnClient(client -> ClientPistons.clear());
 	}
 
 	/**
