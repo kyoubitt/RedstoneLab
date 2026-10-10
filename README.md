@@ -1,8 +1,7 @@
 # RedstoneLab
 
-Redstone meters and piston previews, inspired by
-[Redstone Multimeter](https://modrinth.com/mod/redstone-multimeter) and
-[Pistorder](https://modrinth.com/mod/pistorder).
+Redstone meters and piston previews.
+**Guide with pictures:** [RedstoneLab-guide.pdf](docs/RedstoneLab-guide.pdf)
 Minecraft 1.21.11 · Fabric · by kyoubitt · [LGPL-3.0](LICENSE)
 
 `t` = game tick (1/20 s). A repeater on delay 1 = 2t.
