@@ -28,6 +28,12 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.piston.PistonBaseBlock;
+import net.minecraft.world.level.block.RedstoneTorchBlock;
+import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
@@ -329,6 +335,10 @@ public final class MeterFeature {
 					// Dust: the level matters (how far the signal still reaches).
 					sb.append(" \u00b7 power ").append(this.power);
 				}
+				String info = this.blockInfo();
+				if (!info.isEmpty()) {
+					sb.append(" \u00b7 ").append(info);
+				}
 				String pulses = this.pulses.summary();
 				if (!pulses.isEmpty()) {
 					sb.append(" \u00b7 ").append(pulses);
@@ -339,6 +349,40 @@ public final class MeterFeature {
 						: "\u2716 " + this.wrongCount + " wrong (" + this.lastWrong + ")");
 			}
 			return sb.toString();
+		}
+
+		/**
+		 * What the block's state says that the bars don't: repeater delay and lock, a burnt-out
+		 * torch, and for plain blocks strong or weak power (strong: dust next to it turns on too).
+		 */
+		private String blockInfo() {
+			ServerLevel level = LabServer.level(this.dimension);
+			if (level == null || !level.hasChunkAt(this.pos)) {
+				return "";
+			}
+			BlockState state = level.getBlockState(this.pos);
+			if (state.getBlock() instanceof RepeaterBlock) {
+				return "delay " + 2 * state.getValue(RepeaterBlock.DELAY) + "t" + (state.getValue(RepeaterBlock.LOCKED) ? " \u00b7 locked" : "");
+			}
+			if (state.getBlock() instanceof RedstoneTorchBlock) {
+				// Off although its block isn't powered, after 8 toggles in 60t: the game's burnout.
+				boolean burnt = !state.getValue(RedstoneTorchBlock.LIT) && !this.powered
+						&& dev.redstonelab.mixin.RedstoneTorchBlockInvoker.redstonelab$toggledTooOften(level, this.pos, false);
+				return burnt ? "burnt out" : "";
+			}
+			if (this.power > 0 && state.isRedstoneConductor(level, this.pos) && !state.isSignalSource() && !state.hasBlockEntity()
+					&& !state.hasProperty(BlockStateProperties.LIT) && !state.hasProperty(BlockStateProperties.POWERED)
+					&& !state.hasProperty(BlockStateProperties.OPEN) && !(state.getBlock() instanceof PistonBaseBlock)) {
+				// Strong: powered by anything but dust (dust ignores power that came from dust).
+				boolean strong = false;
+				for (Direction d : Direction.values()) {
+					BlockPos n = this.pos.relative(d);
+					BlockState ns = level.getBlockState(n);
+					strong |= !(ns.getBlock() instanceof RedStoneWireBlock) && ns.getDirectSignal(level, n, d) > 0;
+				}
+				return (strong ? "strong " : "weak ") + this.power;
+			}
+			return "";
 		}
 
 		/** " · in every 8t" while it keeps happening (hidden after 10 s without it). */

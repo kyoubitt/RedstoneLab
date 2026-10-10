@@ -16,7 +16,7 @@ CODE
               TimelineHud, WorldMarkers (vanilla gizmos)
 
 TESTS
-  ./gradlew runGameTest                         27 server tests against the real game
+  ./gradlew runGameTest                         28 server tests against the real game
   xvfb-run ./gradlew runClientGameTest          real client: keys, clicks, screenshots
   Accuracy checks that run every time:
   * 8 random circuits, every meter vs the real block every tick (~6000 checks)
@@ -34,6 +34,7 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
   0.3.2  shorter text; R + Backspace / Enter back / forward; Esc unbinds; Up freezes the game
          (/tick), Down steps it; code cleanup
   0.3.3  Up = freeze / step 1 tick, Down = unfreeze
+  0.3.4  meters: repeater delay / locked, torch burnt out, strong / weak power on plain blocks
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

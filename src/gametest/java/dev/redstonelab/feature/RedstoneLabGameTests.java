@@ -330,7 +330,9 @@ public class RedstoneLabGameTests {
 		boolean[] repeater = record(helper, 60, 190, () -> level.getBlockState(helper.absolutePos(r1)).getValue(BlockStateProperties.POWERED));
 		boolean[] wire = record(helper, 60, 190, () -> level.getBlockState(helper.absolutePos(dust)).getValue(BlockStateProperties.POWER) > 0);
 		helper.runAtTickTime(190, () -> {
-			String realR = "Repeater" + DOT + pattern(repeater, 60);
+			// Delay 4 = 8 game ticks (read from the block itself).
+			int delay = 2 * level.getBlockState(helper.absolutePos(r1)).getValue(BlockStateProperties.DELAY);
+			String realR = "Repeater" + DOT + "delay " + delay + "t" + DOT + pattern(repeater, 60);
 			int dustPower = level.getBlockState(helper.absolutePos(dust)).getValue(BlockStateProperties.POWER);
 			String realD = "Redstone Wire" + (dustPower > 0 ? DOT + "power " + dustPower : "") + DOT + pattern(wire, 60);
 			helper.assertTrue(!realR.contains("?"), "the loop isn't running: " + realR);
@@ -577,6 +579,72 @@ public class RedstoneLabGameTests {
 			helper.assertTrue(b.contains("ITEM_OUT@BLOCK_ENTITIES"), "hopper out: " + all);
 			helper.assertTrue(c.contains("ITEM_IN@BLOCK_ENTITIES"), "chest in: " + all);
 			helper.assertTrue(!all.contains("ITEM_IN@PLAYERS") && !all.contains("ITEM_OUT@PLAYERS"), "wrong part of the tick: " + all);
+			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
+	/**
+	 * Meter text that the bars can't show, checked against the game: repeater delay and lock,
+	 * strong vs weak power on a plain block, and a torch that really burnt out.
+	 */
+	@GameTest(maxTicks = 100)
+	public void meterBlockInfo(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		floor(helper, 7, 7);
+		// A: 2-tick repeater locked by a powered repeater pointing into its side.
+		BlockPos repeater = new BlockPos(2, 1, 1);
+		helper.setBlock(repeater, Blocks.REPEATER.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.WEST)
+				.setValue(BlockStateProperties.DELAY, 2));
+		helper.setBlock(new BlockPos(2, 1, 2), Blocks.REPEATER.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.SOUTH));
+		helper.setBlock(new BlockPos(2, 1, 3), Blocks.REDSTONE_BLOCK);
+		// B: stone behind a powered repeater (strong). C: stone at the end of dust (weak).
+		BlockPos strong = new BlockPos(3, 1, 5);
+		helper.setBlock(new BlockPos(1, 1, 5), Blocks.REDSTONE_BLOCK);
+		helper.setBlock(new BlockPos(2, 1, 5), Blocks.REPEATER.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.WEST));
+		helper.setBlock(strong, Blocks.STONE);
+		BlockPos weak = new BlockPos(4, 1, 7);
+		helper.setBlock(new BlockPos(1, 1, 7), Blocks.REDSTONE_BLOCK);
+		helper.setBlock(new BlockPos(2, 1, 7), Blocks.REDSTONE_WIRE);
+		helper.setBlock(new BlockPos(3, 1, 7), Blocks.REDSTONE_WIRE);
+		helper.setBlock(weak, Blocks.STONE);
+		// Dust on the far side of each stone: the game's own answer to strong (it lights) or weak.
+		helper.setBlock(new BlockPos(4, 1, 5), Blocks.REDSTONE_WIRE);
+		helper.setBlock(new BlockPos(5, 1, 7), Blocks.REDSTONE_WIRE);
+		// D: torch on stone, its input on 3t / off 3t until it burns out (8 turn-offs within 60t).
+		BlockPos torch = new BlockPos(6, 2, 3);
+		helper.setBlock(new BlockPos(6, 1, 3), Blocks.STONE);
+		helper.setBlock(torch, Blocks.REDSTONE_TORCH);
+		for (BlockPos p : new BlockPos[]{repeater, strong, weak, torch}) {
+			MeterFeature.toggle(player, level, helper.absolutePos(p));
+		}
+		// A lever on the stone's side powers it (a redstone block next to it wouldn't).
+		BlockPos lever = new BlockPos(5, 1, 3);
+		helper.setBlock(lever, Blocks.LEVER.defaultBlockState().setValue(BlockStateProperties.ATTACH_FACE,
+				net.minecraft.world.level.block.state.properties.AttachFace.WALL).setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.WEST));
+		for (int i = 0; i < 10; i++) {
+			helper.runAtTickTime(4 + i * 6, () -> helper.pullLever(lever));
+			helper.runAtTickTime(7 + i * 6, () -> helper.pullLever(lever));
+		}
+		helper.runAtTickTime(75, () -> {
+			String a = MeterFeature.statusForTest(player, "A");
+			String b = MeterFeature.statusForTest(player, "B");
+			String c = MeterFeature.statusForTest(player, "C");
+			String d = MeterFeature.statusForTest(player, "D");
+			String all = a + " | " + b + " | " + c + " | " + d;
+			helper.assertTrue(level.getBlockState(helper.absolutePos(repeater)).getValue(BlockStateProperties.LOCKED), "repeater not locked: " + all);
+			helper.assertTrue(a.startsWith("Repeater" + DOT + "delay 4t" + DOT + "locked"), "repeater: " + all);
+			int cSignal = level.getBestNeighborSignal(helper.absolutePos(weak));
+			int dustAtStrong = level.getBlockState(helper.absolutePos(new BlockPos(4, 1, 5))).getValue(BlockStateProperties.POWER);
+			int dustAtWeak = level.getBlockState(helper.absolutePos(new BlockPos(5, 1, 7))).getValue(BlockStateProperties.POWER);
+			helper.assertTrue(dustAtStrong == 15 && b.startsWith("Stone" + DOT + "strong 15"), "strong (dust next to it: " + dustAtStrong + "): " + all);
+			helper.assertTrue(dustAtWeak == 0 && c.startsWith("Stone" + DOT + "weak " + cSignal), "weak (dust next to it: " + dustAtWeak + "): " + all);
+			// Burnt out for real: unlit although the block under it is not powered.
+			boolean lit = level.getBlockState(helper.absolutePos(torch)).getValue(BlockStateProperties.LIT);
+			boolean input = level.hasNeighborSignal(helper.absolutePos(new BlockPos(6, 1, 3)));
+			helper.assertTrue(!lit && !input, "torch should really be burnt out (lit " + lit + ", input " + input + ")");
+			helper.assertTrue(d.contains("burnt out"), "torch: " + all);
 			MeterFeature.clear(player);
 			helper.succeed();
 		});
