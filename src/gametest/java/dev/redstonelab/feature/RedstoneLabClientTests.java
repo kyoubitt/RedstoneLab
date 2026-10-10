@@ -94,15 +94,20 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			this.record(context, 60, "In the world: every meter has its letter");
 			context.takeScreenshot("still-world");
 
-			// Pistons: just look at one, anything in your hand.
+			// Pistons, like Pistorder: right-click one with an empty hand (a real mouse click).
 			world.getServer().runOnServer(server -> {
 				ServerPlayer player = player(server);
-				player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new ItemStack(Items.STONE, 64));
 				player.teleportTo(player.level(), base.getX() + 5.5, base.getY(), base.getZ() + 2, java.util.Set.of(), 0f, 0f, false);
 				player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, base.offset(4, 0, 4).getCenter());
 			});
 			context.waitTicks(10);
-			this.record(context, 90, "Pistons: just look at one (anything in hand). Numbers = push order");
+			context.getInput().pressMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+			context.waitTicks(4);
+			boolean shown = world.getServer().computeOnServer(server -> PistorderFeature.shownForTest(player(server), base.offset(4, 0, 4)));
+			if (!shown) {
+				throw new AssertionError("right-clicking the piston with an empty hand did not show its preview");
+			}
+			this.record(context, 90, "Pistons: right-click with an empty hand (like Pistorder). Numbers = push order");
 			context.takeScreenshot("still-piston");
 
 			// Chat view (works without the client mod) and the settings menu.

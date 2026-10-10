@@ -11,7 +11,7 @@ Minecraft 1.21.11 · Fabric · by kyoubitt · [LGPL-3.0](LICENSE)
 
 1. Press **M** while looking at a block (or `/rlab tool` and right-click it): it gets a meter.
 2. Watch the timeline in the top left.
-3. **Look at a piston** (anything in your hand): you see what it will push.
+3. **Right-click a piston with an empty hand**: you see what it will push (like Pistorder).
 
 ## Meters
 
@@ -45,14 +45,15 @@ No client mod? You get boss bars and `/rlab meter` in chat.
 
 ## Pistons
 
-Look at a piston, with anything in your hand. It shows:
+Like Pistorder: **right-click a piston with an empty hand** to show what it will do, click it
+again to hide it. Several can be shown at once. Sneaking does nothing. **P** hides them all
+(changing dimension too).
 - `✔ push 3`: numbers on the blocks = move order, `breaks` = destroyed
 - `✖ blocked` (`stuck` marks the block) or `✖ too many` (`13th` marks the extra block)
 - `⚡ QC` = powered only from above · `⚡ BUD` = moves on the next block update
 
-It stays while you look at the piston or its blocks, and 2 seconds after.
-Firing order of several pistons: put meters on them, the **Order** line shows it.
-Turn it off (or turn on "where blocks land" boxes) in the **Pistorder** settings tab.
+It updates live while the piston works. Firing order of several pistons: put meters on them,
+the **Order** line shows it. "Where blocks land" boxes: Pistorder settings tab.
 
 ## Settings
 
@@ -61,7 +62,7 @@ Turn it off (or turn on "where blocks land" boxes) in the **Pistorder** settings
 ## Commands
 
 `/rlab` help · `tool` · `meter [x y z]` · `meter expect|name|remove …` · `group …` ·
-`piston preview|landing <true|false>` · `clear` · `config` (ops).
+`piston clear` · `piston landing <true|false>` · `clear` · `config` (ops).
 Needs cheats/op; `/rlab config set permissionLevel 0` lets everyone use it.
 
 ## Install

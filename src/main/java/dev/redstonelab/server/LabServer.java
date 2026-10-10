@@ -61,6 +61,7 @@ public final class LabServer {
 		});
 
 		UseBlockCallback.EVENT.register(MeterFeature::onUseBlock);
+		UseBlockCallback.EVENT.register(PistorderFeature::onUseBlock);
 	}
 
 	public static @Nullable MinecraftServer server() {

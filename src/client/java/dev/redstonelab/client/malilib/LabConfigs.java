@@ -75,12 +75,10 @@ public final class LabConfigs implements IConfigHandler {
 
 	/** Piston preview options; they live on the server, so changes are sent there. */
 	public static final class Pistons {
-		public static final ConfigBoolean PREVIEW = new ConfigBoolean("pistonPreview", true,
-				"Look at a piston to see what it will push or pull\n(numbers = move order, QC / BUD when its power is unusual)");
 		public static final ConfigBoolean LANDING = new ConfigBoolean("pistonLanding", false,
-				"Also outline where the pushed blocks end up (light blue)");
+				"Piston previews (right-click a piston with an empty hand):\nalso outline where the pushed blocks end up (light blue)");
 
-		public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(PREVIEW, LANDING);
+		public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(LANDING);
 	}
 
 	public static final class Keys {
@@ -95,11 +93,13 @@ public final class LabConfigs implements IConfigHandler {
 				"Go back 1 tick on the timeline (freezes it automatically)");
 		public static final ConfigHotkey SCROLL_FORWARD = new ConfigHotkey("forward", "R,RIGHT",
 				"Go forward 1 tick; reaching the present un-freezes it");
+		public static final ConfigHotkey CLEAR_PISTONS = new ConfigHotkey("clearPistons", "P",
+				"Hide all piston previews (show one: right-click a piston with an empty hand)");
 		public static final ConfigHotkey GROUPS = new ConfigHotkey("meterGroups", "R,G", "List your meter groups in chat (click one to switch)");
 		public static final ConfigHotkey OPEN_SETTINGS = new ConfigHotkey("openSettings", "R,C", "Open this menu");
 
 		public static final ImmutableList<IHotkey> HOTKEYS = ImmutableList.of(
-				TOGGLE_METER, REMOVE_METER, CLEAR_METERS, PAUSE_TIMELINE, SCROLL_BACK, SCROLL_FORWARD, GROUPS, OPEN_SETTINGS);
+				TOGGLE_METER, REMOVE_METER, CLEAR_METERS, PAUSE_TIMELINE, SCROLL_BACK, SCROLL_FORWARD, CLEAR_PISTONS, GROUPS, OPEN_SETTINGS);
 	}
 
 	/** Menu tabs. */

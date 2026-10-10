@@ -112,16 +112,16 @@ public final class RlabCommand {
 							return 1;
 						})))
 				.then(literal("piston")
-						.then(argument("what", StringArgumentType.word())
-								.suggests((ctx, b) -> SharedSuggestionProvider.suggest(new String[]{"preview", "landing"}, b))
+						.then(literal("clear").executes(ctx -> {
+							PistorderFeature.clear(player(ctx));
+							Msg.actionBar(player(ctx), Component.literal("Piston previews hidden").withStyle(ChatFormatting.GRAY));
+							return 1;
+						}))
+						.then(literal("landing")
 								.then(argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool()).executes(ctx -> {
-									String what = StringArgumentType.getString(ctx, "what");
 									boolean on = com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "on");
-									if (!PistorderFeature.setOption(player(ctx), what, on)) {
-										Msg.fail(ctx.getSource(), "Use preview or landing");
-										return 0;
-									}
-									Msg.ok(ctx.getSource(), "Piston " + what + ": " + (on ? "on" : "off"));
+									PistorderFeature.setOption(player(ctx), "landing", on);
+									Msg.ok(ctx.getSource(), "Where pushed blocks land: " + (on ? "shown" : "hidden"));
 									return 1;
 								}))))
 				.then(literal("group")
@@ -167,7 +167,7 @@ public final class RlabCommand {
 				.append(Msg.button("Meter Tool", "/rlab tool", "Get the Meter Tool"))
 				.append(Component.literal(" right-click a block (sneak: remove all)").withStyle(ChatFormatting.WHITE)), false);
 		source.sendSuccess(() -> Component.literal(" Pistons: ").withStyle(ChatFormatting.YELLOW)
-				.append(Component.literal("look at one to see what it pushes").withStyle(ChatFormatting.WHITE)), false);
+				.append(Component.literal("right-click one with an empty hand (P hides all)").withStyle(ChatFormatting.WHITE)), false);
 		source.sendSuccess(() -> Component.literal(" ")
 				.append(Msg.button("Meters", "/rlab meter", "Meter history in chat"))
 				.append(" ")

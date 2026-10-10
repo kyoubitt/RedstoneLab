@@ -433,7 +433,7 @@ public final class MeterFeature {
 		stack.set(DataComponents.LORE, new ItemLore(List.of(
 				lore("Right-click a block: add / remove a meter"),
 				lore("Sneak + right-click: remove all meters"),
-				lore("Tip: look at a piston to see what it pushes"))));
+				lore("Tip: right-click a piston with an empty hand"))));
 		return stack;
 	}
 

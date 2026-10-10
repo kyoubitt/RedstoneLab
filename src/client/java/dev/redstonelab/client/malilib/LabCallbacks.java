@@ -49,9 +49,8 @@ public final class LabCallbacks implements IHotkeyCallback {
 	}
 
 	private static void sendPistonOption(fi.dy.masa.malilib.config.options.ConfigBoolean option) {
-		String what = option == LabConfigs.Pistons.LANDING ? "landing" : "preview";
 		if (ClientState.serverHasMod && ClientState.allowed) {
-			ClientNetworking.command("rlab piston " + what + " " + option.getBooleanValue());
+			ClientNetworking.command("rlab piston landing " + option.getBooleanValue());
 		}
 	}
 
@@ -100,6 +99,10 @@ public final class LabCallbacks implements IHotkeyCallback {
 			if (scroll == 0 && autoPaused) {
 				LabConfigs.Keys.PAUSE_TIMELINE.setBooleanValue(false);
 			}
+			return true;
+		}
+		if (key == LabConfigs.Keys.CLEAR_PISTONS.getKeybind()) {
+			send("rlab piston clear");
 			return true;
 		}
 		if (key == LabConfigs.Keys.GROUPS.getKeybind()) {

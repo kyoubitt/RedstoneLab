@@ -464,6 +464,16 @@ ACCURACY FUZZ
     705/6014 differ). 24 tests pass.
 
 ----------------------------------------------------------------------
+PISTON PREVIEW LIKE PISTORDER
+  * Right-click a piston with an empty hand shows it, again hides it, several at once,
+    sneaking does nothing, P hides all, dimension change hides all (Pistorder's rules). Holding
+    a block still places it. Previews update every 2 ticks and keep the last view while the
+    piston is mid-move. Not copied: Pistorder's "indirect mode" for air gaps.
+  * Tests: pistonPreviewByClicking (block in hand / sneaking do nothing, click shows "✔ push 3",
+    click again hides), pistonOnObserverClock (stays shown on a running clock). Client test does
+    a real mouse right-click. 24 pass.
+
+----------------------------------------------------------------------
 KNOWN LIMITATIONS / TODO
 ----------------------------------------------------------------------
   * (author set to kyoubitt, license LGPL-3.0)

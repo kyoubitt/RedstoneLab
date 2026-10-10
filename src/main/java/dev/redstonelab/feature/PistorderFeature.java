@@ -3,6 +3,7 @@ package dev.redstonelab.feature;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,6 +19,9 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
@@ -26,7 +30,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 
 import dev.redstonelab.display.MarkerService;
 import dev.redstonelab.net.LabPayloads;
@@ -36,16 +39,14 @@ import dev.redstonelab.util.Fmt;
 import dev.redstonelab.util.Msg;
 
 /**
- * Piston preview, in the spirit of Pistorder: look at a piston (anything in your hand) and it
- * shows what it will do next: "✔ push 3" with the move order on the blocks, or ✖ and why
- * (the block in the way, or too many), plus QC / BUD when its power is unusual. The preview
- * stays while you look at the piston or the blocks it moves, and a moment after. Works for
- * vanilla clients too (display entities).
+ * Piston preview, like Pistorder: right-click a piston with an empty hand and it shows what it
+ * will do next: "✔ push 3" with the move order on the blocks, or ✖ and why (the block in the
+ * way, or too many), plus QC / BUD when its power is unusual. Click again to hide it; several
+ * pistons can be shown; sneaking does nothing; the P key hides them all. Works for vanilla
+ * clients too (display entities).
  */
 public final class PistorderFeature {
 	public static final String CHANNEL = "pistorder";
-	/** How long (ticks) the preview stays after you look away. */
-	private static final int LINGER_TICKS = 40;
 	private static final int PUSH = 0xFF55FF55;
 	private static final int DESTROY = 0xFFFF5555;
 	private static final int BLOCKER = 0xFFFF00FF;
@@ -53,7 +54,6 @@ public final class PistorderFeature {
 
 	/** What each player wants to see (set from the client's Pistorder settings or /rlab piston). */
 	public static final class Options {
-		public boolean preview = true;
 		public boolean landing = false;
 	}
 
@@ -67,140 +67,141 @@ public final class PistorderFeature {
 		OPTIONS.remove(player.getUUID());
 	}
 
-	/** Changes one option ("preview" or "landing"); returns false for an unknown name. */
+	/** Changes one option ("landing"); returns false for an unknown name. */
 	public static boolean setOption(ServerPlayer player, String name, boolean value) {
-		Options o = options(player);
-		switch (name) {
-			case "preview" -> o.preview = value;
-			case "landing" -> o.landing = value;
-			default -> {
-				return false;
-			}
+		if (!name.equals("landing")) {
+			return false;
 		}
-		if (!o.preview) {
-			clear(player);
+		options(player).landing = value;
+		State state = STATES.get(player.getUUID());
+		if (state != null) {
+			refresh(player, state);
 		}
 		return true;
 	}
 
-	/** The piston a player is looking at (or looked at a moment ago). */
+	/** One shown piston. */
 	private static final class Preview {
-		final ResourceKey<Level> dimension;
 		final BlockPos pos;
-		/** The blocks the preview marks: looking at them keeps the preview. */
-		final Set<BlockPos> blocks = new HashSet<>();
-		long lastSeen;
-		String lastText = "";
+		/** What was last shown; kept while the piston is mid-move (the preview would be wrong then). */
+		List<MarkerData> markers = List.of();
 		/** Set by {@link #head}: the first line of the piston's label. */
 		String headLabel = "";
 		boolean headOk;
 
-		Preview(ResourceKey<Level> dimension, BlockPos pos) {
-			this.dimension = dimension;
+		Preview(BlockPos pos) {
 			this.pos = pos;
 		}
 	}
 
-	private static final Map<UUID, Preview> PREVIEWS = new HashMap<>();
+	private static final class State {
+		ResourceKey<Level> dimension;
+		final Map<BlockPos, Preview> pistons = new LinkedHashMap<>();
+	}
+
+	private static final Map<UUID, State> STATES = new HashMap<>();
 
 	private PistorderFeature() {
 	}
 
+	/**
+	 * Like Pistorder: right-click a piston with an empty hand to show what it will do, click it
+	 * again to hide it. Nothing happens while sneaking.
+	 */
+	public static InteractionResult onUseBlock(Player player, Level level, InteractionHand hand, BlockHitResult hit) {
+		if (hand != InteractionHand.MAIN_HAND || !player.getMainHandItem().isEmpty() || player.isShiftKeyDown()
+				|| !(player instanceof ServerPlayer serverPlayer) || !(level instanceof ServerLevel serverLevel)) {
+			return InteractionResult.PASS;
+		}
+		BlockPos pos = hit.getBlockPos();
+		if (!(level.getBlockState(pos).getBlock() instanceof PistonBaseBlock) || !LabServer.canUse(serverPlayer)) {
+			return InteractionResult.PASS;
+		}
+		toggle(serverPlayer, serverLevel, pos);
+		return InteractionResult.SUCCESS;
+	}
+
+	/** Shows the piston's preview, or hides it if it is shown. */
+	public static void toggle(ServerPlayer player, ServerLevel level, BlockPos pos) {
+		State state = STATES.computeIfAbsent(player.getUUID(), k -> new State());
+		if (state.dimension != level.dimension()) {
+			state.pistons.clear();
+			state.dimension = level.dimension();
+		}
+		if (state.pistons.remove(pos) != null) {
+			refresh(player, state);
+			Msg.actionBar(player, Component.literal("Piston preview hidden").withStyle(ChatFormatting.GRAY));
+			return;
+		}
+		Preview p = new Preview(pos.immutable());
+		state.pistons.put(p.pos, p);
+		Component text = build(level, p, new ArrayList<>(), options(player));
+		refresh(player, state);
+		Msg.actionBar(player, text);
+	}
+
+	/** Hides all piston previews (the P key, /rlab piston clear). */
 	public static void clear(ServerPlayer player) {
-		if (PREVIEWS.remove(player.getUUID()) != null) {
+		if (STATES.remove(player.getUUID()) != null) {
 			MarkerService.clear(player, CHANNEL);
 		}
 	}
 
 	public static void onLeave(ServerPlayer player) {
-		PREVIEWS.remove(player.getUUID());
+		STATES.remove(player.getUUID());
 	}
 
+	/** Keeps the shown previews up to date (blocks change, pistons fire). */
 	public static void tick(MinecraftServer server) {
-		if (server.getTickCount() % 2 != 0) {
+		if (STATES.isEmpty() || server.getTickCount() % 2 != 0) {
 			return;
 		}
-		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-			if (options(player).preview && LabServer.canUse(player)) {
-				update(player);
-			} else {
-				clear(player);
+		for (Map.Entry<UUID, State> e : new ArrayList<>(STATES.entrySet())) {
+			ServerPlayer player = server.getPlayerList().getPlayer(e.getKey());
+			if (player != null) {
+				refresh(player, e.getValue());
 			}
 		}
 	}
 
-	/** Looks where the player looks and updates the preview. */
-	static void update(ServerPlayer player) {
+	private static void refresh(ServerPlayer player, State state) {
 		ServerLevel level = player.level();
-		long now = level.getGameTime();
-		BlockPos looked = lookedAt(player);
-		BlockPos piston = looked == null ? null : pistonAt(level, looked);
-		Preview p = PREVIEWS.get(player.getUUID());
-		if (piston != null && (p == null || !p.pos.equals(piston) || p.dimension != level.dimension())) {
-			p = new Preview(level.dimension(), piston);
-			PREVIEWS.put(player.getUUID(), p);
-		}
-		if (p == null) {
-			return;
-		}
-		if (p.dimension != level.dimension()) {
-			clear(player);
-			return;
-		}
-		if (piston != null || (looked != null && p.blocks.contains(looked))) {
-			p.lastSeen = now;
-		}
-		if (now - p.lastSeen > LINGER_TICKS) {
-			clear(player);
-			return;
-		}
-		if (!level.hasChunkAt(p.pos) || isMoving(level, p.pos)) {
-			// Mid-move (2 ticks): keep what is shown until the blocks land, the preview would be wrong.
-			return;
-		}
-		if (!(level.getBlockState(p.pos).getBlock() instanceof PistonBaseBlock)) {
+		if (state.dimension != level.dimension() || state.pistons.isEmpty()) {
+			// Like Pistorder: previews go away when you change dimension.
 			clear(player);
 			return;
 		}
 		List<MarkerData> markers = new ArrayList<>();
-		Component text = build(level, p, markers, options(player));
-		MarkerService.set(player, CHANNEL, markers);
-		String plain = text == null ? "" : text.getString();
-		if (!plain.equals(p.lastText)) {
-			p.lastText = plain;
-			if (text != null) {
-				Msg.actionBar(player, text);
+		for (java.util.Iterator<Preview> it = state.pistons.values().iterator(); it.hasNext(); ) {
+			Preview p = it.next();
+			if (level.hasChunkAt(p.pos) && !isMoving(level, p.pos)) {
+				if (!(level.getBlockState(p.pos).getBlock() instanceof PistonBaseBlock)) {
+					it.remove();
+					continue;
+				}
+				List<MarkerData> fresh = new ArrayList<>();
+				build(level, p, fresh, options(player));
+				p.markers = fresh;
 			}
+			markers.addAll(p.markers);
 		}
+		if (state.pistons.isEmpty()) {
+			clear(player);
+			return;
+		}
+		MarkerService.set(player, CHANNEL, markers);
 	}
 
-	private static @Nullable BlockPos lookedAt(ServerPlayer player) {
-		HitResult hit = player.pick(player.blockInteractionRange(), 1f, false);
-		return hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult block ? block.getBlockPos() : null;
-	}
-
-	/** The piston at {@code pos}, or the piston a piston head at {@code pos} belongs to. */
-	private static @Nullable BlockPos pistonAt(ServerLevel level, BlockPos pos) {
-		BlockState state = level.getBlockState(pos);
-		if (state.getBlock() instanceof PistonBaseBlock) {
-			return pos.immutable();
-		}
-		if (state.is(Blocks.PISTON_HEAD)) {
-			BlockPos base = pos.relative(state.getValue(BlockStateProperties.FACING).getOpposite());
-			return level.getBlockState(base).getBlock() instanceof PistonBaseBlock ? base : null;
-		}
-		return null;
-	}
-
-	/** For the game tests: the piston being previewed, or null. */
-	static @Nullable BlockPos previewForTest(ServerPlayer player) {
-		Preview p = PREVIEWS.get(player.getUUID());
-		return p == null ? null : p.pos;
+	/** For the game tests: is this piston's preview shown? */
+	static boolean shownForTest(ServerPlayer player, BlockPos pos) {
+		State state = STATES.get(player.getUUID());
+		return state != null && state.pistons.containsKey(pos);
 	}
 
 	/** For the game tests: the piston's label ("✔ push 1"). */
-	static String labelForTest(ServerPlayer player) {
-		Preview p = PREVIEWS.get(player.getUUID());
+	static String labelForTest(ServerPlayer player, BlockPos pos) {
+		State state = STATES.get(player.getUUID());
+		Preview p = state == null ? null : state.pistons.get(pos);
 		return p == null ? "" : p.headLabel;
 	}
 
@@ -217,16 +218,11 @@ public final class PistorderFeature {
 	}
 
 	/**
-	 * Adds the markers for the piston and returns the action bar text: only when there's more to
-	 * say than the label (why it can't move, QC / BUD), else null. Everything about the piston
-	 * itself is one label behind it, so it never covers the numbered blocks in front.
+	 * Adds the markers for the piston and returns the action bar text. Everything about the
+	 * piston itself is one label behind it, so it never covers the numbered blocks in front.
 	 */
-	private static @Nullable Component build(ServerLevel level, Preview p, List<MarkerData> markers, Options o) {
+	private static Component build(ServerLevel level, Preview p, List<MarkerData> markers, Options o) {
 		Component move = buildMove(level, p, markers, o);
-		p.blocks.clear();
-		for (MarkerData m : markers) {
-			p.blocks.add(m.pos());
-		}
 		StringBuilder label = new StringBuilder(p.headLabel);
 		String power = powerInfo(level, p.pos);
 		if (power != null) {
@@ -237,7 +233,7 @@ public final class PistorderFeature {
 		Direction facing = level.getBlockState(p.pos).getValue(BlockStateProperties.FACING);
 		markers.add(new MarkerData(p.pos.relative(facing.getOpposite()), 0.5f, label.toString(), color, LabPayloads.STYLE_LABEL));
 		if (power == null) {
-			return p.headOk ? null : move;
+			return move;
 		}
 		String why = switch (power) {
 			case "QC" -> "QC: powered from above";

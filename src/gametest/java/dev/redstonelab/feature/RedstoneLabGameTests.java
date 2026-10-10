@@ -355,16 +355,11 @@ public class RedstoneLabGameTests {
 		helper.setBlock(a, observer(Direction.EAST));
 		MeterFeature.toggle(player, level, helper.absolutePos(piston));
 		helper.setBlock(b, observer(Direction.WEST));
-		// Look at the piston the whole time: the preview must never drop while it moves.
-		// (Test players are not ops: let everyone use RedstoneLab so the mod's own tick runs it.)
-		dev.redstonelab.config.ServerConfig.get().permissionLevel = 0;
+		// Show its preview once: it must never drop while the piston keeps moving.
+		PistorderFeature.toggle(player, level, helper.absolutePos(piston));
 		int[] lost = new int[1];
 		for (int t = 1; t < 130; t++) {
-			helper.runAtTickTime(t, () -> {
-				lookAt(helper, player, new net.minecraft.world.phys.Vec3(1.5, 1, 4.5), piston);
-				PistorderFeature.update(player);
-				lost[0] += helper.absolutePos(piston).equals(PistorderFeature.previewForTest(player)) ? 0 : 1;
-			});
+			helper.runAtTickTime(t, () -> lost[0] += PistorderFeature.shownForTest(player, helper.absolutePos(piston)) ? 0 : 1);
 		}
 		boolean[] out = record(helper, 40, 130, () -> {
 			BlockState s = level.getBlockState(helper.absolutePos(piston));
@@ -498,42 +493,42 @@ public class RedstoneLabGameTests {
 		});
 	}
 
-	/** Points the (mock) player's eyes from {@code from} (relative, feet) at the middle of {@code block}. */
-	private static void lookAt(GameTestHelper helper, ServerPlayer player, net.minecraft.world.phys.Vec3 from, BlockPos block) {
-		net.minecraft.world.phys.Vec3 feet = helper.absoluteVec(from);
-		player.setPos(feet.x, feet.y, feet.z);
-		player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, helper.absolutePos(block).getCenter());
+	/** Right-clicks a block as the player would. */
+	private static net.minecraft.world.InteractionResult click(GameTestHelper helper, ServerPlayer player, BlockPos pos) {
+		BlockPos abs = helper.absolutePos(pos);
+		return PistorderFeature.onUseBlock(player, helper.getLevel(), net.minecraft.world.InteractionHand.MAIN_HAND,
+				new net.minecraft.world.phys.BlockHitResult(abs.getCenter(), Direction.UP, abs, false));
 	}
 
-	/** Look at a piston, with a block in your hand: it shows what it pushes; look away and it goes. */
-	@GameTest(maxTicks = 80)
-	public void pistonPreviewByLooking(GameTestHelper helper) {
-		ServerLevel level = helper.getLevel();
+	/**
+	 * Like Pistorder: right-click a piston with an empty hand shows it, again hides it. Holding a
+	 * block (so it can be placed) or sneaking does nothing.
+	 */
+	@GameTest(maxTicks = 20)
+	public void pistonPreviewByClicking(GameTestHelper helper) {
 		ServerPlayer player = helper.makeMockServerPlayerInLevel();
-		// Test players are not ops: let everyone use RedstoneLab so the mod's own tick runs it.
+		// Test players are not ops: let everyone use RedstoneLab.
 		dev.redstonelab.config.ServerConfig.get().permissionLevel = 0;
-		player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new ItemStack(Items.STONE, 64));
 		BlockPos piston = new BlockPos(1, 1, 2);
+		BlockPos abs = helper.absolutePos(piston);
 		helper.setBlock(piston, piston(false, Direction.EAST));
 		for (int x = 2; x <= 4; x++) {
 			helper.setBlock(new BlockPos(x, 1, 2), Blocks.STONE);
 		}
-		lookAt(helper, player, new net.minecraft.world.phys.Vec3(1.5, 1, 5.5), piston);
-		PistorderFeature.update(player);
-		helper.assertTrue(helper.absolutePos(piston).equals(PistorderFeature.previewForTest(player)),
-				"looking at the piston should preview it, got " + PistorderFeature.previewForTest(player));
-		helper.assertTrue(PistorderFeature.labelForTest(player).equals("\u2714 push 3"), "label: " + PistorderFeature.labelForTest(player));
-		// Look at the sky: it stays a moment (so you can read it), then goes.
-		player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, player.getEyePosition().add(0, 10, 0));
-		helper.runAtTickTime(20, () -> {
-			PistorderFeature.update(player);
-			helper.assertTrue(PistorderFeature.previewForTest(player) != null, "the preview should stay for a moment");
-		});
-		helper.runAtTickTime(60, () -> {
-			PistorderFeature.update(player);
-			helper.assertTrue(PistorderFeature.previewForTest(player) == null, "the preview should be gone after looking away");
-			helper.succeed();
-		});
+		player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new ItemStack(Items.STONE, 64));
+		helper.assertTrue(click(helper, player, piston) == net.minecraft.world.InteractionResult.PASS
+				&& !PistorderFeature.shownForTest(player, abs), "with a block in hand the click must place it, not show the preview");
+		player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+		player.setShiftKeyDown(true);
+		helper.assertTrue(click(helper, player, piston) == net.minecraft.world.InteractionResult.PASS
+				&& !PistorderFeature.shownForTest(player, abs), "sneaking does nothing");
+		player.setShiftKeyDown(false);
+		click(helper, player, piston);
+		helper.assertTrue(PistorderFeature.shownForTest(player, abs), "empty hand click shows it");
+		helper.assertTrue(PistorderFeature.labelForTest(player, abs).equals("\u2714 push 3"), "label: " + PistorderFeature.labelForTest(player, abs));
+		click(helper, player, piston);
+		helper.assertTrue(!PistorderFeature.shownForTest(player, abs), "clicking again hides it");
+		helper.succeed();
 	}
 
 	// ------------------------------------------------------------------ polish: every feature once
