@@ -1,0 +1,121 @@
+plugins {
+	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+	id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	// MaLiLib (client-only, optional at runtime)
+	maven {
+		url = 'https://masa.dy.fi/maven/sakura-ryoko'
+		content { includeGroupAndSubgroups('fi.dy.masa') }
+	}
+	// Mod Menu (optional)
+	maven {
+		url = 'https://maven.terraformersmc.com/releases/'
+		content { includeGroupAndSubgroups('com.terraformersmc') }
+	}
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"redstonelab" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+// Automated in-game tests (src/gametest): ./gradlew runGameTest
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = "redstonelab-test"
+		enableGameTests = true
+		enableClientGameTests = true
+		eula = true
+	}
+}
+
+// Client test (xvfb-run ./gradlew runClientGameTest): the mod sends packets the test framework's
+// network lockstep doesn't expect, so that lockstep is switched off.
+loom.runs.configureEach {
+	if (name == "clientGameTest") {
+		vmArg "-Dfabric.client.gametest.disableNetworkSynchronizer=true"
+	}
+}
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings loom.officialMojangMappings()
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// Fabric API: the only hard dependency (server and client).
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// MaLiLib: compile against it, but never require it. It is only touched from client-only
+	// classes that are loaded after FabricLoader.isModLoaded("malilib") returned true.
+	// It is listed under "recommends" in fabric.mod.json, so dedicated servers load without it.
+	// transitive = false: MaLiLib's POM lists conditional-mixin, which is already bundled
+	// (jar-in-jar) inside the MaLiLib jar and lives on a Maven we don't need.
+	modCompileOnly("fi.dy.masa.malilib:malilib-fabric-${project.minecraft_version}:${project.malilib_version}") { transitive = false }
+	modLocalRuntime("fi.dy.masa.malilib:malilib-fabric-${project.minecraft_version}:${project.malilib_version}") { transitive = false }
+
+	// Mod Menu: optional, compile-only so it stays a soft dependency.
+	modCompileOnly("com.terraformersmc:modmenu:${project.modmenu_version}") { transitive = false }
+	modLocalRuntime("com.terraformersmc:modmenu:${project.modmenu_version}") { transitive = false }
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+	it.options.encoding = 'UTF-8'
+}
+
+java {
+	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+	// if it is present.
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName"}
+	}
+	from("COPYING") {
+		rename { "${it}_$projectName"}
+	}
+}
+
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+	repositories {
+	}
+}

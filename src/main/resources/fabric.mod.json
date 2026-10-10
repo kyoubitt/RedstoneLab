@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 1,
+	"id": "redstonelab",
+	"version": "${version}",
+	"name": "RedstoneLab",
+	"description": "Simple redstone meters (on/off timeline with event marks, pulse lengths) and piston push order previews. Works on servers; players without the mod can use it too.",
+	"authors": [
+		"kyoubitt"
+	],
+	"contact": {},
+	"license": "LGPL-3.0-only",
+	"icon": "assets/redstonelab/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"dev.redstonelab.RedstoneLab"
+		],
+		"client": [
+			"dev.redstonelab.client.RedstoneLabClient"
+		],
+		"modmenu": [
+			"dev.redstonelab.client.compat.ModMenuIntegration"
+		]
+	},
+	"mixins": [
+		"redstonelab.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~1.21.11",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"recommends": {
+		"malilib": ">=0.27.19"
+	},
+	"suggests": {
+		"modmenu": "*"
+	}
+}

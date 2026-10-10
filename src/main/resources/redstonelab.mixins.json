@@ -1,0 +1,22 @@
+{
+	"required": true,
+	"package": "dev.redstonelab.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"BlockStateBaseMixin",
+		"ComparatorBlockEntityMixin",
+		"DiodeBlockInvoker",
+		"PistonBaseBlockInvoker",
+		"PistonBaseBlockMixin",
+		"RedstoneTorchBlockInvoker",
+		"LevelChunkMixin",
+		"LevelMixin",
+		"ServerLevelMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

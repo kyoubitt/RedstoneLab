@@ -1,0 +1,18 @@
+{
+	"schemaVersion": 1,
+	"id": "redstonelab-test",
+	"version": "1.0.0",
+	"name": "RedstoneLab game tests",
+	"environment": "*",
+	"entrypoints": {
+		"fabric-gametest": [
+			"dev.redstonelab.feature.RedstoneLabGameTests"
+		],
+		"fabric-client-gametest": [
+			"dev.redstonelab.feature.RedstoneLabClientTests"
+		]
+	},
+	"depends": {
+		"redstonelab": "*"
+	}
+}
