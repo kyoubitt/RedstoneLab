@@ -66,6 +66,7 @@ Needs cheats/op; `/rlab config set permissionLevel 0` lets everyone use it.
 
 ## Install
 
+**Download:** [latest release](https://github.com/kyoubitt/RedstoneLab/releases/latest) (`redstonelab-x.y.z.jar`, not `-sources`).
 Fabric API + this jar (+ MaLiLib for the timeline, Mod Menu optional). On a server,
 players without the mod can still use it. Server and client need the same version.
 
