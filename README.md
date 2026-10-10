@@ -24,9 +24,11 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 - **thin line** = powered but not on yet (a repeater's delay, a piston waiting)
 - **white line** = 0-tick pulse
 - **Order** = which meters turn on first, counted from A. `A → 2t → B D`: B and D turn on 2 ticks after A.
-- Numbers are exact: `6t`, `5t/7t` when it alternates, `7t (varies)` when it's irregular.
-- Hoppers, droppers, chests: `Dropper · 27 Stone + 4 Redstone · signal 2 (3 at 83) · fires every 4t`
-  (`3 at 83` = the comparator gives 3 at 83 items)
+- Numbers are exact: `6t`; `3t/5t` = it alternates 3t, 5t, 3t, 5t…; `2t/3t/3t` = that pattern
+  repeats; `2t or 3t` = no pattern, those are the lengths seen.
+- Droppers / dispensers / crafters: bar = fires (triggered). `Dropper · 27 Stone · fires every 4t`
+- Hoppers: bar = locked. Chests, barrels…: bar = comparator signal above 0.
+  `Chest · 27 Stone · signal 2 (3 at 83)` (`3 at 83` = the comparator gives 3 at 83 items)
 - Comparators: `Comparator · subtract · back 15 · side 14 · out 1`
 - Meters move with blocks pushed by pistons.
 
@@ -34,7 +36,8 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 
 **Look back:** **R + Left / R + Right** = 1 tick back / forward (the timeline freezes; back at
 "now" it runs again). While frozen you get a list of everything that happened at your meters in
-that tick, in order (repeater ticks, turns on, piston moves…), grouped by the part of the tick.
+that tick, in order (repeater ticks, turns on, piston moves…), grouped by the part of the tick
+(sub-tick order, like RSMM). Block and shape updates: turn on **Show event marks** in settings.
 
 **Extras (commands):**
 - `/rlab meter expect A 2 4`: A should be on 2t, off 4t. Wrong pulses turn red.
@@ -45,7 +48,8 @@ No client mod? You get boss bars and `/rlab meter` in chat.
 
 ## Pistons
 
-Like Pistorder: **right-click a piston with an empty hand** to show what it will do, click it
+Like Pistorder, and it works **on any server** (only your client needs the mod):
+**right-click a piston with an empty hand** to show what it will do, click it
 again to hide it. Several can be shown at once. Sneaking does nothing. **P** hides them all
 (changing dimension too).
 - `✔ push 3`: numbers on the blocks = move order, `breaks` = destroyed
@@ -57,7 +61,19 @@ the **Order** line shows it. "Where blocks land" boxes: Pistorder settings tab.
 
 ## Settings
 
-**R + C** or Mod Menu. Tabs: Meters, GUI, Pistorder, Hotkeys.
+**R + C** or Mod Menu. Tabs: Meters, GUI, Pistorder, Hotkeys. Hotkeys can be combos: click one,
+hold the keys (e.g. R, then Left), let go. Saved in `config/redstonelab.json`.
+
+| Key | Does |
+|---|---|
+| M | meter on / off on the block you look at |
+| Backspace | remove a meter |
+| R + M | remove all meters |
+| R + Space | freeze / unfreeze the timeline |
+| R + Left / Right | 1 tick back / forward |
+| P | hide piston previews |
+| R + G | meter groups |
+| R + C | settings |
 
 ## Commands
 
@@ -68,8 +84,10 @@ Needs cheats/op; `/rlab config set permissionLevel 0` lets everyone use it.
 ## Install
 
 **Download:** [latest release](https://github.com/kyoubitt/RedstoneLab/releases/latest) (`redstonelab-x.y.z.jar`, not `-sources`).
-Fabric API + this jar (+ MaLiLib for the timeline, Mod Menu optional). On a server,
-players without the mod can still use it. Server and client need the same version.
+Fabric API + this jar. Nothing else (Mod Menu optional).
+- Client only: piston previews work everywhere. Meters need the mod on the server (or singleplayer).
+- Server only: players without the mod still get meters as boss bars / chat, and piston previews.
+- Both: same version.
 
 ## Build and test
 

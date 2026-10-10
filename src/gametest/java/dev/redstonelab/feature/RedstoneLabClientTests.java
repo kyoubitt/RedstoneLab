@@ -24,8 +24,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 import dev.redstonelab.client.ClientState;
-import dev.redstonelab.client.malilib.LabCallbacks;
-import dev.redstonelab.client.malilib.LabConfigs;
+import dev.redstonelab.client.ClientPistons;
+import dev.redstonelab.client.ui.LabConfig;
+import dev.redstonelab.client.ui.LabConfigScreen;
+import dev.redstonelab.client.ui.LabKeys;
 
 /**
  * Opens a real client, builds a clock, repeater, lamp, piston and a dropper -> hopper -> chest
@@ -69,23 +71,25 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			this.record(context, 70, "/rlab meter expect B 3  ->  wrong pulses turn red");
 			world.getServer().runOnServer(server -> MeterFeature.expect(player(server), "B", null, null, true));
 
-			context.runOnClient(client -> {
-				LabCallbacks.scroll = 0;
-				LabConfigs.Keys.PAUSE_TIMELINE.setBooleanValue(true);
-			});
+			// Real keys: hold R, press Left = 1 tick back (freezes the timeline).
+			context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
+			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
+			context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
+			context.waitTick();
+			boolean frozen = context.computeOnClient(client -> LabKeys.paused && LabKeys.scroll == 1);
+			if (!frozen) {
+				throw new AssertionError("R + Left should freeze the timeline 1 tick back");
+			}
 			for (int step = 0; step <= 6; step++) {
 				int scroll = step;
-				context.runOnClient(client -> LabCallbacks.scroll = scroll);
+				context.runOnClient(client -> LabKeys.scroll = scroll);
 				this.record(context, 14, "Frozen (R+Space). R+Left = 1 tick back: everything that happened, in order");
 			}
 			context.takeScreenshot("still-frozen");
-			context.runOnClient(client -> {
-				LabCallbacks.scroll = 0;
-				LabConfigs.Keys.PAUSE_TIMELINE.setBooleanValue(false);
-			});
+			context.runOnClient(client -> LabKeys.setPaused(false));
 
 			// The world: meter letters.
-			context.runOnClient(client -> LabConfigs.Settings.SHOW_TIMELINE.setBooleanValue(false));
+			context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = false);
 			world.getServer().runOnServer(server -> {
 				ServerPlayer player = player(server);
 				player.teleportTo(player.level(), base.getX() + 0.5, base.getY() + 2.5, base.getZ() - 1.5, java.util.Set.of(), 0f, 25f, false);
@@ -103,22 +107,35 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			context.waitTicks(10);
 			context.getInput().pressMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_RIGHT);
 			context.waitTicks(4);
-			boolean shown = world.getServer().computeOnServer(server -> PistorderFeature.shownForTest(player(server), base.offset(4, 0, 4)));
+			boolean shown = context.computeOnClient(client -> ClientPistons.isShown(base.offset(4, 0, 4)));
 			if (!shown) {
 				throw new AssertionError("right-clicking the piston with an empty hand did not show its preview");
 			}
 			this.record(context, 90, "Pistons: right-click with an empty hand (like Pistorder). Numbers = push order");
+			String label = context.computeOnClient(client -> ClientPistons.label(base.offset(4, 0, 4)));
+			if (label.isEmpty()) {
+				throw new AssertionError("the piston preview was never drawn");
+			}
 			context.takeScreenshot("still-piston");
+			// P hides all piston previews.
+			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_P);
+			context.waitTick();
+			if (context.computeOnClient(client -> ClientPistons.isShown(base.offset(4, 0, 4)) || client.screen != null)) {
+				throw new AssertionError("P should hide the piston previews (and not open a screen)");
+			}
 
 			// Chat view (works without the client mod) and the settings menu.
 			world.getServer().runOnServer(server -> server.getCommands().performPrefixedCommand(
 					player(server).createCommandSourceStack(), "rlab meter"));
 			this.record(context, 80, "No client mod? /rlab meter shows it in chat (and boss bars)");
-			context.runOnClient(client -> LabConfigs.Settings.SHOW_TIMELINE.setBooleanValue(true));
-			context.setScreen(() -> dev.redstonelab.client.malilib.MalilibBridge.createConfigScreen(null));
-			this.record(context, 50, "Settings: R + C (tabs: Meters, GUI, Pistorder, Hotkeys)");
+			context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = true);
+			context.setScreen(() -> new LabConfigScreen(null));
+			this.record(context, 40, "Settings: R + C. No other mods needed");
+			context.clickScreenButton("Hotkeys");
+			this.record(context, 40, "Hotkeys: click one, press the keys (e.g. hold R, press Left)");
+			context.takeScreenshot("still-hotkeys");
 			context.setScreen(() -> null);
-			context.runOnClient(client -> LabConfigs.Settings.SHOW_TIMELINE.setBooleanValue(true));
+			context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = true);
 		}
 		try {
 			Files.write(Path.of("video-captions.txt"), this.captions, StandardCharsets.UTF_8);

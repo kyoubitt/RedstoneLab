@@ -105,10 +105,18 @@ public final class PowerUtil {
 		} else if (block instanceof PistonBaseBlock) {
 			active = state.getValue(PistonBaseBlock.EXTENDED);
 			powered = ((PistonBaseBlockInvoker) block).redstonelab$isPowered(level, pos, state.getValue(PistonBaseBlock.FACING));
-		} else if (state.hasBlockEntity() && level.getBlockEntity(pos) instanceof Container) {
-			// Containers: active = comparator output > 0 (the bar shows how full it is).
-			active = power > 0;
+		} else if (state.hasProperty(BlockStateProperties.TRIGGERED)) {
+			// Dispensers, droppers, crafters: on = triggered (powered; it fires when it turns on).
+			active = state.getValue(BlockStateProperties.TRIGGERED);
 			powered = level.hasNeighborSignal(pos) || (block instanceof DispenserBlock && level.hasNeighborSignal(pos.above()));
+		} else if (block instanceof net.minecraft.world.level.block.HopperBlock) {
+			// Hoppers: on = locked by redstone.
+			active = !state.getValue(BlockStateProperties.ENABLED);
+			powered = level.hasNeighborSignal(pos);
+		} else if (state.hasBlockEntity() && level.getBlockEntity(pos) instanceof Container) {
+			// Chests, barrels...: on = a comparator reading it gives a signal.
+			active = power > 0;
+			powered = level.hasNeighborSignal(pos);
 		} else if (state.isSignalSource()) {
 			// Observer, lever, button, redstone block...: on = gives a signal.
 			active = powered = power > 0;

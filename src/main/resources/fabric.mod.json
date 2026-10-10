@@ -3,7 +3,7 @@
 	"id": "redstonelab",
 	"version": "${version}",
 	"name": "RedstoneLab",
-	"description": "Simple redstone meters (on/off timeline with event marks, pulse lengths) and piston push order previews. Works on servers; players without the mod can use it too.",
+	"description": "Redstone meters (timeline, exact pulse lengths, tick order) and Pistorder-style piston previews. No other mods needed besides Fabric API. Works on servers; players without the mod can use it too.",
 	"authors": [
 		"kyoubitt"
 	],
@@ -23,16 +23,17 @@
 		]
 	},
 	"mixins": [
-		"redstonelab.mixins.json"
+		"redstonelab.mixins.json",
+		{
+			"config": "redstonelab.client.mixins.json",
+			"environment": "client"
+		}
 	],
 	"depends": {
 		"fabricloader": ">=0.19.5",
 		"minecraft": "~1.21.11",
 		"java": ">=21",
 		"fabric-api": "*"
-	},
-	"recommends": {
-		"malilib": ">=0.27.19"
 	},
 	"suggests": {
 		"modmenu": "*"

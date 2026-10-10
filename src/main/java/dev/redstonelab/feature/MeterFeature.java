@@ -205,6 +205,10 @@ public final class MeterFeature {
 		long lastExtend = Long.MIN_VALUE;
 		boolean piston;
 		boolean comparator;
+		/** Dropper, dispenser, crafter: it fires; its comparator signal is not interesting. */
+		boolean fires;
+		/** Chest-like container: on = comparator signal above 0. */
+		boolean signalBased;
 		boolean wire;
 
 		@Override
@@ -296,10 +300,12 @@ public final class MeterFeature {
 				if (this.itemCount == 0) {
 					sb.append(" \u00b7 empty");
 				} else {
-					sb.append(" \u00b7 ").append(this.contents.isEmpty() ? this.itemCount + (this.itemCount == 1 ? " item" : " items") : this.contents)
-							.append(" \u00b7 signal ").append(this.power);
+					sb.append(" \u00b7 ").append(this.contents.isEmpty() ? this.itemCount + (this.itemCount == 1 ? " item" : " items") : this.contents);
+					if (!this.fires) {
+						sb.append(" \u00b7 signal ").append(this.power);
+					}
 				}
-				if (this.itemCount > 0 && !this.nextLevel.isEmpty()) {
+				if (this.itemCount > 0 && !this.nextLevel.isEmpty() && !this.fires) {
 					sb.append(" (").append(this.nextLevel).append(")");
 				}
 				appendRate(sb, "fires", this.fireGaps, this.lastFire);
@@ -380,7 +386,7 @@ public final class MeterFeature {
 		String onOff() {
 			String text = this.active ? "ON" + (this.power > 0 ? " " + this.power : "") : "OFF";
 			// Containers: on = comparator signal, being powered is a different thing, don't mix them.
-			if (this.itemCount >= 0 || this.powered == this.active) {
+			if (this.signalBased || this.powered == this.active) {
 				return text;
 			}
 			return text + (this.powered ? " \u00b7 powered" : " \u00b7 not powered");
@@ -543,9 +549,12 @@ public final class MeterFeature {
 		m.piston = level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.piston.PistonBaseBlock;
 		m.comparator = level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ComparatorBlock;
 		m.wire = level.getBlockState(pos).is(Blocks.REDSTONE_WIRE);
+		BlockState placed = level.getBlockState(pos);
+		m.fires = placed.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.TRIGGERED);
 		m.itemCount = itemCount(level, pos);
 		m.nextLevel = m.itemCount > 0 ? nextLevel(level, pos, m.power) : "";
 		m.contents = contents(level, pos);
+		m.signalBased = m.itemCount >= 0 && !m.fires && !(placed.getBlock() instanceof net.minecraft.world.level.block.HopperBlock);
 		state.meters.add(m);
 		PowerWatch.add(level, pos, m);
 		state.dirty = true;
@@ -1164,7 +1173,7 @@ public final class MeterFeature {
 		List<LabPayloads.ScopeChannel> channels = new ArrayList<>();
 		List<String> stats = new ArrayList<>();
 		for (Meter m : state.meters) {
-			channels.add(new LabPayloads.ScopeChannel(m.pos, m.label, m.color, m.itemCount >= 0));
+			channels.add(new LabPayloads.ScopeChannel(m.pos, m.label, m.color, m.signalBased));
 			stats.add(m.status());
 		}
 		LabNetworking.send(player, new LabPayloads.ScopeConfigS2C(channels, stats, ServerConfig.get().meterHistoryTicks, state.groups.active,

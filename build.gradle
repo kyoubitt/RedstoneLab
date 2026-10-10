@@ -62,14 +62,6 @@ dependencies {
 	// Fabric API: the only hard dependency (server and client).
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
-	// MaLiLib: compile against it, but never require it. It is only touched from client-only
-	// classes that are loaded after FabricLoader.isModLoaded("malilib") returned true.
-	// It is listed under "recommends" in fabric.mod.json, so dedicated servers load without it.
-	// transitive = false: MaLiLib's POM lists conditional-mixin, which is already bundled
-	// (jar-in-jar) inside the MaLiLib jar and lives on a Maven we don't need.
-	modCompileOnly("fi.dy.masa.malilib:malilib-fabric-${project.minecraft_version}:${project.malilib_version}") { transitive = false }
-	modLocalRuntime("fi.dy.masa.malilib:malilib-fabric-${project.minecraft_version}:${project.malilib_version}") { transitive = false }
-
 	// Mod Menu: optional, compile-only so it stays a soft dependency.
 	modCompileOnly("com.terraformersmc:modmenu:${project.modmenu_version}") { transitive = false }
 	modLocalRuntime("com.terraformersmc:modmenu:${project.modmenu_version}") { transitive = false }

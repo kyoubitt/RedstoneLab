@@ -247,7 +247,7 @@ public class RedstoneLabGameTests {
 		helper.setBlock(piston, piston(false, Direction.EAST));
 		helper.setBlock(new BlockPos(1, 3, 1), Blocks.REDSTONE_BLOCK);
 		helper.runAtTickTime(3, () -> {
-			String info = PistorderFeature.powerInfo(level, helper.absolutePos(piston));
+			String info = PistonView.powerInfo(level, helper.absolutePos(piston));
 			helper.assertTrue("BUD".equals(info), "expected BUD, got " + info);
 			int power = dev.redstonelab.util.PowerUtil.powerAt(level, helper.absolutePos(piston));
 			helper.assertTrue(power == 15, "a QC-powered piston's meter should read 15, got " + power);
@@ -260,7 +260,7 @@ public class RedstoneLabGameTests {
 		helper.runAtTickTime(8, () -> {
 			helper.assertBlockState(piston, s -> s.getValue(BlockStateProperties.EXTENDED),
 					s -> Component.literal("piston should have extended"));
-			String info = PistorderFeature.powerInfo(level, helper.absolutePos(piston));
+			String info = PistonView.powerInfo(level, helper.absolutePos(piston));
 			helper.assertTrue("QC".equals(info), "expected QC, got " + info);
 			helper.succeed();
 		});
@@ -384,6 +384,8 @@ public class RedstoneLabGameTests {
 			String meter = MeterFeature.statusForTest(player, "A");
 			helper.assertTrue(meter.equals(real), "piston: meter says '" + meter + "', game did '" + real + "'");
 			helper.assertTrue(lost[0] == 0, "the preview of a piston on a clock dropped " + lost[0] + " times");
+			helper.assertTrue(!PistorderFeature.labelForTest(player, helper.absolutePos(piston)).isEmpty(),
+					"the preview of a piston on a clock must still get drawn (it is only still for a tick at a time)");
 			PistorderFeature.clear(player);
 			MeterFeature.clear(player);
 			helper.succeed();
@@ -759,6 +761,12 @@ public class RedstoneLabGameTests {
 		if (s.getBlock() instanceof net.minecraft.world.level.block.piston.PistonBaseBlock) {
 			return s.getValue(BlockStateProperties.EXTENDED);
 		}
+		if (s.is(Blocks.DROPPER) || s.is(Blocks.DISPENSER)) {
+			return s.getValue(BlockStateProperties.TRIGGERED);
+		}
+		if (s.is(Blocks.HOPPER)) {
+			return !s.getValue(BlockStateProperties.ENABLED);
+		}
 		return null;
 	}
 
@@ -823,8 +831,12 @@ public class RedstoneLabGameTests {
 									net.minecraft.world.level.block.state.properties.AttachFace.FLOOR)
 									.setValue(BlockStateProperties.HORIZONTAL_FACING, h);
 							levers.add(pos);
-						} else if (pick < 92) {
+						} else if (pick < 90) {
 							s = Blocks.REDSTONE_BLOCK.defaultBlockState();
+						} else if (pick < 93) {
+							s = Blocks.DROPPER.defaultBlockState().setValue(BlockStateProperties.FACING, Direction.UP);
+						} else if (pick < 95) {
+							s = Blocks.HOPPER.defaultBlockState();
 						} else {
 							s = Blocks.STONE.defaultBlockState();
 						}
@@ -926,10 +938,9 @@ public class RedstoneLabGameTests {
 		dropper.setItem(0, new ItemStack(Items.STONE, 10));
 		dropper.setChanged();
 		helper.runAtTickTime(3, () -> {
-			int signal = AbstractContainerMenu.getRedstoneSignalFromContainer(dropper);
 			String meter = MeterFeature.statusForTest(player, "A");
-			String real = "Dropper" + DOT + "10 Stone" + DOT + "signal " + signal + " (2 at 42)";
-			helper.assertTrue(meter.startsWith(real), "meter says '" + meter + "', game: '" + real + "'");
+			// Droppers fire: no comparator signal in their text.
+			helper.assertTrue(meter.equals("Dropper" + DOT + "10 Stone"), "meter says '" + meter + "'");
 			dropper.setItem(1, new ItemStack(Items.REDSTONE, 3));
 			dropper.setChanged();
 		});
@@ -941,7 +952,28 @@ public class RedstoneLabGameTests {
 		});
 		helper.runAtTickTime(9, () -> {
 			String meter = MeterFeature.statusForTest(player, "A");
-			helper.assertTrue(meter.startsWith("Dropper" + DOT + "14 items, 3 kinds" + DOT), "three kinds: " + meter);
+			helper.assertTrue(meter.startsWith("Dropper" + DOT + "14 items, 3 kinds"), "three kinds: " + meter);
+			// A hopper with 10 stone: signal and the next level must match the game.
+			BlockPos hopperPos = new BlockPos(3, 1, 1);
+			helper.setBlock(hopperPos, Blocks.HOPPER);
+			Container hopper = (Container) level.getBlockEntity(helper.absolutePos(hopperPos));
+			hopper.setItem(0, new ItemStack(Items.STONE, 10));
+			hopper.setChanged();
+			MeterFeature.toggle(player, level, helper.absolutePos(hopperPos));
+			int signal = AbstractContainerMenu.getRedstoneSignalFromContainer(hopper);
+			// The game's own formula, by brute force: the fewest stone that gives the next signal.
+			int next = -1;
+			for (int k = 10; k <= 5 * 64 && next < 0; k++) {
+				net.minecraft.world.SimpleContainer probe = new net.minecraft.world.SimpleContainer(5);
+				for (int slot = 0, left = k; left > 0; slot++, left -= 64) {
+					probe.setItem(slot, new ItemStack(Items.STONE, Math.min(64, left)));
+				}
+				if (AbstractContainerMenu.getRedstoneSignalFromContainer(probe) > signal) {
+					next = k;
+				}
+			}
+			String real = "Hopper" + DOT + "10 Stone" + DOT + "signal " + signal + " (" + (signal + 1) + " at " + next + ")";
+			helper.assertTrue(MeterFeature.statusForTest(player, "B").startsWith(real), "hopper: " + MeterFeature.statusForTest(player, "B") + " / game: " + real);
 			MeterFeature.clear(player);
 			helper.succeed();
 		});

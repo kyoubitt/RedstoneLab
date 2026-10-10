@@ -1,63 +1,32 @@
-package dev.redstonelab.client.malilib;
+package dev.redstonelab.client.ui;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.MeshData;
-import org.joml.Matrix4f;
-
-import fi.dy.masa.malilib.config.HudAlignment;
-import fi.dy.masa.malilib.interfaces.IRenderer;
-import fi.dy.masa.malilib.render.GuiContext;
-import fi.dy.masa.malilib.render.MaLiLibPipelines;
-import fi.dy.masa.malilib.render.RenderContext;
-import fi.dy.masa.malilib.render.RenderUtils;
-import fi.dy.masa.malilib.util.data.Color4f;
-
-import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.renderer.RenderBuffers;
-import net.minecraft.client.renderer.culling.Frustum;
-import net.minecraft.core.BlockPos;
-import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.gui.GuiGraphics;
 
-import dev.redstonelab.RedstoneLab;
 import dev.redstonelab.client.ClientState;
 import dev.redstonelab.core.MeterEvent;
 import dev.redstonelab.core.TickPhase;
-import dev.redstonelab.net.LabPayloads;
 
 /**
- * Meter timeline HUD and in-world outlines/labels (meters, piston previews) for modded clients.
+ * The meter timeline on screen (plain Minecraft drawing, registered as a HUD element).
  */
-public final class LabRenderer implements IRenderer {
-	public static final LabRenderer INSTANCE = new LabRenderer();
+public final class TimelineHud {
+	public static final TimelineHud INSTANCE = new TimelineHud();
 
-	private static final double MAX_DISTANCE = 96;
-	private static final int MAX_MARKERS = 400;
-
-	private LabRenderer() {
+	private TimelineHud() {
 	}
 
-	// ------------------------------------------------------------------ HUD
-
-	@Override
-	public void onRenderGameOverlayPostAdvanced(GuiContext ctx, float partialTicks, ProfilerFiller profiler) {
-		Minecraft mc = ctx.mc();
-		if (mc.player == null || mc.options.hideGui || mc.screen != null || ClientState.SCOPE.isEmpty()
-				|| !LabConfigs.Settings.SHOW_TIMELINE.getBooleanValue()) {
+	public void render(GuiGraphics ctx, DeltaTracker tick) {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.player == null || mc.options.hideGui || mc.screen != null || ClientState.SCOPE.isEmpty() || !LabConfig.SHOW_TIMELINE.value) {
 			return;
 		}
-		profiler.push("redstonelab_scope");
 		this.renderScope(ctx, mc.font);
-		profiler.pop();
 	}
 
 	/** Events about the block itself, drawn in the upper row of the event lane. */
@@ -77,23 +46,23 @@ public final class LabRenderer implements IRenderer {
 	private int stableWidth;
 	private int legendFlags;
 
-	private void renderScope(GuiContext ctx, Font font) {
-		int visible = Math.min(LabConfigs.Settings.TIMELINE_TICKS.getIntegerValue(), ClientState.CAPACITY);
+	private void renderScope(GuiGraphics ctx, Font font) {
+		int visible = Math.min(LabConfig.TIMELINE_TICKS.value, ClientState.CAPACITY);
 		int width = visible * PX;
 		int chH = 11;
-		boolean marks = LabConfigs.Settings.EVENT_MARKS.getBooleanValue();
-		boolean showTitle = LabConfigs.Settings.SHOW_TITLE.getBooleanValue();
-		boolean showInfo = LabConfigs.Settings.SHOW_INFO.getBooleanValue();
+		boolean marks = LabConfig.EVENT_MARKS.value;
+		boolean showTitle = LabConfig.SHOW_TITLE.value;
+		boolean showInfo = LabConfig.SHOW_INFO.value;
 		// The colour legend only while frozen: that's when you read the marks closely.
-		boolean showLegend = marks && LabConfigs.Settings.SHOW_LEGEND.getBooleanValue() && LabConfigs.Keys.PAUSE_TIMELINE.getBooleanValue();
+		boolean showLegend = marks && LabConfig.SHOW_LEGEND.value && LabKeys.paused;
 		int laneH = marks ? LANE_H : 0;
 		int labelW = 12;
 		// One line per meter: the info text sits right of the bar.
 		int rowH = chH + laneH + 2;
 		String orderText = showInfo && !ClientState.order.isEmpty() ? "Order: " + ClientState.order : "";
 		int titleH = (showTitle ? 13 : 3) + (orderText.isEmpty() ? 0 : font.lineHeight + 2);
-		boolean paused = LabConfigs.Keys.PAUSE_TIMELINE.getBooleanValue();
-		int scroll = paused ? LabCallbacks.scroll : 0;
+		boolean paused = LabKeys.paused;
+		int scroll = paused ? LabKeys.scroll : 0;
 		String name = "default".equals(ClientState.group) ? "Meters" : "Meters: " + ClientState.group;
 		String title = paused ? name + " [frozen" + (scroll > 0 ? " -" + scroll + "t" : "") + "]" : name;
 
@@ -117,38 +86,40 @@ public final class LabRenderer implements IRenderer {
 		}
 		this.stableWidth = Math.max(this.stableWidth, panelW);
 		// Never wider than the screen: long info text is cut with "..." instead.
-		float panelScale = hudScale(ctx.mc());
-		int maxW = (int) (ctx.guiWidth() / panelScale) - 2 * LabConfigs.Settings.OFFSET_X.getIntegerValue();
+		float panelScale = hudScale(Minecraft.getInstance());
+		int maxW = (int) (ctx.guiWidth() / panelScale) - 2 * LabConfig.OFFSET_X.value;
 		panelW = Math.max(infoX, Math.min(this.stableWidth, maxW));
 		if (showLegend) {
 			this.legendFlags |= visibleEvents(visible, scroll);
 		}
 		List<List<MeterEvent>> legend = showLegend ? legendLines(font, panelW - 4, this.legendFlags) : List.of();
 		// While frozen: one line explaining the bars (+ the mark colours when marks are on).
-		boolean showHint = LabConfigs.Settings.SHOW_LEGEND.getBooleanValue() && LabConfigs.Keys.PAUSE_TIMELINE.getBooleanValue();
+		boolean showHint = LabConfig.SHOW_LEGEND.value && LabKeys.paused;
 		int legendH = showHint ? (legend.size() + 1) * (font.lineHeight + 1) + 2 : 0;
 		// Frozen: a cursor on the newest shown tick and a list of what happened in it, in order.
-		List<Inspected> inspected = paused && LabConfigs.Settings.SHOW_INSPECT.getBooleanValue() ? inspect(scroll) : null;
+		List<Inspected> inspected = paused && LabConfig.SHOW_INSPECT.value ? inspect(scroll) : null;
 		String inspectTitle = "";
 		if (inspected != null) {
 			int idx = ClientState.sampleIndex(scroll);
 			inspectTitle = "Tick " + (idx >= 0 ? ClientState.sampleTimes[idx] : "?") + (scroll == 0 ? " (newest)" : " (" + scroll + "t ago)")
 					+ (inspected.isEmpty() ? ": nothing happened" : "");
-			int w = font.width(inspectTitle);
+			inspectColW = 0;
 			for (Inspected in : inspected) {
-				w = Math.max(w, font.width(in.text()) + (in.heading() ? 0 : 6));
+				inspectColW = Math.max(inspectColW, font.width(in.text()) + (in.heading() ? 0 : 6) + 10);
 			}
-			panelW = Math.max(panelW, w + 8);
+			// Everything is listed: long lists continue in a second (third...) column.
+			int columns = Math.max(1, (inspected.size() + COLUMN_LINES - 1) / COLUMN_LINES);
+			panelW = Math.max(panelW, Math.max(font.width(inspectTitle) + 8, columns * inspectColW + 4));
 		}
-		int inspectH = inspected == null ? 0 : (1 + Math.min(inspected.size(), MAX_INSPECT_LINES)) * (font.lineHeight + 1) + 3;
+		int inspectH = inspected == null ? 0 : (1 + Math.min(inspected.size(), COLUMN_LINES)) * (font.lineHeight + 1) + 3;
 		int panelH = titleH + rowH * ClientState.SCOPE.size() + legendH + inspectH;
-		float scale = hudScale(ctx.mc());
+		float scale = hudScale(Minecraft.getInstance());
 
 		int screenW = (int) (ctx.guiWidth() / scale);
 		int screenH = (int) (ctx.guiHeight() / scale);
-		HudAlignment align = LabConfigs.Settings.TIMELINE_POSITION.getOptionListValue() instanceof HudAlignment a ? a : HudAlignment.TOP_LEFT;
-		int ox = LabConfigs.Settings.OFFSET_X.getIntegerValue();
-		int oy = LabConfigs.Settings.OFFSET_Y.getIntegerValue();
+		LabConfig.Position align = LabConfig.POSITION.value;
+		int ox = LabConfig.OFFSET_X.value;
+		int oy = LabConfig.OFFSET_Y.value;
 		int x = switch (align) {
 			case TOP_RIGHT, BOTTOM_RIGHT -> screenW - panelW - ox;
 			case CENTER -> (screenW - panelW) / 2;
@@ -162,15 +133,15 @@ public final class LabRenderer implements IRenderer {
 
 		// Smooth scrolling: between two samples everything slides left by up to one column.
 		float shift = 0;
-		if (!paused && LabConfigs.Settings.SMOOTH_SCROLL.getBooleanValue()) {
+		if (!paused && LabConfig.SMOOTH_SCROLL.value) {
 			float sinceSample = (System.nanoTime() - ClientState.lastSampleNanos) / 50_000_000f;
 			shift = Math.max(0, Math.min(1, sinceSample)) * PX;
 		}
 
 		ctx.pose().pushMatrix();
 		ctx.pose().scale(scale, scale);
-		if (LabConfigs.Settings.SHOW_BACKGROUND.getBooleanValue()) {
-			int alpha = Math.round(LabConfigs.Settings.BACKGROUND_OPACITY.getIntegerValue() * 2.55f);
+		if (LabConfig.SHOW_BACKGROUND.value) {
+			int alpha = Math.round(LabConfig.BACKGROUND_OPACITY.value * 2.55f);
 			ctx.fill(x, y, x + panelW, y + panelH, (alpha << 24) | 0x101010);
 		}
 		if (showTitle) {
@@ -218,16 +189,19 @@ public final class LabRenderer implements IRenderer {
 			ly += 2;
 			ctx.drawString(font, inspectTitle, x + 3, ly, 0xFFFFFFFF, true);
 			ly += font.lineHeight + 1;
-			for (int i = 0; i < Math.min(inspected.size(), MAX_INSPECT_LINES); i++) {
+			for (int i = 0; i < inspected.size(); i++) {
 				Inspected in = inspected.get(i);
-				ctx.drawString(font, in.text(), in.heading() ? x + 3 : x + 9, ly, in.color(), true);
-				ly += font.lineHeight + 1;
+				int cx = x + (i / COLUMN_LINES) * inspectColW;
+				int cy = ly + (i % COLUMN_LINES) * (font.lineHeight + 1);
+				ctx.drawString(font, in.text(), in.heading() ? cx + 3 : cx + 9, cy, in.color(), true);
 			}
 		}
 		ctx.pose().popMatrix();
 	}
 
-	private static final int MAX_INSPECT_LINES = 10;
+	/** Lines per column of the "what happened in this tick" list. */
+	private static final int COLUMN_LINES = 12;
+	private int inspectColW;
 
 	/**
 	 * The timeline is the same size at every GUI scale: 2 screen pixels per font pixel (sharp
@@ -236,7 +210,7 @@ public final class LabRenderer implements IRenderer {
 	private static float hudScale(Minecraft mc) {
 		double gui = mc.getWindow().getGuiScale();
 		float fit = gui > 2 ? (float) (2.0 / gui) : 1f;
-		return fit * (float) LabConfigs.Settings.TIMELINE_SCALE.getDoubleValue();
+		return fit * (float) LabConfig.SCALE.value;
 	}
 
 	/** Cuts {@code text} to {@code width} pixels with "..." so it never runs off the screen. */
@@ -264,7 +238,7 @@ public final class LabRenderer implements IRenderer {
 		}
 		MeterEvent[] events = MeterEvent.values();
 		// Block / shape updates and level changes happen all the time: only listed in detail mode.
-		int hidden = LabConfigs.Settings.EVENT_MARKS.getBooleanValue() ? 0
+		int hidden = LabConfig.EVENT_MARKS.value ? 0
 				: MeterEvent.BLOCK_UPDATE.bit() | MeterEvent.SHAPE_UPDATE.bit() | MeterEvent.POWER_CHANGED.bit();
 		for (ClientState.Channel ch : ClientState.SCOPE) {
 			int[] order = ch.order[idx];
@@ -291,14 +265,6 @@ public final class LabRenderer implements IRenderer {
 			}
 			lines.add(new Inspected(in.seq(), (++n) + ". " + in.text(), in.color(), false));
 		}
-		if (lines.size() > MAX_INSPECT_LINES) {
-			int more = 0;
-			for (int i = MAX_INSPECT_LINES - 1; i < lines.size(); i++) {
-				more += lines.get(i).heading() ? 0 : 1;
-			}
-			lines = new ArrayList<>(lines.subList(0, MAX_INSPECT_LINES - 1));
-			lines.add(new Inspected(Integer.MAX_VALUE, "... " + more + " more", 0xFF888888, false));
-		}
 		return lines;
 	}
 
@@ -307,7 +273,7 @@ public final class LabRenderer implements IRenderer {
 		return left + Math.round(i * PX - shift);
 	}
 
-	private void drawTimeline(GuiContext ctx, Font font, ClientState.Channel ch, int visible, int scroll, int left, int top, int chH,
+	private void drawTimeline(GuiGraphics ctx, Font font, ClientState.Channel ch, int visible, int scroll, int left, int top, int chH,
 	                          float shift, boolean marks) {
 		int bottom = top + chH;
 		int barColor = (ch.color & 0x00FFFFFF) | 0xD0000000;
@@ -350,7 +316,7 @@ public final class LabRenderer implements IRenderer {
 			if (runStart != Integer.MIN_VALUE && (!present || on != runOn)) {
 				// A run ended at i - 1. Off runs are only labelled between two pulses.
 				boolean closed = present;
-				if (runBounded && (runOn || closed) && !ch.container && LabConfigs.Settings.SHOW_PULSE_LENGTHS.getBooleanValue()) {
+				if (runBounded && (runOn || closed) && !ch.container && LabConfig.SHOW_PULSE_LENGTHS.value) {
 					boolean wrong = present && MeterEvent.WRONG_LENGTH.in(ch.events[idx]);
 					this.drawRunLength(ctx, font, i - runStart, colX(left, runStart, shift), colX(left, i, shift), top, chH, runOn, wrong);
 				}
@@ -365,7 +331,7 @@ public final class LabRenderer implements IRenderer {
 	}
 
 	/** Writes how many ticks a pulse (or the gap between two pulses) lasted, if it fits. */
-	private void drawRunLength(GuiContext ctx, Font font, int ticks, int sx, int ex, int top, int chH, boolean on, boolean wrong) {
+	private void drawRunLength(GuiGraphics ctx, Font font, int ticks, int sx, int ex, int top, int chH, boolean on, boolean wrong) {
 		if (wrong) {
 			// Different from the expected length: red stripe over the whole pulse / gap.
 			ctx.fill(sx, top, ex, top + 2, MeterEvent.WRONG_LENGTH.color());
@@ -387,7 +353,7 @@ public final class LabRenderer implements IRenderer {
 	 * lower row what the game did to it. With several events in one row the most important one
 	 * (lowest {@link MeterEvent} ordinal) wins.
 	 */
-	private void drawMarks(GuiContext ctx, int flags, int sx, int ex, int bottom) {
+	private void drawMarks(GuiGraphics ctx, int flags, int sx, int ex, int bottom) {
 		if (MeterEvent.WRONG_LENGTH.in(flags)) {
 			ctx.fill(sx, bottom + 1, ex, bottom + 6, MeterEvent.WRONG_LENGTH.color());
 			return;
@@ -453,80 +419,4 @@ public final class LabRenderer implements IRenderer {
 		return lines;
 	}
 
-	// ------------------------------------------------------------------ world
-
-	@Override
-	public void onRenderWorldLastAdvanced(RenderTarget fb, Matrix4f posMatrix, Matrix4f projMatrix, Frustum frustum, Camera camera,
-	                                      RenderBuffers buffers, ProfilerFiller profiler) {
-		Minecraft mc = Minecraft.getInstance();
-		if (mc.player == null || mc.level == null || !LabConfigs.Settings.SHOW_OUTLINES.getBooleanValue() || ClientState.MARKERS.isEmpty()) {
-			return;
-		}
-		profiler.push("redstonelab_markers");
-		Vec3 cam = mc.player.getEyePosition();
-		double maxDistSq = MAX_DISTANCE * MAX_DISTANCE;
-		int budget = MAX_MARKERS;
-
-		List<LabPayloads.MarkerData> outlines = new ArrayList<>();
-		List<LabPayloads.MarkerData> labels = new ArrayList<>();
-		for (Map.Entry<String, List<LabPayloads.MarkerData>> e : ClientState.MARKERS.entrySet()) {
-			for (LabPayloads.MarkerData m : e.getValue()) {
-				if (outlines.size() + labels.size() >= budget) {
-					break;
-				}
-				if (m.pos().getCenter().distanceToSqr(cam) > maxDistSq) {
-					continue;
-				}
-				if ((m.style() & (LabPayloads.STYLE_OUTLINE | LabPayloads.STYLE_FILL)) != 0) {
-					outlines.add(m);
-				}
-				if ((m.style() & LabPayloads.STYLE_LABEL) != 0 && !m.text().isEmpty()) {
-					labels.add(m);
-				}
-			}
-		}
-		this.renderOutlines(outlines, true);
-		this.renderLabels(mc, labels, true);
-		profiler.pop();
-	}
-
-	private void renderOutlines(List<LabPayloads.MarkerData> outlines, boolean through) {
-		if (outlines.isEmpty()) {
-			return;
-		}
-		try (RenderContext ctx = new RenderContext(() -> "redstonelab:outlines",
-				through ? MaLiLibPipelines.DEBUG_LINES_MASA_SIMPLE_NO_DEPTH_NO_CULL : MaLiLibPipelines.DEBUG_LINES_MASA_SIMPLE_LEQUAL_DEPTH)) {
-			BufferBuilder buffer = ctx.getBuilder();
-			for (LabPayloads.MarkerData m : outlines) {
-				RenderUtils.drawBlockBoundingBoxOutlinesBatchedLinesSimple(m.pos(), Color4f.fromColor(m.color()), 0.003, 2.0f, buffer);
-			}
-			MeshData meshData = buffer.build();
-			if (meshData != null) {
-				ctx.draw(meshData, false, true);
-				meshData.close();
-			}
-		} catch (Exception e) {
-			RedstoneLab.LOGGER.debug("Outline rendering failed", e);
-		}
-	}
-
-	private void renderLabels(Minecraft mc, List<LabPayloads.MarkerData> labels, boolean through) {
-		Entity camera = mc.getCameraEntity();
-		if (camera == null) {
-			return;
-		}
-		float scale = 0.025f;
-		int bg = 0x60000000;
-		for (LabPayloads.MarkerData m : labels) {
-			BlockPos p = m.pos();
-			List<String> lines = Arrays.asList(m.text().split("\n"));
-			try {
-				RenderUtils.drawTextPlate(lines, p.getX() + 0.5, p.getY() + m.yOffset(), p.getZ() + 0.5,
-						camera.getYRot(), camera.getXRot(), scale, m.color() | 0xFF000000, bg, through);
-			} catch (Exception e) {
-				RedstoneLab.LOGGER.debug("Label rendering failed", e);
-				return;
-			}
-		}
-	}
 }

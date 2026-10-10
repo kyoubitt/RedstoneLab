@@ -1,9 +1,10 @@
 RedstoneLab - PROGRESS
 ======================
-Last updated: 2026-10-04 (UTC), after full stub compile
+Last updated: 2026-10-10 (UTC), 0.2.0 standalone
 Mod id: redstonelab | MC 1.21.11 | Fabric Loader 0.19.5 | Fabric API 0.141.6+1.21.11 | Loom 1.18-SNAPSHOT (fabric-loom-remap)
 Mappings: Mojang official (what the official Fabric template generates for 1.21.11)
-Optional: MaLiLib 0.27.19 (client, recommends), Mod Menu 17.0.0 (compile-only), Litematica + Carpet (runtime detection only)
+Optional: Mod Menu 17.0.0 (compile-only), Litematica + Carpet (runtime detection only). No MaLiLib since 0.2.0.
+(The phase notes below are history; MaLiLib parts were replaced, see "0.2.0 STANDALONE".)
 
 ----------------------------------------------------------------------
 CURRENT STATE
@@ -472,6 +473,22 @@ PISTON PREVIEW LIKE PISTORDER
   * Tests: pistonPreviewByClicking (block in hand / sneaking do nothing, click shows "✔ push 3",
     click again hides), pistonOnObserverClock (stays shown on a running clock). Client test does
     a real mouse right-click. 24 pass.
+
+----------------------------------------------------------------------
+0.2.0 STANDALONE
+  * MaLiLib removed. client/ui: LabConfig (config/redstonelab.json, reads old MaLiLib files),
+    LabConfigScreen (tabs Meters/GUI/Pistorder/Hotkeys, Reset, tooltips, combo recording),
+    KeyCombo + LabKeys (combos like R + Left via KeyboardHandlerMixin; a fired combo swallows
+    its key), TimelineHud (Fabric HUD API), WorldMarkers (vanilla Gizmos, emitted per tick).
+  * Piston previews work client-side (ClientPistons + shared PistonView), so on any server.
+    The server version is only used for players without the mod. Refresh every tick (a 6t
+    clock's still ticks were missed with a 2-tick refresh).
+  * Droppers / dispensers / crafters: on = triggered (no signal text). Hoppers: on = locked.
+    Fuzz test covers both against the real block states.
+  * Pulse numbers: "3t/5t", "2t/3t/3t" (repeating patterns), else "2t or 3t". No "(varies)".
+  * Tick list: no "… N more", extra lines go into columns.
+  * 24 server tests pass; client test (real keys R+Left, P, real right-click on a piston,
+    settings screen) passes.
 
 ----------------------------------------------------------------------
 KNOWN LIMITATIONS / TODO

@@ -1,37 +1,31 @@
 package dev.redstonelab.client;
 
+import net.minecraft.resources.Identifier;
+
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 
 import dev.redstonelab.RedstoneLab;
-import dev.redstonelab.client.malilib.MalilibBridge;
+import dev.redstonelab.client.ui.LabConfig;
+import dev.redstonelab.client.ui.TimelineHud;
+import dev.redstonelab.client.ui.WorldMarkers;
 
 /**
- * Client entrypoint. The client part is optional: players without it still get meters
- * (boss bars) and piston previews. With this mod and MaLiLib the client draws the timeline
- * and outlines itself and gets hotkeys and the settings menu.
- *
- * <p>All MaLiLib code lives in {@code dev.redstonelab.client.malilib} and is only touched
- * after {@link #hasMalilib()} returned true, so the mod also loads without MaLiLib.</p>
+ * Client entrypoint. Needs nothing but Fabric API: settings screen, key combos, the timeline and
+ * the in-world outlines are all built in. Players without the client mod still get meters (boss
+ * bars) and piston previews from a server that has it.
  */
 public class RedstoneLabClient implements ClientModInitializer {
-	private static final boolean MALILIB = FabricLoader.getInstance().isModLoaded("malilib");
-
 	@Override
 	public void onInitializeClient() {
+		LabConfig.load();
 		ClientNetworking.init();
-		if (MALILIB) {
-			MalilibBridge.init();
-		} else {
-			RedstoneLab.LOGGER.warn("MaLiLib is not installed: the RedstoneLab timeline, hotkeys and settings menu are disabled.");
-		}
-	}
-
-	public static boolean hasMalilib() {
-		return MALILIB;
-	}
-
-	public static boolean isTimelinePaused() {
-		return MALILIB && MalilibBridge.isTimelinePaused();
+		ClientPistons.init();
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.fromNamespaceAndPath(RedstoneLab.MOD_ID, "timeline"),
+				TimelineHud.INSTANCE::render);
+		// Runs inside the game's per-tick drawing list.
+		ClientTickEvents.END_CLIENT_TICK.register(mc -> WorldMarkers.emit());
 	}
 }
