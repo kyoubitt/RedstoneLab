@@ -173,7 +173,7 @@ public final class TimelineHud {
 		}
 		int ly = y + titleH + rowH * ClientState.SCOPE.size();
 		if (showHint) {
-			ctx.drawString(font, "bar = on, thin line = powered (not on yet)", x + 3, ly, 0xFFCCCCCC, true);
+			ctx.drawString(font, "bar = on \u00b7 thin line = powered, not on yet", x + 3, ly, 0xFFCCCCCC, true);
 			ly += font.lineHeight + 1;
 		}
 		for (List<MeterEvent> line : legend) {

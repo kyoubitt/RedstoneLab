@@ -469,7 +469,7 @@ public final class MeterFeature {
 			return InteractionResult.SUCCESS;
 		}
 		if (!LabServer.canUse(serverPlayer)) {
-			Msg.actionBar(serverPlayer, Component.literal("You are not allowed to use meters here").withStyle(ChatFormatting.RED));
+			Msg.actionBar(serverPlayer, Component.literal("Meters not allowed here").withStyle(ChatFormatting.RED));
 			return InteractionResult.FAIL;
 		}
 		BlockPos pos = hit.getBlockPos();
@@ -742,7 +742,7 @@ public final class MeterFeature {
 	public static void deleteGroup(ServerPlayer player, String name) {
 		State state = state(player);
 		if (name.equals(state.groups.active)) {
-			Msg.send(player, Component.literal("That group is in use. Switch to another group first.").withStyle(ChatFormatting.RED));
+			Msg.send(player, Component.literal("Group in use: switch first").withStyle(ChatFormatting.RED));
 			return;
 		}
 		if (state.groups.groups.remove(name) == null) {
@@ -750,14 +750,14 @@ public final class MeterFeature {
 			return;
 		}
 		save(player, state);
-		Msg.send(player, Component.literal("Deleted meter group \"" + name + "\"").withStyle(ChatFormatting.GRAY));
+		Msg.send(player, Component.literal("Deleted \"" + name + "\"").withStyle(ChatFormatting.GRAY));
 	}
 
 	/** Chat list of the groups; click one to switch. */
 	public static void listGroups(ServerPlayer player) {
 		State state = state(player);
 		snapshot(state);
-		Msg.send(player, Component.literal("Meter groups (click to switch, /rlab group <name> makes a new one):").withStyle(ChatFormatting.GOLD));
+		Msg.send(player, Component.literal("Groups (click to switch, /rlab group <name> = new):").withStyle(ChatFormatting.GOLD));
 		for (Map.Entry<String, List<MeterStore.Saved>> g : state.groups.groups.entrySet()) {
 			boolean active = g.getKey().equals(state.groups.active);
 			MutableComponent line = Component.literal(active ? " \u25b6 " : "   ")
@@ -788,7 +788,7 @@ public final class MeterFeature {
 		}
 		other.groups.groups.put(copyName, new ArrayList<>(list));
 		save(target, other);
-		Msg.send(player, Component.literal("Sent meter group \"" + name + "\" to " + target.getName().getString()).withStyle(ChatFormatting.GREEN));
+		Msg.send(player, Component.literal("Sent \"" + name + "\" to " + target.getName().getString()).withStyle(ChatFormatting.GREEN));
 		Msg.send(target, Component.literal(player.getName().getString() + " gave you the meter group \"" + copyName + "\" ("
 				+ list.size() + " meters) ").withStyle(ChatFormatting.GOLD)
 				.append(Msg.button("use it", "/rlab group " + copyName, "Switch to this group")));
@@ -825,10 +825,10 @@ public final class MeterFeature {
 	public static void list(ServerPlayer player) {
 		State state = STATES.get(player.getUUID());
 		if (state == null || state.meters.isEmpty()) {
-			Msg.send(player, Component.literal("No meters. Right-click a block with the Meter Tool (/rlab tool)."));
+			Msg.send(player, Component.literal("No meters. Look at a block and press M (or /rlab tool)"));
 			return;
 		}
-		Msg.send(player, Component.literal("Your meters (last 40 ticks, newest on the right)").withStyle(ChatFormatting.GOLD));
+		Msg.send(player, Component.literal("Meters (last 40t, newest right)").withStyle(ChatFormatting.GOLD));
 		String order = orderLine(state);
 		if (!order.isEmpty()) {
 			Msg.sendRaw(player, Component.literal(" Order: " + order).withStyle(ChatFormatting.YELLOW));
@@ -1082,9 +1082,9 @@ public final class MeterFeature {
 		meter.lastWrong = "";
 		state.dirty = true;
 		save(player, state);
-		Msg.send(player, Component.literal(clear ? meter.label + ": not checking pulse lengths anymore"
-				: meter.label + ": expecting on " + meter.expectOn + "t" + (meter.expectOff >= 0 ? ", off " + meter.expectOff + "t" : "")
-				+ ". Wrong pulses turn red.").withStyle(ChatFormatting.GOLD));
+		Msg.send(player, Component.literal(clear ? meter.label + ": not checked anymore"
+				: meter.label + ": expect on " + meter.expectOn + "t" + (meter.expectOff >= 0 ? ", off " + meter.expectOff + "t" : "")
+				+ " (wrong = red)").withStyle(ChatFormatting.GOLD));
 	}
 
 	/** Gives a meter (by letter) a name shown in front of its text; an empty name removes it. */

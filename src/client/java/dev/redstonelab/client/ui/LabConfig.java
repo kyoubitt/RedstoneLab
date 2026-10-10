@@ -236,42 +236,41 @@ public final class LabConfig {
 
 	// ------------------------------------------------------------------ the settings
 
-	public static final Bool SHOW_TIMELINE = new Bool(Tab.METERS, "showTimeline", true, "Show the meter timeline on screen");
+	public static final Bool SHOW_TIMELINE = new Bool(Tab.METERS, "showTimeline", true, "Timeline on screen");
 	public static final Bool SHOW_OUTLINES = new Bool(Tab.METERS, "showOutlines", true,
-			"Show meter outlines and letters, and piston previews, in the world");
+			"Outlines, letters and piston previews in the world");
 	public static final Bool EVENT_MARKS = new Bool(Tab.METERS, "showEventMarks", false,
-			"Coloured marks under each timeline for what happened that tick, and block / shape\n"
-			+ "updates in the tick list. Off keeps it clean.");
-	public static final Int TIMELINE_TICKS = new Int(Tab.METERS, "timelineTicks", 80, 20, 200, "How many ticks the timeline shows");
+			"Marks for what happened each tick, and block / shape updates in the tick list");
+	public static final Int TIMELINE_TICKS = new Int(Tab.METERS, "timelineTicks", 80, 20, 200, "Ticks shown");
 	public static final Bool SHOW_INSPECT = new Bool(Tab.METERS, "showTickInspector", true,
-			"When the timeline is frozen: list everything that happened at your meters\nin the newest shown tick, in order");
+			"Frozen: list what happened in the tick, in order");
 	public static final Bool SMOOTH_SCROLL = new Bool(Tab.METERS, "smoothScrolling", true,
-			"Slide the timeline smoothly instead of jumping one tick at a time");
+			"Slide instead of jumping a tick at a time");
 
-	public static final Choice POSITION = new Choice(Tab.GUI, "timelinePosition", Position.TOP_LEFT, "Where the timeline is on screen");
-	public static final Int OFFSET_X = new Int(Tab.GUI, "timelineOffsetX", 4, 0, 2000, "Distance from the left / right edge of the screen");
-	public static final Int OFFSET_Y = new Int(Tab.GUI, "timelineOffsetY", 4, 0, 2000, "Distance from the top / bottom edge of the screen");
+	public static final Choice POSITION = new Choice(Tab.GUI, "timelinePosition", Position.TOP_LEFT, "Where on screen");
+	public static final Int OFFSET_X = new Int(Tab.GUI, "timelineOffsetX", 4, 0, 2000, "Gap from the left / right edge");
+	public static final Int OFFSET_Y = new Int(Tab.GUI, "timelineOffsetY", 4, 0, 2000, "Gap from the top / bottom edge");
 	public static final Dbl SCALE = new Dbl(Tab.GUI, "timelineScale", 1.0, 0.5, 3.0,
-			"Size of the timeline (1 = normal; it stays the same size at every GUI scale)");
-	public static final Bool SHOW_BACKGROUND = new Bool(Tab.GUI, "showBackground", true, "Dark box behind the timeline");
-	public static final Int BACKGROUND_OPACITY = new Int(Tab.GUI, "backgroundOpacity", 75, 0, 100, "How dark the box is (0 = see-through, 100 = solid)");
-	public static final Bool SHOW_TITLE = new Bool(Tab.GUI, "showTitle", true, "Show the \"Meters\" title line");
-	public static final Bool SHOW_INFO = new Bool(Tab.GUI, "showInfo", true, "Show the text next to each timeline and the order line");
-	public static final Bool SHOW_PULSE_LENGTHS = new Bool(Tab.GUI, "showPulseLengths", true, "Write how many ticks each pulse lasted inside the bars");
-	public static final Bool SHOW_LEGEND = new Bool(Tab.GUI, "showLegend", true, "While frozen: explain the bars (and the mark colours)");
+			"Size (1 = normal, same at every GUI scale)");
+	public static final Bool SHOW_BACKGROUND = new Bool(Tab.GUI, "showBackground", true, "Dark box behind it");
+	public static final Int BACKGROUND_OPACITY = new Int(Tab.GUI, "backgroundOpacity", 75, 0, 100, "0 = clear, 100 = solid");
+	public static final Bool SHOW_TITLE = new Bool(Tab.GUI, "showTitle", true, "The \"Meters\" title line");
+	public static final Bool SHOW_INFO = new Bool(Tab.GUI, "showInfo", true, "Text next to each bar, and the order line");
+	public static final Bool SHOW_PULSE_LENGTHS = new Bool(Tab.GUI, "showPulseLengths", true, "Tick counts inside the bars");
+	public static final Bool SHOW_LEGEND = new Bool(Tab.GUI, "showLegend", true, "Frozen: explain the bars");
 
 	public static final Bool PISTON_LANDING = new Bool(Tab.PISTONS, "pistonLanding", false,
-			"Piston previews (right-click a piston with an empty hand):\nalso outline where the pushed blocks end up (light blue)");
+			"Also outline where pushed blocks land (light blue)");
 
-	public static final Hotkey TOGGLE_METER = new Hotkey("toggleMeter", "M", false, "Put a meter on the block you look at, or remove it");
-	public static final Hotkey REMOVE_METER = new Hotkey("removeMeter", "BACKSPACE", false, "Remove one meter: the one you look at, or else the newest one");
-	public static final Hotkey CLEAR_METERS = new Hotkey("clearMeters", "R,M", false, "Remove all your meters");
-	public static final Hotkey PAUSE_TIMELINE = new Hotkey("pauseTimeline", "R,SPACE", false, "Freeze / unfreeze the timeline");
-	public static final Hotkey REWIND = new Hotkey("rewind", "R,LEFT", true, "Go back 1 tick on the timeline (freezes it). Hold to keep going.");
-	public static final Hotkey FORWARD = new Hotkey("forward", "R,RIGHT", true, "Go forward 1 tick; reaching the present un-freezes it");
-	public static final Hotkey CLEAR_PISTONS = new Hotkey("clearPistons", "P", false, "Hide all piston previews");
-	public static final Hotkey GROUPS = new Hotkey("meterGroups", "R,G", false, "List your meter groups in chat (click one to switch)");
-	public static final Hotkey OPEN_SETTINGS = new Hotkey("openSettings", "R,C", false, "Open this menu");
+	public static final Hotkey TOGGLE_METER = new Hotkey("toggleMeter", "M", false, "Meter on / off (block you look at)");
+	public static final Hotkey REMOVE_METER = new Hotkey("removeMeter", "BACKSPACE", false, "Remove the meter you look at, else the newest");
+	public static final Hotkey CLEAR_METERS = new Hotkey("clearMeters", "R,M", false, "Remove all meters");
+	public static final Hotkey PAUSE_TIMELINE = new Hotkey("pauseTimeline", "R,SPACE", false, "Freeze / unfreeze");
+	public static final Hotkey REWIND = new Hotkey("rewind", "R,LEFT", true, "1 tick back (freezes). Hold to repeat");
+	public static final Hotkey FORWARD = new Hotkey("forward", "R,RIGHT", true, "1 tick forward. Back at now it runs again");
+	public static final Hotkey CLEAR_PISTONS = new Hotkey("clearPistons", "P", false, "Hide piston previews");
+	public static final Hotkey GROUPS = new Hotkey("meterGroups", "R,G", false, "Meter groups (click one to switch)");
+	public static final Hotkey OPEN_SETTINGS = new Hotkey("openSettings", "R,C", false, "This menu");
 
 	private LabConfig() {
 	}

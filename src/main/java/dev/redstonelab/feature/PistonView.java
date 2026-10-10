@@ -116,7 +116,7 @@ public final class PistonView {
 		}
 		String why = switch (power) {
 			case "QC" -> "QC: powered from above";
-			case "BUD" -> "BUD: moves on the next block update";
+			case "BUD" -> "BUD: moves on next update";
 			default -> "powered but can't push";
 		};
 		return Component.empty().append(move).append(Component.literal(" \u00b7 " + why).withStyle(ChatFormatting.YELLOW));
@@ -200,7 +200,7 @@ public final class PistonView {
 		byte box = (byte) (LabPayloads.STYLE_LABEL | LabPayloads.STYLE_OUTLINE);
 
 		if (extended && !sticky) {
-			return head(markers, s, true, "retract", "retracts (normal pistons don't pull)");
+			return head(markers, s, true, "retract", "retracts (not sticky)");
 		}
 		if (extended) {
 			// Vanilla only pulls when the block in front is a normal movable block.

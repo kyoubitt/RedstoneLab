@@ -107,7 +107,7 @@ public final class LabKeys {
 				BlockPos pos = hit.getBlockPos();
 				send("rlab meter " + pos.getX() + " " + pos.getY() + " " + pos.getZ());
 			} else {
-				mc.player.displayClientMessage(Component.literal("[RedstoneLab] Look at a block first"), true);
+				mc.player.displayClientMessage(Component.literal("Look at a block"), true);
 			}
 		}
 	}
@@ -116,7 +116,7 @@ public final class LabKeys {
 	private static void send(String command) {
 		Minecraft mc = Minecraft.getInstance();
 		if (!ClientState.serverHasMod) {
-			mc.player.displayClientMessage(Component.literal("[RedstoneLab] Meters need RedstoneLab on the server too"), true);
+			mc.player.displayClientMessage(Component.literal("Meters need RedstoneLab on the server"), true);
 			return;
 		}
 		ClientNetworking.command(command);

@@ -51,7 +51,7 @@ public final class RlabCommand {
 					if (!player.addItem(MeterFeature.createProbe())) {
 						player.drop(MeterFeature.createProbe(), false);
 					}
-					Msg.ok(ctx.getSource(), "Here is the Meter Tool. Right-click a block to put a meter on it.");
+					Msg.ok(ctx.getSource(), "Meter Tool: right-click a block");
 					return 1;
 				}))
 				.then(literal("meter")
@@ -121,7 +121,7 @@ public final class RlabCommand {
 								.then(argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool()).executes(ctx -> {
 									boolean on = com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "on");
 									PistorderFeature.setOption(player(ctx), "landing", on);
-									Msg.ok(ctx.getSource(), "Where pushed blocks land: " + (on ? "shown" : "hidden"));
+									Msg.ok(ctx.getSource(), "Landing boxes: " + (on ? "shown" : "hidden"));
 									return 1;
 								}))))
 				.then(literal("group")
@@ -165,13 +165,13 @@ public final class RlabCommand {
 		Msg.ok(source, Component.literal("RedstoneLab").withStyle(ChatFormatting.GOLD));
 		source.sendSuccess(() -> Component.literal(" Meters: ").withStyle(ChatFormatting.YELLOW)
 				.append(Msg.button("Meter Tool", "/rlab tool", "Get the Meter Tool"))
-				.append(Component.literal(" right-click a block (sneak: remove all)").withStyle(ChatFormatting.WHITE)), false);
+				.append(Component.literal(" or M on a block").withStyle(ChatFormatting.WHITE)), false);
 		source.sendSuccess(() -> Component.literal(" Pistons: ").withStyle(ChatFormatting.YELLOW)
-				.append(Component.literal("right-click one with an empty hand (P hides all)").withStyle(ChatFormatting.WHITE)), false);
+				.append(Component.literal("right-click with an empty hand (P hides)").withStyle(ChatFormatting.WHITE)), false);
 		source.sendSuccess(() -> Component.literal(" ")
 				.append(Msg.button("Meters", "/rlab meter", "Meter history in chat"))
 				.append(" ")
-				.append(Msg.button("Groups", "/rlab group", "Save sets of meters and switch between them"))
+				.append(Msg.button("Groups", "/rlab group", "Saved meter sets"))
 				.append(" ")
 				.append(Msg.button("Clear", "/rlab clear", "Remove all meters")), false);
 		return 1;
@@ -201,7 +201,7 @@ public final class RlabCommand {
 	}
 
 	private static int printConfig(CommandSourceStack source) {
-		Msg.ok(source, Component.literal("Server settings (click one to change it):").withStyle(ChatFormatting.GOLD));
+		Msg.ok(source, Component.literal("Server settings (click to change):").withStyle(ChatFormatting.GOLD));
 		for (Map.Entry<String, String> e : ServerConfig.get().describe().entrySet()) {
 			source.sendSuccess(() -> Component.literal(" ").append(Msg.suggest(e.getKey(), "/rlab config set " + e.getKey() + " ", "Change this setting"))
 					.append(Component.literal(" = " + e.getValue()).withStyle(ChatFormatting.WHITE)), false);

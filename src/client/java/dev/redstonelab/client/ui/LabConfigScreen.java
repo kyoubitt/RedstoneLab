@@ -173,7 +173,7 @@ public class LabConfigScreen extends Screen {
 					+ Math.min(total, this.firstRow + this.visibleRows()) + " of " + total + ")", this.width / 2, this.height - 38, 0xFF888888);
 		}
 		if (this.recording != null) {
-			graphics.drawCenteredString(this.font, "Press the keys (e.g. hold R, press Left), then let go. Esc cancels.",
+			graphics.drawCenteredString(this.font, "Hold the keys, then let go. Esc cancels.",
 					this.width / 2, TOP - 12, 0xFFFFDD77);
 		}
 	}

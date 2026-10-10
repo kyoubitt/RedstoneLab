@@ -3,7 +3,7 @@
 	"id": "redstonelab",
 	"version": "${version}",
 	"name": "RedstoneLab",
-	"description": "Redstone meters (timeline, exact pulse lengths, tick order) and Pistorder-style piston previews. No other mods needed besides Fabric API. Works on servers; players without the mod can use it too.",
+	"description": "Redstone meters with exact tick timings, and piston previews. Needs only Fabric API.",
 	"authors": [
 		"kyoubitt"
 	],
