@@ -150,6 +150,19 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			context.clickScreenButton("Hotkeys");
 			this.record(context, 40, "Hotkeys: click one, press the keys (e.g. hold R, press Left)");
 			context.takeScreenshot("still-hotkeys");
+			// Click a hotkey, press Esc: it gets unbound (like vanilla controls) and the menu stays open.
+			context.clickScreenButton("R + Space");
+			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE);
+			context.waitTick();
+			boolean unbound = context.computeOnClient(client -> LabConfig.PAUSE_TIMELINE.value.keys().isEmpty()
+					&& client.screen instanceof LabConfigScreen);
+			if (!unbound) {
+				throw new AssertionError("Esc while setting a hotkey should unbind it and keep the menu open");
+			}
+			context.runOnClient(client -> {
+				LabConfig.PAUSE_TIMELINE.reset();
+				LabConfig.save();
+			});
 			context.setScreen(() -> null);
 			context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = true);
 			this.pistonGuideShot(context, world);

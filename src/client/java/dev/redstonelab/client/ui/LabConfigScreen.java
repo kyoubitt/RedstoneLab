@@ -18,7 +18,7 @@ import net.minecraft.network.chat.Component;
 
 /**
  * The settings menu (R + C, or Mod Menu). Tabs: Meters, GUI, Pistorder, Hotkeys. Every change is
- * saved right away. Hotkeys: click one, press the keys (e.g. hold R, press Left), let go.
+ * saved right away. Hotkeys: click one, press the keys (e.g. hold R, press Enter), let go; Esc unbinds.
  */
 public class LabConfigScreen extends Screen {
 	private static final int ROW = 24;
@@ -173,7 +173,7 @@ public class LabConfigScreen extends Screen {
 					+ Math.min(total, this.firstRow + this.visibleRows()) + " of " + total + ")", this.width / 2, this.height - 38, 0xFF888888);
 		}
 		if (this.recording != null) {
-			graphics.drawCenteredString(this.font, "Hold the keys, then let go. Esc cancels.",
+			graphics.drawCenteredString(this.font, "Hold the keys, then let go. Esc = unbind.",
 					this.width / 2, TOP - 12, 0xFFFFDD77);
 		}
 	}
@@ -193,7 +193,11 @@ public class LabConfigScreen extends Screen {
 	public boolean keyPressed(KeyEvent event) {
 		if (this.recording != null) {
 			if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+				// Like vanilla's controls menu: Esc unbinds.
+				this.recording.value = KeyCombo.NONE;
 				this.recording = null;
+				this.recorded.clear();
+				LabConfig.save();
 			} else if (KeyCombo.known(event.key()) && !this.recorded.contains(event.key())) {
 				this.recorded.add(event.key());
 			}

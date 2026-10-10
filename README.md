@@ -62,7 +62,7 @@ what happened that tick, in sub-tick order. Block / shape updates: **Show event 
 | R + G | meter groups |
 | R + C | settings (also Mod Menu) |
 
-Change keys in settings: click one, hold the keys, let go.
+Change keys in settings: click one, hold the keys, let go. **Esc** unbinds.
 
 ## Commands
 
