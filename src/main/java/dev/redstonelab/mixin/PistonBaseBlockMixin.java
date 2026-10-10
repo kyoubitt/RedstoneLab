@@ -16,11 +16,13 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.piston.PistonStructureResolver;
+import net.minecraft.world.level.block.state.BlockState;
 
 import dev.redstonelab.capture.Capture;
 import dev.redstonelab.feature.MeterFeature;
+import dev.redstonelab.feature.PistonFires;
 
-/** Meters move along with the blocks a piston pushes or pulls (like Redstone Multimeter). */
+/** Meters move along with the blocks a piston pushes or pulls (like Redstone Multimeter); piston firing order. */
 @Mixin(PistonBaseBlock.class)
 public abstract class PistonBaseBlockMixin {
 	@Unique
@@ -48,5 +50,13 @@ public abstract class PistonBaseBlockMixin {
 		redstonelab$moving = null;
 		// Always called (also when the piston could not move) so the "moving" list is cleared.
 		MeterFeature.onBlocksMoved(serverLevel, cir.getReturnValueZ() ? moving : List.of(), redstonelab$direction);
+	}
+
+	/** A piston started extending (on the server): for the firing order of shown pistons. */
+	@Inject(method = "triggerEvent", at = @At("RETURN"))
+	private void redstonelab$extended(BlockState state, Level level, BlockPos pos, int type, int data, CallbackInfoReturnable<Boolean> cir) {
+		if (type == 0 && cir.getReturnValueZ() && level instanceof ServerLevel serverLevel) {
+			PistonFires.onExtend(serverLevel, pos);
+		}
 	}
 }

@@ -29,6 +29,7 @@ public final class ClientNetworking {
 			ClientState.serverHasMod = payload.protocol() == LabPayloads.PROTOCOL;
 			ClientState.allowed = payload.allowed();
 			ClientState.serverVersion = payload.version();
+			ClientPistons.sendWatched();
 			if (payload.protocol() != LabPayloads.PROTOCOL) {
 				RedstoneLab.LOGGER.warn("Server RedstoneLab protocol {} differs from client protocol {}; using vanilla fallback",
 						payload.protocol(), LabPayloads.PROTOCOL);
@@ -41,6 +42,8 @@ public final class ClientNetworking {
 				ClientState.MARKERS.put(payload.channel(), payload.markers());
 			}
 		});
+		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.PistonFireS2C.TYPE,
+				(payload, context) -> ClientPistons.onServerExtend(payload.pos(), payload.time(), payload.seq()));
 		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.ScopeConfigS2C.TYPE, (payload, context) -> ClientState.applyScopeConfig(payload));
 		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.ScopeSampleS2C.TYPE, (payload, context) -> {
 			if (!dev.redstonelab.client.ui.LabKeys.paused) {

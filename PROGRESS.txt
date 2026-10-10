@@ -505,6 +505,18 @@ PISTON PREVIEW LIKE PISTORDER
     against the game in randomCircuitsMatchGame (433k checks, 0 differ; a planted bug gives 61).
 
 ----------------------------------------------------------------------
+0.3.0 PISTON FIRING ORDER
+  * Shown pistons get "#1", "#2 · +3t", "#3 · same tick", "own timing" (core/PistonOrder, unit
+    tested). Anchor = first shown piston, like the meters' order line.
+  * Server: PistonBaseBlockMixin.triggerEvent (extend, succeeded) -> PistonFires: exact game time
+    + sequence -> server previews (vanilla clients) and PistonFireS2C to modded clients that
+    sent PistonWatchC2S (the pistons they show). Protocol 10.
+  * Client on a vanilla server: PistonBaseBlockClientMixin sees the piston block events in the
+    order the server ran them; ticks from the client's game time (most common delay used).
+  * Tests: pistonFiringOrder (server, 4 pistons: same tick pair, +2t, +2t); client test checks
+    both exact and client-measured modes with the same build.
+
+----------------------------------------------------------------------
 KNOWN LIMITATIONS / TODO
 ----------------------------------------------------------------------
   * (author set to kyoubitt, license LGPL-3.0)

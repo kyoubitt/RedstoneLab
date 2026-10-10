@@ -17,7 +17,7 @@ import dev.redstonelab.RedstoneLab;
  * (checked with {@code ServerPlayNetworking.canSend}), so vanilla clients never see them.
  */
 public final class LabPayloads {
-	public static final int PROTOCOL = 9;
+	public static final int PROTOCOL = 10;
 
 	/** Client capability: can render the HUD (meter timeline). */
 	public static final int CAP_HUD = 1;
@@ -40,6 +40,8 @@ public final class LabPayloads {
 		PayloadTypeRegistry.playS2C().register(MarkersS2C.TYPE, MarkersS2C.CODEC);
 		PayloadTypeRegistry.playS2C().register(ScopeConfigS2C.TYPE, ScopeConfigS2C.CODEC);
 		PayloadTypeRegistry.playS2C().register(ScopeSampleS2C.TYPE, ScopeSampleS2C.CODEC);
+		PayloadTypeRegistry.playC2S().register(PistonWatchC2S.TYPE, PistonWatchC2S.CODEC);
+		PayloadTypeRegistry.playS2C().register(PistonFireS2C.TYPE, PistonFireS2C.CODEC);
 	}
 
 	private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> payloadType(String path) {
@@ -265,5 +267,61 @@ public final class LabPayloads {
 			return "";
 		}
 		return s.length() > max ? s.substring(0, max) : s;
+	}
+
+	// ------------------------------------------------------------------ piston firing order
+
+	/** The pistons the client shows previews of (replaces the last list; empty = none). */
+	public record PistonWatchC2S(List<BlockPos> pistons) implements CustomPacketPayload {
+		public static final Type<PistonWatchC2S> TYPE = payloadType("piston_watch");
+		public static final StreamCodec<FriendlyByteBuf, PistonWatchC2S> CODEC = CustomPacketPayload.codec(PistonWatchC2S::write, PistonWatchC2S::new);
+		public static final int MAX = 64;
+
+		private PistonWatchC2S(FriendlyByteBuf buf) {
+			this(readPositions(buf));
+		}
+
+		private static List<BlockPos> readPositions(FriendlyByteBuf buf) {
+			int n = Math.min(buf.readVarInt(), MAX);
+			List<BlockPos> list = new ArrayList<>(n);
+			for (int i = 0; i < n; i++) {
+				list.add(buf.readBlockPos());
+			}
+			return list;
+		}
+
+		private void write(FriendlyByteBuf buf) {
+			int n = Math.min(this.pistons.size(), MAX);
+			buf.writeVarInt(n);
+			for (int i = 0; i < n; i++) {
+				buf.writeBlockPos(this.pistons.get(i));
+			}
+		}
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return TYPE;
+		}
+	}
+
+	/** A watched piston started extending: server game time and order inside the tick (higher = later). */
+	public record PistonFireS2C(BlockPos pos, long time, long seq) implements CustomPacketPayload {
+		public static final Type<PistonFireS2C> TYPE = payloadType("piston_fire");
+		public static final StreamCodec<FriendlyByteBuf, PistonFireS2C> CODEC = CustomPacketPayload.codec(PistonFireS2C::write, PistonFireS2C::new);
+
+		private PistonFireS2C(FriendlyByteBuf buf) {
+			this(buf.readBlockPos(), buf.readVarLong(), buf.readVarLong());
+		}
+
+		private void write(FriendlyByteBuf buf) {
+			buf.writeBlockPos(this.pos);
+			buf.writeVarLong(this.time);
+			buf.writeVarLong(this.seq);
+		}
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return TYPE;
+		}
 	}
 }

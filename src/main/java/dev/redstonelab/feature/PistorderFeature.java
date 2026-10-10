@@ -139,6 +139,16 @@ public final class PistorderFeature {
 		STATES.remove(player.getUUID());
 	}
 
+	/** A piston started extending: remember it for the firing order of everyone showing it. */
+	static void onExtend(ServerLevel level, BlockPos pos, long time, long seq) {
+		for (State state : STATES.values()) {
+			PistonView.View view = state.dimension == level.dimension() ? state.pistons.get(pos) : null;
+			if (view != null) {
+				view.fires.add(time, seq);
+			}
+		}
+	}
+
 	/** Keeps the shown previews up to date (blocks change, pistons fire). */
 	public static void tick(MinecraftServer server) {
 		// Every tick: on a fast clock a piston may be still for only one tick at a time.
@@ -161,6 +171,7 @@ public final class PistorderFeature {
 			return;
 		}
 		List<MarkerData> markers = new ArrayList<>();
+		PistonView.applyOrder(state.pistons.values(), level.getGameTime(), true);
 		for (java.util.Iterator<PistonView.View> it = state.pistons.values().iterator(); it.hasNext(); ) {
 			PistonView.View p = it.next();
 			if (level.hasChunkAt(p.pos) && !PistonView.isMoving(level, p.pos)) {
@@ -185,6 +196,13 @@ public final class PistorderFeature {
 	static boolean shownForTest(ServerPlayer player, BlockPos pos) {
 		State state = STATES.get(player.getUUID());
 		return state != null && state.pistons.containsKey(pos);
+	}
+
+	/** For the game tests: the piston's place in the firing order ("#2 · +3t"). */
+	static String orderForTest(ServerPlayer player, BlockPos pos) {
+		State state = STATES.get(player.getUUID());
+		PistonView.View p = state == null ? null : state.pistons.get(pos);
+		return p == null ? "" : p.order;
 	}
 
 	/** For the game tests: the piston's label ("✔ push 1"). */

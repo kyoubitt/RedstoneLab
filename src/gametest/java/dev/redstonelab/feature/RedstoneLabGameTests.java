@@ -513,6 +513,37 @@ public class RedstoneLabGameTests {
 		});
 	}
 
+	/**
+	 * Firing order of shown pistons on an observer clock: two pistons powered by the same block
+	 * (same tick, in the order the game runs them), one behind a 1-tick repeater (+2t) and one
+	 * behind a 2-tick repeater (+2t more).
+	 */
+	@GameTest(maxTicks = 80)
+	public void pistonFiringOrder(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		BlockPos[] pistons = FiringOrderBuild.build(level, helper.absolutePos(new BlockPos(1, 1, 1)));
+		for (BlockPos p : pistons) {
+			PistorderFeature.toggle(player, level, p);
+		}
+		java.util.List<BlockPos> extended = new java.util.ArrayList<>();
+		helper.runAtTickTime(70, () -> {
+			String[] got = new String[4];
+			for (int i = 0; i < 4; i++) {
+				got[i] = PistorderFeature.orderForTest(player, pistons[i]);
+			}
+			String all = String.join(" | ", got);
+			// Pistons 0 and 3 extend in the same tick; which one the game runs first decides #1.
+			boolean zeroFirst = got[0].equals("#1") && got[3].equals("#2 \u00b7 same tick");
+			boolean threeFirst = got[3].equals("#1") && got[0].equals("#2 \u00b7 same tick");
+			helper.assertTrue(zeroFirst || threeFirst, "same-tick pair: " + all);
+			helper.assertTrue(got[1].equals("#3 \u00b7 +2t") && got[2].equals("#4 \u00b7 +2t"), "repeater pistons: " + all);
+			helper.assertTrue(PistorderFeature.labelForTest(player, pistons[1]).startsWith("\u2714"), "preview still shown");
+			PistorderFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
 	/** Two pistons with meters powered 3 ticks apart: the order line must read "A → 3t → B". */
 	@GameTest(maxTicks = 30)
 	public void pistonFireTiming(GameTestHelper helper) {

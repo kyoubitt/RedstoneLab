@@ -3,7 +3,8 @@
 	"package": "dev.redstonelab.client.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"KeyboardHandlerMixin"
+		"KeyboardHandlerMixin",
+		"PistonBaseBlockClientMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

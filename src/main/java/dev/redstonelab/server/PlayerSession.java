@@ -13,6 +13,8 @@ public final class PlayerSession {
 	public boolean modded;
 	public int capabilities;
 	public String clientVersion = "";
+	/** Pistons this (modded) client shows previews of; their extensions are sent to it. */
+	public java.util.Set<net.minecraft.core.BlockPos> watchedPistons = java.util.Set.of();
 
 	public PlayerSession(UUID uuid) {
 		this.uuid = uuid;

@@ -140,6 +140,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			context.takeScreenshot("still-hotkeys");
 			context.setScreen(() -> null);
 			context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = true);
+			this.firingOrder(context, world);
 			this.clientPreviewsMatchServer(context, world);
 		}
 		try {
@@ -147,6 +148,53 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	/**
+	 * Firing order of shown pistons, client-side: exact with the server's ticks, and measured on
+	 * the client (as on a server without RedstoneLab). Same build as the server test.
+	 */
+	private void firingOrder(ClientGameTestContext context, TestSingleplayerContext world) {
+		BlockPos[][] pistons = new BlockPos[1][];
+		world.getServer().runOnServer(server -> {
+			ServerPlayer player = player(server);
+			pistons[0] = FiringOrderBuild.build(player.level(), base.offset(-14, 0, -12));
+			BlockPos look = base.offset(-12, 1, -11);
+			player.teleportTo(player.level(), look.getX() + 4.5, look.getY() + 3, look.getZ() + 5.5, java.util.Set.of(), 0f, 0f, false);
+			player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, look.getCenter());
+		});
+		context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = false);
+		context.waitTicks(10);
+		for (boolean exact : new boolean[]{true, false}) {
+			context.runOnClient(client -> {
+				ClientPistons.clear();
+				ClientState.serverHasMod = exact;
+				for (BlockPos p : pistons[0]) {
+					ClientPistons.toggle(p);
+				}
+			});
+			context.waitTicks(70);
+			String all = context.computeOnClient(client -> {
+				StringBuilder sb = new StringBuilder();
+				for (BlockPos p : pistons[0]) {
+					sb.append(ClientPistons.order(p)).append(" | ");
+				}
+				return sb.toString();
+			});
+			String sameTick = all.startsWith("#1 | ") ? "#2 \u00b7 same tick | " : "#1 | ";
+			String want = (all.startsWith("#1 | ") ? "#1 | " : "#2 \u00b7 same tick | ") + "#3 \u00b7 +2t | #4 \u00b7 +2t | " + sameTick;
+			if (!all.equals(want)) {
+				throw new AssertionError((exact ? "exact" : "client-measured") + " firing order: " + all);
+			}
+			if (exact) {
+				this.record(context, 60, "Several pistons shown: #1, #2 ... = the order they fire in, +2t = ticks after the one before");
+				context.takeScreenshot("still-order");
+			}
+		}
+		context.runOnClient(client -> {
+			ClientPistons.clear();
+			ClientState.serverHasMod = true;
+		});
 	}
 
 	// ------------------------------------------------------------------ client vs server previews
@@ -227,10 +275,12 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 				clientPrints.add(fingerprint(client.level));
 				clientViews.add(views);
 				// What is drawn must be the fresh preview for every still piston.
-				// (Drawn at the end of the tick, so it may still be the last one before this tick.)
+				// (Drawn at the end of the tick, so it may still be the last one before this tick, or
+				// not worked out yet when it was shown mid-move.)
 				views.forEach((pos, view) -> {
 					String drawn = ClientPistons.label(pos);
-					if (ClientPistons.isShown(pos) && !view.startsWith(drawn + "\n")
+					boolean notYet = drawn.isEmpty() && !lastStill.containsKey(pos);
+					if (ClientPistons.isShown(pos) && !notYet && !view.startsWith(drawn + "\n")
 							&& !String.valueOf(lastStill.get(pos)).startsWith(drawn + "\n")) {
 						shownWrong[0]++;
 						if (problems.size() < 5) {

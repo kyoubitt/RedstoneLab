@@ -38,6 +38,8 @@ public final class LabNetworking {
 			// Switch already visible markers from display entities to client rendering (or back).
 			MarkerService.refreshMode(player);
 		});
+		ServerPlayNetworking.registerGlobalReceiver(LabPayloads.PistonWatchC2S.TYPE, (payload, context) ->
+				Sessions.get(context.player()).watchedPistons = java.util.Set.copyOf(payload.pistons()));
 	}
 
 	/**

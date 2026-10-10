@@ -56,8 +56,16 @@ again to hide it. Several can be shown at once. Sneaking does nothing. **P** hid
 - `✖ blocked` (`stuck` marks the block) or `✖ too many` (`13th` marks the extra block)
 - `⚡ QC` = powered only from above · `⚡ BUD` = moves on the next block update
 
-It updates live while the piston works. Firing order of several pistons: put meters on them,
-the **Order** line shows it. "Where blocks land" boxes: Pistorder settings tab.
+It updates live while the piston works. "Where blocks land" boxes: Pistorder settings tab.
+
+**Firing order:** show several pistons and each gets its place in the order they extend,
+counted from the first one you showed:
+- `#1`, then `#2 · +3t` = 3 ticks after #1, `#3 · same tick` = same tick as #2, but the game
+  moved it after #2
+- `own timing` = it runs at a different speed than #1
+
+With RedstoneLab on the server (or singleplayer) the ticks are exact. On a server without it the
+order is still exact, but the ticks are measured on your side, so lag can make them off by one.
 
 ## Settings
 
@@ -96,11 +104,12 @@ JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew build
 ```
 Jar: `build/libs/`. Building needs JDK 25; the mod runs on Java 21.
 
-- `./gradlew runGameTest`: 25 in-game tests that build redstone on a test server and check the
+- `./gradlew runGameTest`: 26 in-game tests that build redstone on a test server and check the
   mod against what the game really does (clocks, 0-tick pulses, pistons, QC, comparators,
   hoppers, tick order, 300 random piston setups vs the game's own push calculation, 8 random
   circuits where every meter must match the real block every tick, and 60 random observer-clock
-  piston builds where every real piston move must match the preview shown right before it).
+  piston builds where every real piston move must match the preview shown right before it,
+  and the firing order of 4 pistons on a clock).
 - `xvfb-run ./gradlew runClientGameTest`: opens a real client, presses the real keys, right-clicks
   a piston, checks the timeline bars match the game, and checks for 240 ticks that the
   client-side piston previews on clock builds are the same as the server's.

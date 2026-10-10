@@ -1,6 +1,7 @@
 package dev.redstonelab.feature;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -32,6 +33,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.phys.BlockHitResult;
 
+import dev.redstonelab.core.PistonOrder;
 import dev.redstonelab.display.MarkerService;
 import dev.redstonelab.net.LabPayloads;
 import dev.redstonelab.net.LabPayloads.MarkerData;
@@ -57,6 +59,10 @@ public final class PistonView {
 		/** Set by {@link #head}: the first line of the piston's label ("✔ push 3"). */
 		public String headLabel = "";
 		boolean headOk;
+		/** Recent extensions, for the firing order. */
+		public final PistonOrder.Fires fires = new PistonOrder.Fires();
+		/** Firing order among the shown pistons ("#2 · +3t"), or "". */
+		public String order = "";
 
 		public View(BlockPos pos) {
 			this.pos = pos;
@@ -64,6 +70,17 @@ public final class PistonView {
 	}
 
 	private PistonView() {
+	}
+
+	/** Works out every shown piston's place in the firing order (first shown = start). */
+	public static void applyOrder(Collection<View> views, long now, boolean exact) {
+		List<PistonOrder.Fires> fires = new ArrayList<>();
+		views.forEach(v -> fires.add(v.fires));
+		List<String> labels = PistonOrder.compute(fires, now, exact);
+		int i = 0;
+		for (View v : views) {
+			v.order = labels.get(i++);
+		}
 	}
 
 	/** The piston or its head is a "moving piston" right now. */
@@ -83,6 +100,9 @@ public final class PistonView {
 	public static Component build(Level level, View p, List<MarkerData> markers, boolean landing) {
 		Component move = buildMove(level, p, markers, landing);
 		StringBuilder label = new StringBuilder(p.headLabel);
+		if (!p.order.isEmpty()) {
+			label.append('\n').append(p.order);
+		}
 		String power = powerInfo(level, p.pos);
 		if (power != null) {
 			label.append("\n\u26a1 ").append(power);
