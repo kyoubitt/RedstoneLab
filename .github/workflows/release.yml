@@ -32,7 +32,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: RedstoneLab ${{ steps.version.outputs.version }}
           body: |
-            For Minecraft 1.21.11 (Fabric). Needs Fabric API. MaLiLib for the timeline, Mod Menu optional.
+            For Minecraft 1.21.11 (Fabric). Needs Fabric API only (Mod Menu optional).
             Download `redstonelab-${{ steps.version.outputs.version }}.jar` (not `-sources`) and put it in your `mods` folder.
           files: |
             build/libs/redstonelab-*.jar
