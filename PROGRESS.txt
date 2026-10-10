@@ -31,8 +31,8 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
   0.2.1  previews checked on clocks; client comparator fix (false BUD)
   0.3.0  firing order of shown pistons
   0.3.1  item in / out in the right part of the tick
-  next   shorter text; R + Backspace / Enter back / forward; Esc unbinds; R + Space freezes the
-         game (/tick) and R + Enter steps it; code cleanup
+  next   shorter text; R + Backspace / Enter back / forward; Esc unbinds; Up freezes the game
+         (/tick), Down steps it; code cleanup
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

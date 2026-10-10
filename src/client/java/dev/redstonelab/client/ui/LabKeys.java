@@ -50,10 +50,9 @@ public final class LabKeys {
 				&& message.getContents() instanceof TranslatableContents t && t.getKey().startsWith("commands.tick.")));
 	}
 
-	/** The game itself can be frozen and stepped: the setting is on and the player may use /tick. */
+	/** The player may use /tick (op, or cheats on in singleplayer). */
 	private static boolean canTick(Minecraft mc) {
-		return LabConfig.FREEZE_GAME.value && mc.getConnection() != null
-				&& mc.getConnection().getCommands().getRoot().getChild("tick") != null;
+		return mc.getConnection() != null && mc.getConnection().getCommands().getRoot().getChild("tick") != null;
 	}
 
 	public static boolean gameFrozen() {
@@ -105,15 +104,6 @@ public final class LabKeys {
 		if (hotkey == LabConfig.OPEN_SETTINGS) {
 			mc.setScreen(new LabConfigScreen(null));
 		} else if (hotkey == LabConfig.PAUSE_TIMELINE) {
-			if (canTick(mc)) {
-				// Freeze the game itself; the timeline keeps showing it (nothing moves while frozen).
-				boolean freeze = !gameFrozen();
-				tick(freeze ? "tick freeze" : "tick unfreeze");
-				setPaused(false);
-				mc.player.displayClientMessage(Component.literal(freeze
-						? "Game frozen \u00b7 " + LabConfig.FORWARD.value.display() + ": step 1t" : "Game running"), true);
-				return;
-			}
 			setPaused(!paused);
 			mc.player.displayClientMessage(Component.literal(paused ? "Timeline frozen" : "Timeline running"), true);
 		} else if (hotkey == LabConfig.REWIND) {
@@ -123,15 +113,26 @@ public final class LabKeys {
 			}
 			scroll = Math.min(scroll + 1, Math.max(0, ClientState.filled - 1));
 		} else if (hotkey == LabConfig.FORWARD) {
-			if (scroll == 0 && gameFrozen() && canTick(mc)) {
-				tick("tick step 1");
-				return;
-			}
 			scroll = Math.max(0, scroll - 1);
 			if (scroll == 0 && autoPaused) {
 				paused = false;
 				autoPaused = false;
 			}
+		} else if (hotkey == LabConfig.FREEZE_GAME || hotkey == LabConfig.STEP_GAME) {
+			if (!canTick(mc)) {
+				mc.player.displayClientMessage(Component.literal("Freezing the game needs /tick (op)"), true);
+				return;
+			}
+			boolean frozen = gameFrozen();
+			if (hotkey == LabConfig.STEP_GAME && frozen) {
+				tick("tick step 1");
+				return;
+			}
+			// Down while running freezes first; the timeline keeps showing the game.
+			tick(frozen ? "tick unfreeze" : "tick freeze");
+			setPaused(false);
+			mc.player.displayClientMessage(Component.literal(frozen ? "Game running"
+					: "Game frozen \u00b7 " + LabConfig.STEP_GAME.value.display() + ": step 1t"), true);
 		} else if (hotkey == LabConfig.CLEAR_PISTONS) {
 			ClientPistons.clear();
 			mc.player.displayClientMessage(Component.literal("Piston previews hidden"), true);

@@ -241,8 +241,6 @@ public final class LabConfig {
 			"Outlines, letters and piston previews in the world");
 	public static final Bool EVENT_MARKS = new Bool(Tab.METERS, "showEventMarks", false,
 			"Marks for what happened each tick, and block / shape updates in the tick list");
-	public static final Bool FREEZE_GAME = new Bool(Tab.METERS, "freezeGame", true,
-			"Freeze also freezes the game (/tick, needs op); forward then steps 1 tick");
 	public static final Int TIMELINE_TICKS = new Int(Tab.METERS, "timelineTicks", 80, 20, 200, "Ticks shown");
 	public static final Bool SHOW_INSPECT = new Bool(Tab.METERS, "showTickInspector", true,
 			"Frozen: list what happened in the tick, in order");
@@ -270,6 +268,8 @@ public final class LabConfig {
 	public static final Hotkey PAUSE_TIMELINE = new Hotkey("pauseTimeline", "R,SPACE", false, "Freeze / unfreeze");
 	public static final Hotkey REWIND = new Hotkey("rewind", "R,BACKSPACE", true, "1 tick back (freezes). Hold to repeat");
 	public static final Hotkey FORWARD = new Hotkey("forward", "R,ENTER", true, "1 tick forward. Back at now it runs again");
+	public static final Hotkey FREEZE_GAME = new Hotkey("gameFreeze", "UP", false, "Freeze / unfreeze the game (/tick, needs op)");
+	public static final Hotkey STEP_GAME = new Hotkey("gameStep", "DOWN", true, "Frozen game: step 1 tick. Hold to repeat");
 	public static final Hotkey CLEAR_PISTONS = new Hotkey("clearPistons", "P", false, "Hide piston previews");
 	public static final Hotkey GROUPS = new Hotkey("meterGroups", "R,G", false, "Meter groups (click one to switch)");
 	public static final Hotkey OPEN_SETTINGS = new Hotkey("openSettings", "R,C", false, "This menu");

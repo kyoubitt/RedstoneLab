@@ -177,35 +177,28 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		}
 	}
 
-	/** R + Space freezes the real game (/tick), R + Enter steps exactly 1 tick, R + Space runs it again. */
+	/** Up freezes the real game (/tick), Down steps exactly 1 tick, Up runs it again. */
 	private void freezeAndStep(ClientGameTestContext context, TestSingleplayerContext world) {
 		context.runOnClient(client -> LabKeys.setPaused(false));
-		combo(context, org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
 		context.waitTicks(5);
 		if (!world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
-			throw new AssertionError("R + Space should freeze the game");
+			throw new AssertionError("Up should freeze the game");
 		}
 		long before = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
-		combo(context, org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
 		context.waitTicks(5);
 		long after = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
 		if (after - before != 1) {
-			throw new AssertionError("R + Enter on a frozen game should step 1 tick, stepped " + (after - before));
+			throw new AssertionError("Down on a frozen game should step 1 tick, stepped " + (after - before));
 		}
 		context.waitTicks(5);
 		context.takeScreenshot("still-game-frozen");
-		combo(context, org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
 		context.waitTicks(5);
 		if (world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
-			throw new AssertionError("R + Space again should run the game");
+			throw new AssertionError("Up again should run the game");
 		}
-	}
-
-	/** Hold R, press {@code key}, let go of R. */
-	private static void combo(ClientGameTestContext context, int key) {
-		context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
-		context.getInput().pressKey(key);
-		context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
 	}
 
 	/** Three still pistons for the guide: pushes 4 (slime), blocked (obsidian), too many. */
