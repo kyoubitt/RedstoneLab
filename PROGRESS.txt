@@ -31,7 +31,7 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
   0.2.1  previews checked on clocks; client comparator fix (false BUD)
   0.3.0  firing order of shown pistons
   0.3.1  item in / out in the right part of the tick
-  next   shorter text; R + Backspace / Enter back / forward; Esc unbinds; Up freezes the game
+  0.3.2  shorter text; R + Backspace / Enter back / forward; Esc unbinds; Up freezes the game
          (/tick), Down steps it; code cleanup
 
 KNOWN LIMITS
