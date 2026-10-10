@@ -34,6 +34,7 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 - Dropper: bar = fires · Hopper: bar = locked · Chest: bar = signal > 0, `(3 at 83)` = signal 3 at 83 items
 - Meters follow blocks moved by pistons.
 
+**R + Space** freezes the game (`/tick`, needs op), **R + Enter** steps it 1 tick.
 **R + Backspace / Enter**: 1 tick back / forward (freezes; at now it runs again). Frozen = list of
 what happened that tick, in sub-tick order. Block / shape updates: **Show event marks**.
 
@@ -56,8 +57,8 @@ what happened that tick, in sub-tick order. Block / shape updates: **Show event 
 | M | meter on / off |
 | Backspace | remove a meter |
 | R + M | remove all |
-| R + Space | freeze / unfreeze |
-| R + Backspace / Enter | 1 tick back / forward |
+| R + Space | freeze / unfreeze the game (op; else just the timeline) |
+| R + Backspace / Enter | 1 tick back / forward · frozen game: Enter steps 1t |
 | P | hide piston previews |
 | R + G | meter groups |
 | R + C | settings (also Mod Menu) |

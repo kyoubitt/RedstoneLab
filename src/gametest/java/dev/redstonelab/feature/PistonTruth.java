@@ -46,6 +46,8 @@ final class PistonTruth {
 	int checked;
 	int unchecked;
 	int uncheckedPulls;
+	int stickyRetracts;
+	int stickyPulled;
 	int wrong;
 	int shownChecked;
 	int shownWrong;
@@ -86,6 +88,7 @@ final class PistonTruth {
 		Map<String, List<BlockPos>> firedIn = new TreeMap<>();
 		Map<String, Boolean> checkable = new HashMap<>();
 		Map<BlockPos, String> groupOf = new LinkedHashMap<>();
+		java.util.Set<String> stickyKeys = new java.util.HashSet<>();
 		for (PistonMovingBlockEntity be : fresh) {
 			String key = be.getDirection() + (be.isExtending() ? " push" : " pull");
 			if (!be.isSourcePiston()) {
@@ -102,6 +105,10 @@ final class PistonTruth {
 				this.unchecked++;
 				if (!be.isExtending()) {
 					this.uncheckedPulls++;
+					if (be.getMovedState().is(Blocks.STICKY_PISTON)) {
+						stickyKeys.add(key);
+						this.stickyRetracts++;
+					}
 				}
 				checkable.put(key, false);
 				continue;
@@ -123,6 +130,11 @@ final class PistonTruth {
 					this.wrong++;
 					this.problem(this.problems, where + ": " + piston.toShortString() + " preview said " + d.toShortString() + " breaks, it didn't");
 				}
+			}
+		}
+		for (String k : stickyKeys) {
+			if (!actual.getOrDefault(k, Map.of()).isEmpty()) {
+				this.stickyPulled++;
 			}
 		}
 		for (Map.Entry<String, List<BlockPos>> group : firedIn.entrySet()) {
@@ -211,7 +223,7 @@ final class PistonTruth {
 
 	String summary() {
 		return this.moves + " piston moves, " + this.checked + " checked against the preview from the tick before (" + this.wrong
-				+ " wrong, " + this.unchecked + " moved again before it was still, " + this.uncheckedPulls + " of them retracting), " + this.shownChecked
+				+ " wrong, " + this.unchecked + " moved again before it was still, " + this.uncheckedPulls + " of them retracting; sticky: " + this.stickyRetracts + ", of which pulled blocks: " + this.stickyPulled + "), " + this.shownChecked
 				+ " checked against the preview on screen (" + this.shownWrong + " wrong)";
 	}
 }

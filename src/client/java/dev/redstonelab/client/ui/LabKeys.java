@@ -8,10 +8,14 @@ import org.lwjgl.glfw.GLFW;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
 import com.mojang.blaze3d.platform.InputConstants;
+
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 
 import dev.redstonelab.client.ClientNetworking;
 import dev.redstonelab.client.ClientPistons;
@@ -32,7 +36,34 @@ public final class LabKeys {
 	/** Frozen by the rewind key (not by hand), so going forward to the present un-freezes it. */
 	private static boolean autoPaused;
 
+	/** Client tick of the last /tick command we sent (its chat reply gets hidden). */
+	private static long tickCommandAt = Long.MIN_VALUE;
+	private static long clientTicks;
+
 	private LabKeys() {
+	}
+
+	public static void init() {
+		ClientTickEvents.END_CLIENT_TICK.register(mc -> clientTicks++);
+		// Our own /tick freeze / step / unfreeze answer in chat: hidden, the action bar says it.
+		ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> !(clientTicks - tickCommandAt < 40
+				&& message.getContents() instanceof TranslatableContents t && t.getKey().startsWith("commands.tick.")));
+	}
+
+	/** The game itself can be frozen and stepped: the setting is on and the player may use /tick. */
+	private static boolean canTick(Minecraft mc) {
+		return LabConfig.FREEZE_GAME.value && mc.getConnection() != null
+				&& mc.getConnection().getCommands().getRoot().getChild("tick") != null;
+	}
+
+	public static boolean gameFrozen() {
+		Minecraft mc = Minecraft.getInstance();
+		return mc.level != null && mc.level.tickRateManager().isFrozen();
+	}
+
+	private static void tick(String command) {
+		tickCommandAt = clientTicks;
+		ClientNetworking.command(command);
 	}
 
 	/** A key went down (1), up (0) or repeats (2). Returns true when a combo used it. */
@@ -74,6 +105,15 @@ public final class LabKeys {
 		if (hotkey == LabConfig.OPEN_SETTINGS) {
 			mc.setScreen(new LabConfigScreen(null));
 		} else if (hotkey == LabConfig.PAUSE_TIMELINE) {
+			if (canTick(mc)) {
+				// Freeze the game itself; the timeline keeps showing it (nothing moves while frozen).
+				boolean freeze = !gameFrozen();
+				tick(freeze ? "tick freeze" : "tick unfreeze");
+				setPaused(false);
+				mc.player.displayClientMessage(Component.literal(freeze
+						? "Game frozen \u00b7 " + LabConfig.FORWARD.value.display() + ": step 1t" : "Game running"), true);
+				return;
+			}
 			setPaused(!paused);
 			mc.player.displayClientMessage(Component.literal(paused ? "Timeline frozen" : "Timeline running"), true);
 		} else if (hotkey == LabConfig.REWIND) {
@@ -83,6 +123,10 @@ public final class LabKeys {
 			}
 			scroll = Math.min(scroll + 1, Math.max(0, ClientState.filled - 1));
 		} else if (hotkey == LabConfig.FORWARD) {
+			if (scroll == 0 && gameFrozen() && canTick(mc)) {
+				tick("tick step 1");
+				return;
+			}
 			scroll = Math.max(0, scroll - 1);
 			if (scroll == 0 && autoPaused) {
 				paused = false;

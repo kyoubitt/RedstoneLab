@@ -31,8 +31,10 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
   0.2.1  previews checked on clocks; client comparator fix (false BUD)
   0.3.0  firing order of shown pistons
   0.3.1  item in / out in the right part of the tick
-  next   shorter text everywhere; R + Backspace / R + Enter for back / forward; code cleanup
+  next   shorter text; R + Backspace / Enter back / forward; Esc unbinds; R + Space freezes the
+         game (/tick) and R + Enter steps it; code cleanup
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.
+    Not worth guessing: on the clock test only 32 of 98 such retractions pulled (the rest drop).
   * Without the mod on the server, firing-order gaps are measured client-side (lag: off by 1).

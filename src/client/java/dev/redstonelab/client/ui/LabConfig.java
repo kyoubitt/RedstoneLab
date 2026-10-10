@@ -241,6 +241,8 @@ public final class LabConfig {
 			"Outlines, letters and piston previews in the world");
 	public static final Bool EVENT_MARKS = new Bool(Tab.METERS, "showEventMarks", false,
 			"Marks for what happened each tick, and block / shape updates in the tick list");
+	public static final Bool FREEZE_GAME = new Bool(Tab.METERS, "freezeGame", true,
+			"Freeze also freezes the game (/tick, needs op); forward then steps 1 tick");
 	public static final Int TIMELINE_TICKS = new Int(Tab.METERS, "timelineTicks", 80, 20, 200, "Ticks shown");
 	public static final Bool SHOW_INSPECT = new Bool(Tab.METERS, "showTickInspector", true,
 			"Frozen: list what happened in the tick, in order");

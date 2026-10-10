@@ -64,7 +64,8 @@ public final class TimelineHud {
 		boolean paused = LabKeys.paused;
 		int scroll = paused ? LabKeys.scroll : 0;
 		String name = "default".equals(ClientState.group) ? "Meters" : "Meters: " + ClientState.group;
-		String title = paused ? name + " [frozen" + (scroll > 0 ? " -" + scroll + "t" : "") + "]" : name;
+		String title = paused ? name + " [frozen" + (scroll > 0 ? " -" + scroll + "t" : "") + "]"
+				: LabKeys.gameFrozen() ? name + " [game frozen]" : name;
 
 		String key = ClientState.layoutVersion + "," + visible + "," + marks + showTitle + showInfo + showLegend;
 		if (!key.equals(this.layoutKey)) {
