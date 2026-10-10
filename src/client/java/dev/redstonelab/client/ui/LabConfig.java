@@ -268,8 +268,9 @@ public final class LabConfig {
 	public static final Hotkey PAUSE_TIMELINE = new Hotkey("pauseTimeline", "R,SPACE", false, "Freeze / unfreeze");
 	public static final Hotkey REWIND = new Hotkey("rewind", "R,BACKSPACE", true, "1 tick back (freezes). Hold to repeat");
 	public static final Hotkey FORWARD = new Hotkey("forward", "R,ENTER", true, "1 tick forward. Back at now it runs again");
-	public static final Hotkey FREEZE_GAME = new Hotkey("gameFreeze", "UP", false, "Freeze / unfreeze the game (/tick, needs op)");
-	public static final Hotkey STEP_GAME = new Hotkey("gameStep", "DOWN", true, "Frozen game: step 1 tick. Hold to repeat");
+	public static final Hotkey FREEZE_GAME = new Hotkey("gameFreeze", "UP", true,
+			"Freeze the game (/tick, needs op). Frozen: step 1 tick, hold to repeat");
+	public static final Hotkey RUN_GAME = new Hotkey("gameRun", "DOWN", false, "Unfreeze the game");
 	public static final Hotkey CLEAR_PISTONS = new Hotkey("clearPistons", "P", false, "Hide piston previews");
 	public static final Hotkey GROUPS = new Hotkey("meterGroups", "R,G", false, "Meter groups (click one to switch)");
 	public static final Hotkey OPEN_SETTINGS = new Hotkey("openSettings", "R,C", false, "This menu");

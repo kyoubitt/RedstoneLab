@@ -33,6 +33,7 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
   0.3.1  item in / out in the right part of the tick
   0.3.2  shorter text; R + Backspace / Enter back / forward; Esc unbinds; Up freezes the game
          (/tick), Down steps it; code cleanup
+  0.3.3  Up = freeze / step 1 tick, Down = unfreeze
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

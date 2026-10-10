@@ -177,7 +177,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		}
 	}
 
-	/** Up freezes the real game (/tick), Down steps exactly 1 tick, Up runs it again. */
+	/** Up freezes the real game (/tick), Up again steps exactly 1 tick, Down runs it again. */
 	private void freezeAndStep(ClientGameTestContext context, TestSingleplayerContext world) {
 		context.runOnClient(client -> LabKeys.setPaused(false));
 		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
@@ -186,18 +186,18 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			throw new AssertionError("Up should freeze the game");
 		}
 		long before = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
 		context.waitTicks(5);
 		long after = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
-		if (after - before != 1) {
-			throw new AssertionError("Down on a frozen game should step 1 tick, stepped " + (after - before));
+		if (after - before != 1 || !world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
+			throw new AssertionError("Up on a frozen game should step 1 tick and stay frozen, stepped " + (after - before));
 		}
 		context.waitTicks(5);
 		context.takeScreenshot("still-game-frozen");
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
 		context.waitTicks(5);
 		if (world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
-			throw new AssertionError("Up again should run the game");
+			throw new AssertionError("Down should run the game");
 		}
 	}
 

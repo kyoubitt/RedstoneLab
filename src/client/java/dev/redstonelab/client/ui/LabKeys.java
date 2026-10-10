@@ -118,21 +118,26 @@ public final class LabKeys {
 				paused = false;
 				autoPaused = false;
 			}
-		} else if (hotkey == LabConfig.FREEZE_GAME || hotkey == LabConfig.STEP_GAME) {
+		} else if (hotkey == LabConfig.FREEZE_GAME || hotkey == LabConfig.RUN_GAME) {
 			if (!canTick(mc)) {
 				mc.player.displayClientMessage(Component.literal("Freezing the game needs /tick (op)"), true);
 				return;
 			}
 			boolean frozen = gameFrozen();
-			if (hotkey == LabConfig.STEP_GAME && frozen) {
+			if (hotkey == LabConfig.RUN_GAME) {
+				if (frozen) {
+					tick("tick unfreeze");
+					mc.player.displayClientMessage(Component.literal("Game running"), true);
+				}
+			} else if (frozen) {
 				tick("tick step 1");
-				return;
+			} else {
+				// The timeline keeps showing the game (nothing moves while frozen).
+				tick("tick freeze");
+				setPaused(false);
+				mc.player.displayClientMessage(Component.literal("Game frozen \u00b7 " + LabConfig.FREEZE_GAME.value.display()
+						+ ": step 1t \u00b7 " + LabConfig.RUN_GAME.value.display() + ": run"), true);
 			}
-			// Down while running freezes first; the timeline keeps showing the game.
-			tick(frozen ? "tick unfreeze" : "tick freeze");
-			setPaused(false);
-			mc.player.displayClientMessage(Component.literal(frozen ? "Game running"
-					: "Game frozen \u00b7 " + LabConfig.STEP_GAME.value.display() + ": step 1t"), true);
 		} else if (hotkey == LabConfig.CLEAR_PISTONS) {
 			ClientPistons.clear();
 			mc.player.displayClientMessage(Component.literal("Piston previews hidden"), true);
