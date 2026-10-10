@@ -104,9 +104,9 @@ JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew build
 ```
 Jar: `build/libs/`. Building needs JDK 25; the mod runs on Java 21.
 
-- `./gradlew runGameTest`: 26 in-game tests that build redstone on a test server and check the
+- `./gradlew runGameTest`: 27 in-game tests that build redstone on a test server and check the
   mod against what the game really does (clocks, 0-tick pulses, pistons, QC, comparators,
-  hoppers, tick order, 300 random piston setups vs the game's own push calculation, 8 random
+  hoppers, tick order (items moving in the right part of the tick), 300 random piston setups vs the game's own push calculation, 8 random
   circuits where every meter must match the real block every tick, and 60 random observer-clock
   piston builds where every real piston move must match the preview shown right before it,
   and the firing order of 4 pistons on a clock).

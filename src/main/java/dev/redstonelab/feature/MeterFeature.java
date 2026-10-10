@@ -110,6 +110,8 @@ public final class MeterFeature {
 		String name = "";
 		/** Items inside, or -1 if the block is not a container. */
 		int itemCount = -1;
+		/** The items changed since the last sample (contents text needs a refresh). */
+		boolean itemsChanged;
 		/** Container: what is inside, "10 Stone + 3 Dirt", refreshed while sampling. */
 		String contents = "";
 		/** Container: "3 at 83" (next comparator level), refreshed while sampling. */
@@ -632,6 +634,28 @@ public final class MeterFeature {
 	}
 
 	/** Items inside a hopper, chest, dropper..., or -1 if the block is not a container. */
+	/**
+	 * A metered block entity changed (a hopper, dropper or chest gained or lost items): note
+	 * item in / out right away, so the tick list shows it in the part of the tick it happened
+	 * (dropper firing: block ticks; hoppers: block entities). Several changes in one tick are
+	 * all noted (a hopper taking an item in and passing one on).
+	 */
+	public static void onContainerChanged(ServerLevel level, BlockPos pos) {
+		for (State state : STATES.values()) {
+			for (Meter m : state.meters) {
+				if (m.itemCount < 0 || m.dimension != level.dimension() || !m.pos.equals(pos)) {
+					continue;
+				}
+				int items = itemCount(level, pos);
+				if (items >= 0 && items != m.itemCount) {
+					m.flag(items > m.itemCount ? MeterEvent.ITEM_IN : MeterEvent.ITEM_OUT);
+					m.itemCount = items;
+					m.itemsChanged = true;
+				}
+			}
+		}
+	}
+
 	private static int itemCount(ServerLevel level, BlockPos pos) {
 		if (!level.hasChunkAt(pos) || !(level.getBlockEntity(pos) instanceof net.minecraft.world.Container container)) {
 			return -1;
@@ -953,17 +977,19 @@ public final class MeterFeature {
 			end[i] = (byte) m.power;
 			// End-of-tick state (bits 1, 2) + what turned on during the tick (bits 4, 8).
 			bits[i] = (byte) (m.tickState | m.stateBits());
-			// Item meters: compare the item count with the last tick.
+			// Item meters: item in / out is normally noted the moment it happens
+			// (onContainerChanged); this only catches changes the game didn't announce.
 			ServerLevel meterLevel = LabServer.level(m.dimension);
 			int items = meterLevel == null ? -1 : itemCount(meterLevel, m.pos);
 			if (items >= 0 && m.itemCount >= 0 && items != m.itemCount) {
 				m.flag(items > m.itemCount ? MeterEvent.ITEM_IN : MeterEvent.ITEM_OUT);
 			}
-			if (items >= 0 && (items != m.itemCount || m.nextLevel.isEmpty() || time % 20 == 0)) {
+			if (items >= 0 && (items != m.itemCount || m.itemsChanged || m.nextLevel.isEmpty() || time % 20 == 0)) {
 				m.nextLevel = items > 0 ? nextLevel(meterLevel, m.pos, m.power) : "";
 				m.contents = contents(meterLevel, m.pos);
 			}
 			m.itemCount = items;
+			m.itemsChanged = false;
 			m.now = time;
 			if (items >= 0) {
 				if (MeterEvent.ITEM_IN.in(m.events)) {

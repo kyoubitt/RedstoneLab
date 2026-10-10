@@ -517,6 +517,14 @@ PISTON PREVIEW LIKE PISTORDER
     both exact and client-measured modes with the same build.
 
 ----------------------------------------------------------------------
+0.3.1 ITEM IN / OUT IN THE RIGHT PART OF THE TICK
+  * Was: item in / out found by comparing counts after the tick, so the tick list showed them
+    under "players & commands". Now MeterFeature.onContainerChanged (from Level.blockEntityChanged
+    via PowerWatch) flags them when the game changes the container: dropper firing = block ticks,
+    hoppers = block entities. The end-of-tick comparison stays as a fallback.
+  * Test itemMovesInTheRightPartOfTheTick (fails without the fix). 27 pass.
+
+----------------------------------------------------------------------
 KNOWN LIMITATIONS / TODO
 ----------------------------------------------------------------------
   * (author set to kyoubitt, license LGPL-3.0)

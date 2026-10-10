@@ -224,6 +224,7 @@ public final class PowerWatch {
 		}
 		Watch w = dim.watches.get(pos.asLong());
 		if (w != null) {
+			dev.redstonelab.feature.MeterFeature.onContainerChanged(serverLevel, pos);
 			evaluate(serverLevel, w);
 			dispatch();
 		}

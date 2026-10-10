@@ -544,6 +544,44 @@ public class RedstoneLabGameTests {
 		});
 	}
 
+	/**
+	 * Item in / out land in the part of the tick the game really moved the item: a dropper fires
+	 * in its block tick (dropper out, hopper in), the hopper passes it on in its block-entity tick
+	 * (hopper out, chest in). Nothing may show up as "players & commands".
+	 */
+	@GameTest(maxTicks = 40)
+	public void itemMovesInTheRightPartOfTheTick(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		BlockPos dropper = new BlockPos(4, 1, 1);
+		BlockPos hopper = new BlockPos(3, 1, 1);
+		BlockPos chest = new BlockPos(2, 1, 1);
+		helper.setBlock(chest, Blocks.CHEST);
+		helper.setBlock(hopper, Blocks.HOPPER.defaultBlockState().setValue(BlockStateProperties.FACING_HOPPER, Direction.WEST));
+		helper.setBlock(dropper, Blocks.DROPPER.defaultBlockState().setValue(BlockStateProperties.FACING, Direction.WEST));
+		Container items = (Container) level.getBlockEntity(helper.absolutePos(dropper));
+		items.setItem(0, new ItemStack(Items.STONE, 1));
+		items.setChanged();
+		for (BlockPos p : new BlockPos[]{dropper, hopper, chest}) {
+			MeterFeature.toggle(player, level, helper.absolutePos(p));
+		}
+		// Fires the dropper (a block tick 2 game ticks later).
+		helper.runAtTickTime(3, () -> helper.setBlock(new BlockPos(5, 1, 1), Blocks.REDSTONE_BLOCK));
+		helper.runAtTickTime(30, () -> {
+			java.util.List<String> a = MeterFeature.eventsForTest(player, "A");
+			java.util.List<String> b = MeterFeature.eventsForTest(player, "B");
+			java.util.List<String> c = MeterFeature.eventsForTest(player, "C");
+			String all = "dropper " + a + " hopper " + b + " chest " + c;
+			helper.assertTrue(a.contains("ITEM_OUT@BLOCK_TICKS"), "dropper out: " + all);
+			helper.assertTrue(b.contains("ITEM_IN@BLOCK_TICKS"), "hopper in: " + all);
+			helper.assertTrue(b.contains("ITEM_OUT@BLOCK_ENTITIES"), "hopper out: " + all);
+			helper.assertTrue(c.contains("ITEM_IN@BLOCK_ENTITIES"), "chest in: " + all);
+			helper.assertTrue(!all.contains("ITEM_IN@PLAYERS") && !all.contains("ITEM_OUT@PLAYERS"), "wrong part of the tick: " + all);
+			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
 	/** Two pistons with meters powered 3 ticks apart: the order line must read "A → 3t → B". */
 	@GameTest(maxTicks = 30)
 	public void pistonFireTiming(GameTestHelper helper) {
