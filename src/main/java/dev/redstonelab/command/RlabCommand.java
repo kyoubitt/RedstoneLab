@@ -48,8 +48,8 @@ public final class RlabCommand {
 				.then(literal("help").executes(ctx -> help(ctx.getSource())))
 				.then(literal("tool").executes(ctx -> {
 					ServerPlayer player = player(ctx);
-					if (!player.addItem(MeterFeature.createProbe())) {
-						player.drop(MeterFeature.createProbe(), false);
+					if (!player.addItem(MeterFeature.createTool())) {
+						player.drop(MeterFeature.createTool(), false);
 					}
 					Msg.ok(ctx.getSource(), "Meter Tool: right-click a block");
 					return 1;

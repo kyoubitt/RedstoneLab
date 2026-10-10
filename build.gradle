@@ -11,11 +11,6 @@ base {
 }
 
 repositories {
-	// MaLiLib (client-only, optional at runtime)
-	maven {
-		url = 'https://masa.dy.fi/maven/sakura-ryoko'
-		content { includeGroupAndSubgroups('fi.dy.masa') }
-	}
 	// Mod Menu (optional)
 	maven {
 		url = 'https://maven.terraformersmc.com/releases/'

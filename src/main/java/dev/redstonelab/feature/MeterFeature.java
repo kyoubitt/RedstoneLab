@@ -52,7 +52,7 @@ import dev.redstonelab.util.Msg;
 import dev.redstonelab.util.PowerUtil;
 
 /**
- * Meters, like Redstone Multimeter: put a meter on a block (probe right-click or the M key)
+ * Meters, like Redstone Multimeter: put a meter on a block (M key or the Meter Tool)
  * and it gets a coloured outline with a letter, plus a row on the timeline HUD showing when
  * it was on and what happened to it each tick (event marks). Vanilla clients get a boss bar
  * per meter instead of the HUD.
@@ -424,9 +424,9 @@ public final class MeterFeature {
 		return ticks == 0 ? "now" : ticks + "t ago";
 	}
 
-	// ------------------------------------------------------------------ probe item
+	// ------------------------------------------------------------------ meter tool
 
-	public static ItemStack createProbe() {
+	public static ItemStack createTool() {
 		Item item = Items.BLAZE_ROD;
 		Identifier id = Identifier.tryParse(ServerConfig.get().probeItem);
 		if (id != null && BuiltInRegistries.ITEM.containsKey(id)) {
@@ -449,7 +449,7 @@ public final class MeterFeature {
 		return Component.literal(s).withStyle(st -> st.withItalic(false).withColor(ChatFormatting.GRAY));
 	}
 
-	public static boolean isProbe(ItemStack stack) {
+	public static boolean isTool(ItemStack stack) {
 		if (stack.isEmpty()) {
 			return false;
 		}
@@ -458,7 +458,7 @@ public final class MeterFeature {
 	}
 
 	public static InteractionResult onUseBlock(Player player, Level level, InteractionHand hand, BlockHitResult hit) {
-		if (!isProbe(player.getItemInHand(hand))) {
+		if (!isTool(player.getItemInHand(hand))) {
 			return InteractionResult.PASS;
 		}
 		if (!(player instanceof ServerPlayer serverPlayer) || !(level instanceof ServerLevel serverLevel)) {
@@ -633,7 +633,6 @@ public final class MeterFeature {
 		return sb.toString();
 	}
 
-	/** Items inside a hopper, chest, dropper..., or -1 if the block is not a container. */
 	/**
 	 * A metered block entity changed (a hopper, dropper or chest gained or lost items): note
 	 * item in / out right away, so the tick list shows it in the part of the tick it happened
@@ -656,6 +655,7 @@ public final class MeterFeature {
 		}
 	}
 
+	/** Items inside a hopper, chest, dropper..., or -1 if the block is not a container. */
 	private static int itemCount(ServerLevel level, BlockPos pos) {
 		if (!level.hasChunkAt(pos) || !(level.getBlockEntity(pos) instanceof net.minecraft.world.Container container)) {
 			return -1;
@@ -669,7 +669,6 @@ public final class MeterFeature {
 
 	// ------------------------------------------------------------------ groups
 
-	/** Writes the current meters into the active group and saves all groups to the world folder. */
 	/** Copies the current meters into the active group (in memory only). */
 	private static void snapshot(State state) {
 		List<MeterStore.Saved> list = new ArrayList<>();
@@ -1260,7 +1259,7 @@ public final class MeterFeature {
 	/** Holding the tool: show what it does (unless the player just clicked). */
 	private static void showToolHint(MinecraftServer server) {
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-			if (!isProbe(player.getMainHandItem())) {
+			if (!isTool(player.getMainHandItem())) {
 				continue;
 			}
 			State state = STATES.get(player.getUUID());

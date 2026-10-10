@@ -1,7 +1,5 @@
 package dev.redstonelab.core;
 
-import java.util.Locale;
-
 /**
  * Number formatting for tick values.
  */
@@ -72,12 +70,5 @@ public final class Ticks {
 			sb.append(k == 0 ? "" : "/").append(round.get((best + k) % p)).append('t');
 		}
 		return sb.toString();
-	}
-
-	public static String decimal(double value) {
-		if (value == Math.rint(value)) {
-			return Long.toString((long) value);
-		}
-		return String.format(Locale.ROOT, "%.2f", value);
 	}
 }

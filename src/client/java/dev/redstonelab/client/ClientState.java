@@ -10,8 +10,7 @@ import net.minecraft.core.BlockPos;
 import dev.redstonelab.net.LabPayloads;
 
 /**
- * Everything the client received from the server. Plain data, no MaLiLib types, so it
- * exists even when MaLiLib is missing.
+ * Everything the client received from the server.
  */
 public final class ClientState {
 	/** Server has RedstoneLab and answered the handshake. */
