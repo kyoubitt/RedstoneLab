@@ -491,6 +491,20 @@ PISTON PREVIEW LIKE PISTORDER
     settings screen) passes.
 
 ----------------------------------------------------------------------
+0.2.1 PISTON PREVIEW ACCURACY ON CLOCKS
+  * pistonPreviewsOnClocks (server): 60 random builds (observer clock, QC half the time, slime /
+    honey / obsidian / glazed / cobweb / observers / redstone blocks / more pistons in front).
+    Every real move (new moving-piston blocks) is compared with the preview from the tick
+    before: 283 moves checked, 0 wrong. 242 moves (239 retractions) had no still tick before
+    them: on a fast clock a piston is never still while out, so the preview shows the next push.
+  * Client test: 5 random clock builds + a piston held out by a comparator, all previews shown,
+    240 ticks; client previews matched with the server's for identical blocks (fingerprint):
+    1945 compared, 0 differ (53 client ticks matched no server tick: not compared).
+  * Bug found and fixed: the client never gets a comparator's output strength, so a piston held
+    by a comparator showed a false "⚡ BUD". Client now reads the comparator's lit state; checked
+    against the game in randomCircuitsMatchGame (433k checks, 0 differ; a planted bug gives 61).
+
+----------------------------------------------------------------------
 KNOWN LIMITATIONS / TODO
 ----------------------------------------------------------------------
   * (author set to kyoubitt, license LGPL-3.0)

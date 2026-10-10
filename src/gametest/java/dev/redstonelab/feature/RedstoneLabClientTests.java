@@ -6,10 +6,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -21,6 +24,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 import dev.redstonelab.client.ClientState;
@@ -136,12 +140,167 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			context.takeScreenshot("still-hotkeys");
 			context.setScreen(() -> null);
 			context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = true);
+			this.clientPreviewsMatchServer(context, world);
 		}
 		try {
 			Files.write(Path.of("video-captions.txt"), this.captions, StandardCharsets.UTF_8);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	// ------------------------------------------------------------------ client vs server previews
+
+	private static volatile BlockPos boxMin;
+	private static volatile BlockPos boxMax;
+	private static volatile boolean sampling;
+	private static BlockPos comparatorPiston;
+	/** Server: block fingerprint -> preview of every still piston. */
+	private static final Map<Long, Map<BlockPos, String>> SERVER = new ConcurrentHashMap<>();
+
+	/**
+	 * Five random observer-clock piston builds and one piston held out by a comparator. All previews
+	 * shown on the client; for 240 ticks every preview the client draws must be the same as the
+	 * server's preview for the exact same blocks (matched by a fingerprint of the whole area).
+	 */
+	private void clientPreviewsMatchServer(ClientGameTestContext context, TestSingleplayerContext world) {
+		ServerTickEvents.END_SERVER_TICK.register(server -> {
+			if (sampling) {
+				ServerLevel level = server.overworld();
+				SERVER.putIfAbsent(fingerprint(level), previews(level));
+			}
+		});
+		world.getServer().runOnServer(server -> {
+			ServerLevel level = player(server).level();
+			boxMin = base.offset(-12, -1, 8);
+			boxMax = base.offset(12, 6, 24);
+			java.util.Random random = new java.util.Random(99);
+			for (int i = 0; i < 6; i++) {
+				BlockPos piston = base.offset(-8 + (i % 3) * 8, 1, 12 + (i / 3) * 8);
+				if (i < 5) {
+					ClockBuilds.random(level, piston, random);
+					continue;
+				}
+				// Comparator -> sticky piston with a stone in front; the comparator's input (a
+				// redstone block) is put down and taken away later, so the piston rests out.
+				comparatorPiston = piston;
+				level.setBlock(piston, Blocks.STICKY_PISTON.defaultBlockState().setValue(BlockStateProperties.FACING, Direction.NORTH), 2 | 16);
+				level.setBlock(piston.north(), Blocks.STONE.defaultBlockState(), 2 | 16);
+				level.setBlock(piston.below().west(), Blocks.STONE.defaultBlockState(), 2 | 16);
+				level.setBlock(piston.west(), Blocks.COMPARATOR.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.WEST), 3);
+			}
+			player(server).teleportTo(level, base.getX() + 0.5, base.getY() + 7, base.getZ() + 4, java.util.Set.of(), 0f, 40f, false);
+		});
+		context.waitTicks(20);
+		context.runOnClient(client -> {
+			ClientPistons.clear();
+			for (BlockPos p : BlockPos.betweenClosed(boxMin, boxMax)) {
+				if (client.level.getBlockState(p).getBlock() instanceof PistonBaseBlock) {
+					ClientPistons.toggle(p.immutable());
+				}
+			}
+		});
+		context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = false);
+		SERVER.clear();
+		sampling = true;
+		List<Long> clientPrints = new ArrayList<>();
+		List<Map<BlockPos, String>> clientViews = new ArrayList<>();
+		int[] shownWrong = new int[1];
+		Map<BlockPos, String> lastStill = new java.util.HashMap<>();
+		List<String> problems = new ArrayList<>();
+		boolean[] comparatorOut = new boolean[1];
+		for (int t = 0; t < 240; t++) {
+			if (t == 40 || t == 140) {
+				boolean on = t == 40;
+				world.getServer().runOnServer(server -> player(server).level().setBlock(comparatorPiston.west(2),
+						on ? Blocks.REDSTONE_BLOCK.defaultBlockState() : Blocks.AIR.defaultBlockState(), 3));
+			}
+			if (t == 120) {
+				comparatorOut[0] = world.getServer().computeOnServer(server -> {
+					var s = player(server).level().getBlockState(comparatorPiston);
+					return s.is(Blocks.STICKY_PISTON) && s.getValue(BlockStateProperties.EXTENDED);
+				});
+			}
+			context.waitTick();
+			context.runOnClient(client -> {
+				Map<BlockPos, String> views = previews(client.level);
+				clientPrints.add(fingerprint(client.level));
+				clientViews.add(views);
+				// What is drawn must be the fresh preview for every still piston.
+				// (Drawn at the end of the tick, so it may still be the last one before this tick.)
+				views.forEach((pos, view) -> {
+					String drawn = ClientPistons.label(pos);
+					if (ClientPistons.isShown(pos) && !view.startsWith(drawn + "\n")
+							&& !String.valueOf(lastStill.get(pos)).startsWith(drawn + "\n")) {
+						shownWrong[0]++;
+						if (problems.size() < 5) {
+							problems.add(pos.toShortString() + " draws '" + drawn + "' but is " + view.lines().findFirst().orElse(""));
+						}
+					}
+				});
+				lastStill.putAll(views);
+			});
+			if (t % 3 == 0) {
+				context.takeScreenshot("clocks");
+			}
+		}
+		sampling = false;
+		int compared = 0;
+		int differ = 0;
+		int unmatched = 0;
+		for (int i = 0; i < clientPrints.size(); i++) {
+			Map<BlockPos, String> server = SERVER.get(clientPrints.get(i));
+			if (server == null) {
+				unmatched++;
+				continue;
+			}
+			for (Map.Entry<BlockPos, String> e : clientViews.get(i).entrySet()) {
+				compared++;
+				if (!e.getValue().equals(server.get(e.getKey()))) {
+					differ++;
+					if (problems.size() < 10) {
+						problems.add(e.getKey().toShortString() + " client: " + e.getValue().replace("\n", " | ") + " server: "
+								+ String.valueOf(server.get(e.getKey())).replace("\n", " | "));
+					}
+				}
+			}
+		}
+		String summary = compared + " client previews compared with the server's for the same blocks, " + differ + " differ; "
+				+ unmatched + "/" + clientPrints.size() + " client ticks had no matching server tick; " + shownWrong[0] + " drawn wrong";
+		dev.redstonelab.RedstoneLab.LOGGER.info("clientPreviewsMatchServer: {}", summary);
+		problems.forEach(p -> dev.redstonelab.RedstoneLab.LOGGER.info("  {}", p));
+		if (!comparatorOut[0]) {
+			throw new AssertionError("the comparator-powered piston never extended");
+		}
+		if (differ > 0 || shownWrong[0] > 0 || compared < 300) {
+			throw new AssertionError(summary + ". " + problems);
+		}
+	}
+
+	private static long fingerprint(net.minecraft.world.level.Level level) {
+		long h = 17;
+		for (BlockPos p : BlockPos.betweenClosed(boxMin, boxMax)) {
+			h = h * 0x9E3779B97F4A7C15L + net.minecraft.world.level.block.Block.getId(level.getBlockState(p)) + 1;
+		}
+		return h;
+	}
+
+	/** Label and markers of every still piston in the box, as the player would see them. */
+	private static Map<BlockPos, String> previews(net.minecraft.world.level.Level level) {
+		Map<BlockPos, String> out = new java.util.TreeMap<>();
+		for (BlockPos p : BlockPos.betweenClosed(boxMin, boxMax)) {
+			if (!(level.getBlockState(p).getBlock() instanceof PistonBaseBlock) || PistonView.isMoving(level, p)) {
+				continue;
+			}
+			PistonView.View view = new PistonView.View(p.immutable());
+			List<dev.redstonelab.net.LabPayloads.MarkerData> markers = new ArrayList<>();
+			PistonView.build(level, view, markers, false);
+			List<String> lines = new ArrayList<>();
+			markers.forEach(m -> lines.add(m.toString()));
+			java.util.Collections.sort(lines);
+			out.put(p.immutable(), view.headLabel + "\n" + String.join("\n", lines));
+		}
+		return out;
 	}
 
 	/** {@code frames} screenshots, one per game tick, under one caption. */

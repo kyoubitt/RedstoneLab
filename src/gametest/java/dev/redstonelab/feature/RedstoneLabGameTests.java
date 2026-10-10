@@ -474,6 +474,45 @@ public class RedstoneLabGameTests {
 		helper.succeed();
 	}
 
+	/**
+	 * Observer clocks driving pistons into random slime / honey / stone / obsidian / glazed
+	 * terracotta / cobweb / observer / redstone block / piston builds (QC-powered half the time):
+	 * 60 builds, 34 ticks each. Every time a piston really moves, the blocks the game moved must
+	 * be exactly the numbered blocks of its preview, the "breaks" blocks must be gone, and a
+	 * piston whose preview said ✖ must not move.
+	 */
+	@GameTest(maxTicks = 2200)
+	public void pistonPreviewsOnClocks(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		java.util.Random random = new java.util.Random(777);
+		PistonTruth truth = new PistonTruth(helper.absolutePos(new BlockPos(0, 1, 0)), helper.absolutePos(new BlockPos(7, 7, 7)));
+		int rounds = 60;
+		int length = 34;
+		for (int round = 0; round < rounds; round++) {
+			int start = 2 + round * length;
+			int r = round;
+			helper.runAtTickTime(start, () -> {
+				for (BlockPos p : BlockPos.betweenClosed(helper.absolutePos(new BlockPos(0, 0, 0)), helper.absolutePos(new BlockPos(7, 7, 7)))) {
+					level.setBlock(p, p.getY() == helper.absolutePos(BlockPos.ZERO).getY() ? Blocks.STONE.defaultBlockState()
+							: Blocks.AIR.defaultBlockState(), 2 | 16);
+				}
+				truth.reset();
+				ClockBuilds.random(level, helper.absolutePos(new BlockPos(3, 2, 3)), random);
+			});
+			for (int t = start + 1; t < start + length; t++) {
+				helper.runAtTickTime(t, () -> truth.step(level, "build " + r));
+			}
+		}
+		helper.runAtTickTime(2 + rounds * length + 1, () -> {
+			dev.redstonelab.RedstoneLab.LOGGER.info("pistonPreviewsOnClocks: {}", truth.summary());
+			truth.problems.forEach(p -> dev.redstonelab.RedstoneLab.LOGGER.info("  wrong: {}", p));
+			truth.shownProblems.forEach(p -> dev.redstonelab.RedstoneLab.LOGGER.info("  on screen: {}", p));
+			helper.assertTrue(truth.checked > 200, "too few piston moves checked: " + truth.summary());
+			helper.assertTrue(truth.wrong == 0, truth.summary() + ". First: " + truth.problems);
+			helper.succeed();
+		});
+	}
+
 	/** Two pistons with meters powered 3 ticks apart: the order line must read "A → 3t → B". */
 	@GameTest(maxTicks = 30)
 	public void pistonFireTiming(GameTestHelper helper) {
@@ -784,6 +823,9 @@ public class RedstoneLabGameTests {
 		int[] checks = new int[1];
 		int[] mismatches = new int[1];
 		String[] first = {""};
+		int[] signalChecks = new int[1];
+		int[] signalWrong = new int[1];
+		String[] firstSignal = {""};
 		java.util.List<BlockPos> levers = new java.util.ArrayList<>();
 		for (int round = 0; round < 8; round++) {
 			int start = 2 + round * 50;
@@ -863,6 +905,18 @@ public class RedstoneLabGameTests {
 							helper.pullLever(lever);
 						}
 					}
+					// The piston preview's client-side power check must agree with the game.
+					for (BlockPos p : BlockPos.betweenClosed(helper.absolutePos(new BlockPos(0, 1, 0)), helper.absolutePos(new BlockPos(7, 3, 7)))) {
+						for (Direction d : Direction.values()) {
+							signalChecks[0]++;
+							if (PistonView.clientSignal(level, p, d) != level.hasSignal(p, d)) {
+								signalWrong[0]++;
+								if (firstSignal[0].isEmpty()) {
+									firstSignal[0] = "round " + r + " tick " + (tick - start) + ": " + level.getBlockState(p) + " " + d;
+								}
+							}
+						}
+					}
 					for (String label : MeterFeature.labels(player)) {
 						BlockPos pos = MeterFeature.posForTest(player, label);
 						Boolean truth = gameSaysOn(level, pos);
@@ -885,6 +939,8 @@ public class RedstoneLabGameTests {
 		helper.runAtTickTime(start(8), () -> {
 			helper.assertTrue(checks[0] > 3000, "too few checks: " + checks[0]);
 			helper.assertTrue(mismatches[0] == 0, mismatches[0] + "/" + checks[0] + " meter readings differ from the game. First: " + first[0]);
+			helper.assertTrue(signalWrong[0] == 0, signalWrong[0] + "/" + signalChecks[0]
+					+ " client-side power checks differ from the game. First: " + firstSignal[0]);
 			MeterFeature.clear(player);
 			helper.succeed();
 		});

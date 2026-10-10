@@ -24,6 +24,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ComparatorBlock;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.piston.PistonStructureResolver;
 import net.minecraft.world.level.block.state.BlockState;
@@ -112,16 +113,16 @@ public final class PistonView {
 			return null;
 		}
 		Direction facing = state.getValue(BlockStateProperties.FACING);
-		boolean direct = level.hasSignal(pos, Direction.DOWN);
+		boolean direct = hasSignal(level, pos, Direction.DOWN);
 		for (Direction d : Direction.values()) {
-			if (d != facing && level.hasSignal(pos.relative(d), d)) {
+			if (d != facing && hasSignal(level, pos.relative(d), d)) {
 				direct = true;
 			}
 		}
 		boolean qc = false;
 		BlockPos above = pos.above();
 		for (Direction d : Direction.values()) {
-			if (d != Direction.DOWN && level.hasSignal(above.relative(d), d)) {
+			if (d != Direction.DOWN && hasSignal(level, above.relative(d), d)) {
 				qc = true;
 			}
 		}
@@ -135,6 +136,39 @@ public final class PistonView {
 			return "BUD";
 		}
 		return qc && !direct ? "QC" : null;
+	}
+
+	/**
+	 * {@link Level#hasSignal}, but also right on the client: the server never sends a
+	 * comparator's output strength, so there it is read from the comparator being lit (which is
+	 * exactly "output above 0").
+	 */
+	private static boolean hasSignal(Level level, BlockPos pos, Direction dir) {
+		return level.isClientSide() ? clientSignal(level, pos, dir) : level.hasSignal(pos, dir);
+	}
+
+	/** The client's version of {@link Level#hasSignal} (package-private for the tests). */
+	static boolean clientSignal(Level level, BlockPos pos, Direction dir) {
+		BlockState state = level.getBlockState(pos);
+		if (emits(level, pos, state, dir, false)) {
+			return true;
+		}
+		if (state.isRedstoneConductor(level, pos)) {
+			for (Direction d : Direction.values()) {
+				BlockPos n = pos.relative(d);
+				if (emits(level, n, level.getBlockState(n), d, true)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private static boolean emits(Level level, BlockPos pos, BlockState state, Direction dir, boolean direct) {
+		if (state.getBlock() instanceof ComparatorBlock) {
+			return state.getValue(BlockStateProperties.POWERED) && state.getValue(BlockStateProperties.HORIZONTAL_FACING) == dir;
+		}
+		return (direct ? state.getDirectSignal(level, pos, dir) : state.getSignal(level, pos, dir)) > 0;
 	}
 
 	private static Component buildMove(Level level, View s, List<MarkerData> markers, boolean landing) {
