@@ -6,8 +6,6 @@
 		"BlockStateBaseMixin",
 		"ComparatorBlockEntityMixin",
 		"DiodeBlockInvoker",
-		"HopperBlockEntityAccessor",
-		"ItemEntityAccessor",
 		"PistonBaseBlockInvoker",
 		"PistonBaseBlockMixin",
 		"RedstoneTorchBlockInvoker",

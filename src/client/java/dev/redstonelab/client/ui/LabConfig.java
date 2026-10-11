@@ -33,7 +33,6 @@ public final class LabConfig {
 		METERS("Meters"),
 		GUI("GUI"),
 		PISTONS("Pistorder"),
-		ITEMS("Items"),
 		HOTKEYS("Hotkeys");
 
 		public final String title;
@@ -263,10 +262,6 @@ public final class LabConfig {
 	public static final Bool PISTON_LANDING = new Bool(Tab.PISTONS, "pistonLanding", false,
 			"Also outline where pushed blocks land (light blue)");
 
-	public static final Bool ITEM_LABELS = new Bool(Tab.ITEMS, "itemLabels", false,
-			"Labels over dropped items: despawn, pickup delay, hopper, speed (mod on the server)");
-	public static final Int ITEM_RANGE = new Int(Tab.ITEMS, "itemRange", 16, 4, 32, "Range in blocks (nearest 64 items)");
-
 	public static final Hotkey TOGGLE_METER = new Hotkey("toggleMeter", "M", false, "Meter on / off (block you look at)");
 	public static final Hotkey REMOVE_METER = new Hotkey("removeMeter", "BACKSPACE", false, "Remove the meter you look at, else the newest");
 	public static final Hotkey CLEAR_METERS = new Hotkey("clearMeters", "R,M", false, "Remove all meters");
@@ -276,7 +271,6 @@ public final class LabConfig {
 	public static final Hotkey FREEZE_GAME = new Hotkey("gameFreeze", "UP", true,
 			"Freeze the game (/tick, needs op). Frozen: step 1 tick, hold to repeat");
 	public static final Hotkey RUN_GAME = new Hotkey("gameRun", "DOWN", false, "Unfreeze the game");
-	public static final Hotkey ITEM_KEY = new Hotkey("toggleItemLabels", "I", false, "Item labels on / off");
 	public static final Hotkey CLEAR_PISTONS = new Hotkey("clearPistons", "P", false, "Hide piston previews");
 	public static final Hotkey GROUPS = new Hotkey("meterGroups", "R,G", false, "Meter groups (click one to switch)");
 	public static final Hotkey OPEN_SETTINGS = new Hotkey("openSettings", "R,C", false, "This menu");

@@ -17,7 +17,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 /**
- * The settings menu (R + C, or Mod Menu). Tabs: Meters, GUI, Pistorder, Items, Hotkeys. Every change is
+ * The settings menu (R + C, or Mod Menu). Tabs: Meters, GUI, Pistorder, Hotkeys. Every change is
  * saved right away. Hotkeys: click one, press the keys (e.g. hold R, press Enter), let go; Esc unbinds.
  */
 public class LabConfigScreen extends Screen {
@@ -47,8 +47,7 @@ public class LabConfigScreen extends Screen {
 	@Override
 	protected void init() {
 		this.rows.clear();
-		int tabW = Math.min(100, (this.width - 20) / LabConfig.Tab.values().length - 4);
-		int x = this.width / 2 - LabConfig.Tab.values().length * (tabW + 4) / 2;
+		int x = this.width / 2 - 4 * 52;
 		for (LabConfig.Tab t : LabConfig.Tab.values()) {
 			LabConfig.Tab target = t;
 			Button b = Button.builder(Component.literal(t.title), button -> {
@@ -56,10 +55,10 @@ public class LabConfigScreen extends Screen {
 				this.firstRow = 0;
 				this.recording = null;
 				this.rebuildWidgets();
-			}).bounds(x, 22, tabW, 20).build();
+			}).bounds(x, 22, 100, 20).build();
 			b.active = tab != t;
 			this.addRenderableWidget(b);
-			x += tabW + 4;
+			x += 104;
 		}
 		List<LabConfig.Option> options = LabConfig.options(tab);
 		this.firstRow = Math.max(0, Math.min(this.firstRow, options.size() - this.visibleRows()));

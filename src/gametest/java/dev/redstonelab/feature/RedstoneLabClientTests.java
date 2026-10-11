@@ -28,7 +28,6 @@ import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 import dev.redstonelab.client.ClientState;
-import dev.redstonelab.client.ClientItems;
 import dev.redstonelab.client.ClientPistons;
 import dev.redstonelab.client.ui.LabConfig;
 import dev.redstonelab.client.ui.LabConfigScreen;
@@ -148,8 +147,6 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			context.setScreen(() -> new LabConfigScreen(null));
 			this.record(context, 40, "Settings: R + C. No other mods needed");
 			context.takeScreenshot("still-settings");
-			context.clickScreenButton("Items");
-			context.takeScreenshot("still-items-tab");
 			context.clickScreenButton("Hotkeys");
 			this.record(context, 40, "Hotkeys: click one, press the keys (e.g. hold R, press Left)");
 			context.takeScreenshot("still-hotkeys");
@@ -168,7 +165,6 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			});
 			context.setScreen(() -> null);
 			context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = true);
-			this.itemLabels(context, world);
 			this.freezeAndStep(context, world);
 			this.pistonGuideShot(context, world);
 			this.firingOrder(context, world);
@@ -179,58 +175,6 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-	/** I turns item labels on: the client gets the server's age for the item; I again turns them off. */
-	private void itemLabels(ClientGameTestContext context, TestSingleplayerContext world) {
-		int[] id = new int[1];
-		world.getServer().runOnServer(server -> {
-			ServerPlayer player = player(server);
-			ServerLevel level = player.level();
-			// Its own spot, away from the meter build.
-			BlockPos spot = base.offset(0, 0, -6);
-			net.minecraft.world.entity.item.ItemEntity item = new net.minecraft.world.entity.item.ItemEntity(level,
-					spot.getX() + 1.5, spot.getY() + 0.2, spot.getZ() - 3.5, new ItemStack(Items.REDSTONE, 12), 0, 0, 0);
-			item.setPickUpDelay(400);
-			level.addFreshEntity(item);
-			id[0] = item.getId();
-			// A locked hopper with an item on it.
-			BlockPos hopper = spot.offset(-2, 0, -4);
-			level.setBlockAndUpdate(hopper, Blocks.HOPPER.defaultBlockState());
-			level.setBlockAndUpdate(hopper.west(), Blocks.REDSTONE_BLOCK.defaultBlockState());
-			level.addFreshEntity(new net.minecraft.world.entity.item.ItemEntity(level,
-					hopper.getX() + 0.5, hopper.getY() + 1.2, hopper.getZ() + 0.5, new ItemStack(Items.IRON_INGOT, 3), 0, 0, 0));
-			player.teleportTo(level, spot.getX() + 0.5, spot.getY() + 1, spot.getZ() + 0.5, java.util.Set.of(), 180f, 25f, false);
-		});
-		context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = false);
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_I);
-		context.waitTicks(20);
-		int clientAge = context.computeOnClient(client -> {
-			for (int i = 0; i < ClientItems.ids.length; i++) {
-				if (ClientItems.ids[i] == id[0]) {
-					return ClientItems.ages[i];
-				}
-			}
-			return Integer.MIN_VALUE;
-		});
-		int serverAge = world.getServer().computeOnServer(server -> player(server).level().getEntity(id[0]) instanceof
-				net.minecraft.world.entity.item.ItemEntity item ? item.getAge() : -1);
-		if (clientAge == Integer.MIN_VALUE || Math.abs(serverAge - clientAge) > 2) {
-			throw new AssertionError("item label age: client " + clientAge + ", server " + serverAge);
-		}
-		context.waitTicks(60);
-		context.takeScreenshot("still-items");
-		context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = true);
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_I);
-		context.waitTicks(3);
-		if (context.computeOnClient(client -> ClientItems.ids.length) != 0) {
-			throw new AssertionError("I again should turn item labels off");
-		}
-		world.getServer().runOnServer(server -> {
-			if (player(server).level().getEntity(id[0]) != null) {
-				player(server).level().getEntity(id[0]).discard();
-			}
-		});
 	}
 
 	/** Up freezes the real game (/tick), Up again steps exactly 1 tick, Down runs it again. */

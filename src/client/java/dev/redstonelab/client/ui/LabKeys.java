@@ -138,11 +138,6 @@ public final class LabKeys {
 				mc.player.displayClientMessage(Component.literal("Game frozen \u00b7 " + LabConfig.FREEZE_GAME.value.display()
 						+ ": step 1t \u00b7 " + LabConfig.RUN_GAME.value.display() + ": run"), true);
 			}
-		} else if (hotkey == LabConfig.ITEM_KEY) {
-			LabConfig.ITEM_LABELS.value = !LabConfig.ITEM_LABELS.value;
-			LabConfig.save();
-			mc.player.displayClientMessage(Component.literal(!LabConfig.ITEM_LABELS.value ? "Item labels off"
-					: ClientState.serverHasMod ? "Item labels on" : "Item labels need RedstoneLab on the server"), true);
 		} else if (hotkey == LabConfig.CLEAR_PISTONS) {
 			ClientPistons.clear();
 			mc.player.displayClientMessage(Component.literal("Piston previews hidden"), true);

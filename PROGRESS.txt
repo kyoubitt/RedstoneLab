@@ -7,17 +7,16 @@ CODE
   core/       plain Java: Ticks (3t/5t, 2t or 3t), PulseMeter, OrderLine, PistonOrder, TickPhase, MeterEvent
   capture/    Capture, PowerWatch: block / block-entity changes at metered blocks, tick phase
   mixin/      server hooks: tick phases, block changes, piston moves (meters follow, firing order)
-  feature/    MeterFeature (meters, timeline data, tick list), ItemInfoFeature (item labels),
-              PistonView + PushPreview (piston
+  feature/    MeterFeature (meters, timeline data, tick list), PistonView + PushPreview (piston
               previews), PistorderFeature (previews for players without the client mod), PistonFires
   display/    MarkerService, FakeDisplays, LabBossBar: what players without the client mod see
-  net/        payloads + handshake (protocol 10); command/, config/, server/, util/
+  net/        payloads + handshake (protocol 13); command/, config/, server/, util/
   client/     ClientNetworking, ClientState, ClientPistons (previews client-side, any server)
   client/ui/  LabConfig (config/redstonelab.json), LabConfigScreen, KeyCombo + LabKeys (combos),
               TimelineHud, WorldMarkers (vanilla gizmos)
 
 TESTS
-  ./gradlew runGameTest                         31 server tests against the real game
+  ./gradlew runGameTest                         28 server tests against the real game
   xvfb-run ./gradlew runClientGameTest          real client: keys, clicks, screenshots
   Accuracy checks that run every time:
   * 8 random circuits, every meter vs the real block every tick (~6000 checks)
@@ -26,7 +25,6 @@ TESTS
   * client previews vs server previews for identical blocks (240 ticks)
   * client-side power check vs the game (433k checks; comparators read from their lit state)
   * firing order of 4 pistons on a clock; items in / out in the right part of the tick
-  * item labels: hopper pickup times on random hopper chains (every timed claim exact)
 
 RELEASES (change mod_version on main -> GitHub builds the jar)
   0.2.0  no MaLiLib; own settings, key combos, HUD; piston previews client-side
@@ -40,6 +38,7 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
   0.3.5  item labels (I): despawn time, pickup delay; push N/12; power N for analog blocks
   0.3.6  items: own settings tab, two-line labels, hopper status (exact time when nothing can
          interfere; tested on random hopper chains), speed
+  0.3.7  item labels removed (push N/12, power N stay)
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

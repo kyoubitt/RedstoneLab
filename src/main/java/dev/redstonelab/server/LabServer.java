@@ -89,7 +89,6 @@ public final class LabServer {
 	private static void tick(MinecraftServer s) {
 		MeterFeature.tick(s);
 		PistorderFeature.tick(s);
-		dev.redstonelab.feature.ItemInfoFeature.tick(s);
 		if (s.getTickCount() % 20 == 0) {
 			MarkerService.tick(s.getPlayerList().getPlayers());
 		}

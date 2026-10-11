@@ -23,10 +23,7 @@ public final class ClientNetworking {
 				ClientPlayNetworking.send(new LabPayloads.HelloC2S(LabPayloads.PROTOCOL, capabilities(), RedstoneLab.version()));
 			}
 		});
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-			ClientState.reset();
-			ClientItems.reset();
-		});
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ClientState.reset());
 
 		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.HelloS2C.TYPE, (payload, context) -> {
 			ClientState.serverHasMod = payload.protocol() == LabPayloads.PROTOCOL;
@@ -45,7 +42,6 @@ public final class ClientNetworking {
 				ClientState.MARKERS.put(payload.channel(), payload.markers());
 			}
 		});
-		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.ItemInfoS2C.TYPE, (payload, context) -> ClientItems.update(payload));
 		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.PistonFireS2C.TYPE,
 				(payload, context) -> ClientPistons.onServerExtend(payload.pos(), payload.time(), payload.seq()));
 		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.ScopeConfigS2C.TYPE, (payload, context) -> ClientState.applyScopeConfig(payload));
