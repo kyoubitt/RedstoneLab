@@ -7,7 +7,8 @@ CODE
   core/       plain Java: Ticks (3t/5t, 2t or 3t), PulseMeter, OrderLine, PistonOrder, TickPhase, MeterEvent
   capture/    Capture, PowerWatch: block / block-entity changes at metered blocks, tick phase
   mixin/      server hooks: tick phases, block changes, piston moves (meters follow, firing order)
-  feature/    MeterFeature (meters, timeline data, tick list), PistonView + PushPreview (piston
+  feature/    MeterFeature (meters, timeline data, tick list), ItemInfoFeature (item labels),
+              PistonView + PushPreview (piston
               previews), PistorderFeature (previews for players without the client mod), PistonFires
   display/    MarkerService, FakeDisplays, LabBossBar: what players without the client mod see
   net/        payloads + handshake (protocol 10); command/, config/, server/, util/
@@ -16,7 +17,7 @@ CODE
               TimelineHud, WorldMarkers (vanilla gizmos)
 
 TESTS
-  ./gradlew runGameTest                         28 server tests against the real game
+  ./gradlew runGameTest                         29 server tests against the real game
   xvfb-run ./gradlew runClientGameTest          real client: keys, clicks, screenshots
   Accuracy checks that run every time:
   * 8 random circuits, every meter vs the real block every tick (~6000 checks)
@@ -35,6 +36,7 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          (/tick), Down steps it; code cleanup
   0.3.3  Up = freeze / step 1 tick, Down = unfreeze
   0.3.4  meters: repeater delay / locked, torch burnt out, strong / weak power on plain blocks
+  0.3.5  item labels (I): despawn time, pickup delay; push N/12; power N for analog blocks
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

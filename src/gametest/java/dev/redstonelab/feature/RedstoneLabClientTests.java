@@ -28,6 +28,7 @@ import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 import dev.redstonelab.client.ClientState;
+import dev.redstonelab.client.ClientItems;
 import dev.redstonelab.client.ClientPistons;
 import dev.redstonelab.client.ui.LabConfig;
 import dev.redstonelab.client.ui.LabConfigScreen;
@@ -165,6 +166,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			});
 			context.setScreen(() -> null);
 			context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = true);
+			this.itemLabels(context, world);
 			this.freezeAndStep(context, world);
 			this.pistonGuideShot(context, world);
 			this.firingOrder(context, world);
@@ -175,6 +177,46 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	/** I turns item labels on: the client gets the server's age for the item; I again turns them off. */
+	private void itemLabels(ClientGameTestContext context, TestSingleplayerContext world) {
+		int[] id = new int[1];
+		world.getServer().runOnServer(server -> {
+			ServerPlayer player = player(server);
+			net.minecraft.world.entity.item.ItemEntity item = new net.minecraft.world.entity.item.ItemEntity(player.level(),
+					player.getX() + 2, player.getY() + 1, player.getZ() + 3, new ItemStack(Items.REDSTONE, 12), 0, 0, 0);
+			item.setPickUpDelay(400);
+			player.level().addFreshEntity(item);
+			id[0] = item.getId();
+			player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, item.position());
+		});
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_I);
+		context.waitTicks(20);
+		int clientAge = context.computeOnClient(client -> {
+			for (int i = 0; i < ClientItems.ids.length; i++) {
+				if (ClientItems.ids[i] == id[0]) {
+					return ClientItems.ages[i];
+				}
+			}
+			return Integer.MIN_VALUE;
+		});
+		int serverAge = world.getServer().computeOnServer(server -> player(server).level().getEntity(id[0]) instanceof
+				net.minecraft.world.entity.item.ItemEntity item ? item.getAge() : -1);
+		if (clientAge == Integer.MIN_VALUE || Math.abs(serverAge - clientAge) > 2) {
+			throw new AssertionError("item label age: client " + clientAge + ", server " + serverAge);
+		}
+		context.takeScreenshot("still-items");
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_I);
+		context.waitTicks(3);
+		if (context.computeOnClient(client -> ClientItems.ids.length) != 0) {
+			throw new AssertionError("I again should turn item labels off");
+		}
+		world.getServer().runOnServer(server -> {
+			if (player(server).level().getEntity(id[0]) != null) {
+				player(server).level().getEntity(id[0]).discard();
+			}
+		});
 	}
 
 	/** Up freezes the real game (/tick), Up again steps exactly 1 tick, Down runs it again. */

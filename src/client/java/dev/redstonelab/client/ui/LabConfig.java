@@ -241,6 +241,9 @@ public final class LabConfig {
 			"Outlines, letters and piston previews in the world");
 	public static final Bool EVENT_MARKS = new Bool(Tab.METERS, "showEventMarks", false,
 			"Marks for what happened each tick, and block / shape updates in the tick list");
+	public static final Bool ITEM_LABELS = new Bool(Tab.METERS, "itemLabels", false,
+			"Labels over dropped items: despawn time, pickup delay (mod on the server)");
+	public static final Int ITEM_RANGE = new Int(Tab.METERS, "itemRange", 16, 4, 32, "Item labels: range in blocks (nearest 64)");
 	public static final Int TIMELINE_TICKS = new Int(Tab.METERS, "timelineTicks", 80, 20, 200, "Ticks shown");
 	public static final Bool SHOW_INSPECT = new Bool(Tab.METERS, "showTickInspector", true,
 			"Frozen: list what happened in the tick, in order");
@@ -271,6 +274,7 @@ public final class LabConfig {
 	public static final Hotkey FREEZE_GAME = new Hotkey("gameFreeze", "UP", true,
 			"Freeze the game (/tick, needs op). Frozen: step 1 tick, hold to repeat");
 	public static final Hotkey RUN_GAME = new Hotkey("gameRun", "DOWN", false, "Unfreeze the game");
+	public static final Hotkey ITEM_KEY = new Hotkey("toggleItemLabels", "I", false, "Item labels on / off");
 	public static final Hotkey CLEAR_PISTONS = new Hotkey("clearPistons", "P", false, "Hide piston previews");
 	public static final Hotkey GROUPS = new Hotkey("meterGroups", "R,G", false, "Meter groups (click one to switch)");
 	public static final Hotkey OPEN_SETTINGS = new Hotkey("openSettings", "R,C", false, "This menu");

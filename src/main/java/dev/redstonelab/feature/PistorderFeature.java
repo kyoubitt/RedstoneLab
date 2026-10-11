@@ -28,7 +28,7 @@ import dev.redstonelab.util.Msg;
 
 /**
  * Piston preview, like Pistorder: right-click a piston with an empty hand and it shows what it
- * will do next: "✔ push 3" with the move order on the blocks, or ✖ and why (the block in the
+ * will do next: "✔ push 3/12" with the move order on the blocks, or ✖ and why (the block in the
  * way, or too many), plus QC / BUD when its power is unusual. Click again to hide it; several
  * pistons can be shown; sneaking does nothing; the P key hides them all. Works for vanilla
  * clients too (display entities).
@@ -193,7 +193,7 @@ public final class PistorderFeature {
 		return p == null ? "" : p.order;
 	}
 
-	/** For the game tests: the piston's label ("✔ push 1"). */
+	/** For the game tests: the piston's label ("✔ push 1/12"). */
 	static String labelForTest(ServerPlayer player, BlockPos pos) {
 		State state = STATES.get(player.getUUID());
 		PistonView.View p = state == null ? null : state.pistons.get(pos);

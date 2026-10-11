@@ -15,6 +15,9 @@ public final class PlayerSession {
 	public String clientVersion = "";
 	/** Pistons this (modded) client shows previews of; their extensions are sent to it. */
 	public java.util.Set<net.minecraft.core.BlockPos> watchedPistons = java.util.Set.of();
+	/** Item labels: range in blocks (0 = off), and whether the last update was empty. */
+	public int itemRange;
+	public boolean itemsSentEmpty;
 
 	public PlayerSession(UUID uuid) {
 		this.uuid = uuid;

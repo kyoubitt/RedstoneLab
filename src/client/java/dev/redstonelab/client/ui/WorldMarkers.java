@@ -8,13 +8,17 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
 import net.minecraft.gizmos.TextGizmo;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
+import dev.redstonelab.client.ClientItems;
 import dev.redstonelab.client.ClientState;
+import dev.redstonelab.core.ItemLife;
 import dev.redstonelab.net.LabPayloads;
 
 /**
- * Meter outlines and letters, piston previews: drawn with the game's own debug shapes
+ * Meter outlines and letters, piston previews, item labels: drawn with the game's own debug shapes
  * ("gizmos"), seen through walls. Added once per client tick to the game's per-tick list, which
  * it keeps drawing every frame until the next tick.
  */
@@ -29,9 +33,12 @@ public final class WorldMarkers {
 
 	public static void emit() {
 		Minecraft mc = Minecraft.getInstance();
-		if (mc.player == null || mc.level == null || !LabConfig.SHOW_OUTLINES.value || ClientState.MARKERS.isEmpty()
-				// The game only clears this list while it runs: frozen (/tick freeze), the last one stays up.
-				|| !mc.level.tickRateManager().runsNormally()) {
+		// The game only clears this list while it runs: frozen (/tick freeze), the last one stays up.
+		if (mc.player == null || mc.level == null || !mc.level.tickRateManager().runsNormally()) {
+			return;
+		}
+		items(mc);
+		if (!LabConfig.SHOW_OUTLINES.value) {
 			return;
 		}
 		Vec3 eye = mc.player.getEyePosition();
@@ -58,6 +65,22 @@ public final class WorldMarkers {
 					}
 				}
 			}
+		}
+	}
+
+	/** Item labels: "64 Stone · 4:31 left · pickup 8t" above each item, with the server's numbers. */
+	private static void items(Minecraft mc) {
+		int[] ids = ClientItems.ids;
+		int[] ages = ClientItems.ages;
+		int[] pickups = ClientItems.pickups;
+		for (int i = 0; i < ids.length && i < ages.length && i < pickups.length; i++) {
+			if (!(mc.level.getEntity(ids[i]) instanceof ItemEntity item)) {
+				continue;
+			}
+			ItemStack stack = item.getItem();
+			String text = ItemLife.label(stack.getCount(), stack.getHoverName().getString(), ages[i], pickups[i]);
+			Gizmos.billboardText(text, item.position().add(0, 0.8, 0),
+					TextGizmo.Style.forColorAndCentered(ItemLife.color(ages[i])).withScale(TEXT_SCALE)).setAlwaysOnTop();
 		}
 	}
 }

@@ -40,6 +40,11 @@ public final class LabNetworking {
 		});
 		ServerPlayNetworking.registerGlobalReceiver(LabPayloads.PistonWatchC2S.TYPE, (payload, context) ->
 				Sessions.get(context.player()).watchedPistons = java.util.Set.copyOf(payload.pistons()));
+		ServerPlayNetworking.registerGlobalReceiver(LabPayloads.ItemWatchC2S.TYPE, (payload, context) -> {
+			PlayerSession session = Sessions.get(context.player());
+			session.itemRange = Math.max(0, Math.min(dev.redstonelab.feature.ItemInfoFeature.MAX_RANGE, payload.range()));
+			session.itemsSentEmpty = false;
+		});
 	}
 
 	/**

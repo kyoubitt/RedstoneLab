@@ -616,7 +616,15 @@ public class RedstoneLabGameTests {
 		BlockPos torch = new BlockPos(6, 2, 3);
 		helper.setBlock(new BlockPos(6, 1, 3), Blocks.STONE);
 		helper.setBlock(torch, Blocks.REDSTONE_TORCH);
-		for (BlockPos p : new BlockPos[]{repeater, strong, weak, torch}) {
+		// E: light weighted plate with 3 different items on it (power = number of item entities).
+		BlockPos plate = new BlockPos(6, 1, 6);
+		helper.setBlock(plate, Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE);
+		net.minecraft.world.item.Item[] kinds = {Items.STONE, Items.DIRT, Items.SAND};
+		for (net.minecraft.world.item.Item kind : kinds) {
+			BlockPos at = helper.absolutePos(plate);
+			level.addFreshEntity(new net.minecraft.world.entity.item.ItemEntity(level, at.getX() + 0.5, at.getY() + 0.1, at.getZ() + 0.5, new ItemStack(kind), 0, 0, 0));
+		}
+		for (BlockPos p : new BlockPos[]{repeater, strong, weak, torch, plate}) {
 			MeterFeature.toggle(player, level, helper.absolutePos(p));
 		}
 		// A lever on the stone's side powers it (a redstone block next to it wouldn't).
@@ -645,7 +653,66 @@ public class RedstoneLabGameTests {
 			boolean input = level.hasNeighborSignal(helper.absolutePos(new BlockPos(6, 1, 3)));
 			helper.assertTrue(!lit && !input, "torch should really be burnt out (lit " + lit + ", input " + input + ")");
 			helper.assertTrue(d.contains("burnt out"), "torch: " + all);
+			int platePower = level.getBlockState(helper.absolutePos(plate)).getValue(BlockStateProperties.POWER);
+			String e = MeterFeature.statusForTest(player, "E");
+			helper.assertTrue(platePower > 0 && e.contains("power " + platePower), "plate (power " + platePower + "): " + e);
 			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
+	/**
+	 * Item labels: the game's despawn / pickup constants match ours, and the labels follow the
+	 * live items (normal, extended lifetime, never despawns, never picked up).
+	 */
+	@GameTest(maxTicks = 40)
+	public void itemLabels(GameTestHelper helper) throws ReflectiveOperationException {
+		for (String[] f : new String[][]{{"LIFETIME", "6000"}, {"INFINITE_LIFETIME", "-32768"}, {"INFINITE_PICKUP_DELAY", "32767"}}) {
+			java.lang.reflect.Field field = net.minecraft.world.entity.item.ItemEntity.class.getDeclaredField(f[0]);
+			field.setAccessible(true);
+			helper.assertTrue(String.valueOf(field.getInt(null)).equals(f[1]), "game changed " + f[0] + ": " + field.getInt(null));
+		}
+		helper.assertTrue(dev.redstonelab.core.ItemLife.LIFETIME == 6000 && dev.redstonelab.core.ItemLife.NEVER == -32768
+				&& dev.redstonelab.core.ItemLife.NO_PICKUP == 32767, "constants");
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		floor(helper, 7, 7);
+		net.minecraft.world.entity.item.ItemEntity[] items = new net.minecraft.world.entity.item.ItemEntity[4];
+		net.minecraft.world.item.Item[] kinds = {Items.STONE, Items.DIRT, Items.GRAVEL, Items.SAND};
+		for (int i = 0; i < 4; i++) {
+			BlockPos p = helper.absolutePos(new BlockPos(1 + i * 2, 1, 3));
+			items[i] = new net.minecraft.world.entity.item.ItemEntity(level, p.getX() + 0.5, p.getY(), p.getZ() + 0.5, new ItemStack(kinds[i], 1 + i), 0, 0, 0);
+			level.addFreshEntity(items[i]);
+		}
+		items[0].setPickUpDelay(10);
+		items[1].setExtendedLifetime();
+		items[2].setUnlimitedLifetime();
+		items[3].setNeverPickUp();
+		int[] firstAge = new int[1];
+		BlockPos middle = helper.absolutePos(new BlockPos(4, 1, 4));
+		helper.runAtTickTime(5, () -> {
+			player.setPos(middle.getX() + 0.5, middle.getY(), middle.getZ() + 0.5);
+			firstAge[0] = items[0].getAge();
+		});
+		helper.runAtTickTime(25, () -> {
+			java.util.List<net.minecraft.world.entity.item.ItemEntity> seen = ItemInfoFeature.collect(player, 16);
+			helper.assertTrue(seen.containsAll(java.util.List.of(items)), "not all items found: " + seen.size());
+			helper.assertTrue(items[0].getAge() - firstAge[0] == 20, "age should go up 1 per tick: " + (items[0].getAge() - firstAge[0]));
+			String[] labels = new String[4];
+			for (int i = 0; i < 4; i++) {
+				labels[i] = dev.redstonelab.core.ItemLife.label(items[i].getItem().getCount(), items[i].getItem().getHoverName().getString(),
+						items[i].getAge(), ((dev.redstonelab.mixin.ItemEntityAccessor) items[i]).redstonelab$pickupDelay());
+			}
+			String all = String.join(" | ", labels);
+			int left = 6000 - items[0].getAge();
+			String time = left / 20 / 60 + ":" + String.format("%02d", left / 20 % 60);
+			helper.assertTrue(labels[0].equals("1 Stone" + DOT + time + " left"), "normal (pickup delay over): " + all);
+			helper.assertTrue(labels[1].startsWith("2 Dirt" + DOT + "9:5"), "extended lifetime (10 min): " + all);
+			helper.assertTrue(labels[2].equals("3 Gravel" + DOT + "never despawns"), "unlimited: " + all);
+			helper.assertTrue(labels[3].endsWith(DOT + "no pickup"), "never picked up: " + all);
+			for (net.minecraft.world.entity.item.ItemEntity item : items) {
+				item.discard();
+			}
 			helper.succeed();
 		});
 	}
@@ -703,7 +770,7 @@ public class RedstoneLabGameTests {
 		player.setShiftKeyDown(false);
 		click(helper, player, piston);
 		helper.assertTrue(PistorderFeature.shownForTest(player, abs), "empty hand click shows it");
-		helper.assertTrue(PistorderFeature.labelForTest(player, abs).equals("\u2714 push 3"), "label: " + PistorderFeature.labelForTest(player, abs));
+		helper.assertTrue(PistorderFeature.labelForTest(player, abs).equals("\u2714 push 3/12"), "label: " + PistorderFeature.labelForTest(player, abs));
 		click(helper, player, piston);
 		helper.assertTrue(!PistorderFeature.shownForTest(player, abs), "clicking again hides it");
 		helper.succeed();

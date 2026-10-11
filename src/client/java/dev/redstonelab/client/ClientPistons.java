@@ -125,7 +125,7 @@ public final class ClientPistons {
 		return SHOWN.containsKey(pos);
 	}
 
-	/** The piston's label ("✔ push 1"), empty until it was worked out. */
+	/** The piston's label ("✔ push 1/12"), empty until it was worked out. */
 	public static String label(BlockPos pos) {
 		PistonView.View view = SHOWN.get(pos);
 		return view == null ? "" : view.headLabel;

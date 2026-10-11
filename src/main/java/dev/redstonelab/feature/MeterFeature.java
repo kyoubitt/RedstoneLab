@@ -352,8 +352,9 @@ public final class MeterFeature {
 		}
 
 		/**
-		 * What the block's state says that the bars don't: repeater delay and lock, a burnt-out
-		 * torch, and for plain blocks strong or weak power (strong: dust next to it turns on too).
+		 * What the block's state says that the bars don't: repeater delay and lock, signal strength
+		 * of target blocks / daylight detectors / sculk / weighted plates, a burnt-out torch, and
+		 * for plain blocks strong or weak power (strong: dust next to it turns on too).
 		 */
 		private String blockInfo() {
 			ServerLevel level = LabServer.level(this.dimension);
@@ -363,6 +364,11 @@ public final class MeterFeature {
 			BlockState state = level.getBlockState(this.pos);
 			if (state.getBlock() instanceof RepeaterBlock) {
 				return "delay " + 2 * state.getValue(RepeaterBlock.DELAY) + "t" + (state.getValue(RepeaterBlock.LOCKED) ? " \u00b7 locked" : "");
+			}
+			if (state.hasProperty(BlockStateProperties.POWER) && !(state.getBlock() instanceof RedStoneWireBlock)) {
+				// Target block, daylight detector, sculk sensors, weighted plates: the level matters.
+				int level15 = state.getValue(BlockStateProperties.POWER);
+				return level15 > 0 ? "power " + level15 : "";
 			}
 			if (state.getBlock() instanceof RedstoneTorchBlock) {
 				// Off although its block isn't powered, after 8 toggles in 60t: the game's burnout.

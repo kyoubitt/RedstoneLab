@@ -41,7 +41,7 @@ public final class PistonView {
 		public final BlockPos pos;
 		/** What was last shown; kept while the piston is mid-move (the preview would be wrong then). */
 		public List<MarkerData> markers = List.of();
-		/** Set by {@link #head}: the first line of the piston's label ("✔ push 3"). */
+		/** Set by {@link #head}: the first line of the piston's label ("✔ push 3/12"). */
 		public String headLabel = "";
 		boolean headOk;
 		/** Recent extensions, for the firing order. */
@@ -241,7 +241,7 @@ public final class PistonView {
 			if (n == 0 && toDestroy.isEmpty()) {
 				return head(markers, s, true, extending ? "extend" : "retract", extending ? "extends, nothing to push" : "retracts, nothing to pull");
 			}
-			return head(markers, s, true, verb + " " + n + breaks, (extending ? "pushes " : "pulls ") + n + "/" + PushPreview.MAX_PUSH + breaks);
+			return head(markers, s, true, verb + " " + n + "/" + PushPreview.MAX_PUSH + breaks, (extending ? "pushes " : "pulls ") + n + "/" + PushPreview.MAX_PUSH + breaks);
 		}
 		String result = extending ? " (won't extend)" : " (retracts without them)";
 		if (preview.failure == PushPreview.Failure.TOO_MANY) {
@@ -258,7 +258,7 @@ public final class PistonView {
 		return head(markers, s, false, "can't " + verb, "can't " + verb + result);
 	}
 
-	/** Sets the first line of the piston's label ("✔ push 3") and returns the action bar text. */
+	/** Sets the first line of the piston's label ("✔ push 3/12") and returns the action bar text. */
 	private static Component head(List<MarkerData> markers, View p, boolean ok, String label, String text) {
 		String mark = ok ? "\u2714 " : "\u2716 ";
 		p.headLabel = mark + label;

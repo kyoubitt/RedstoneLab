@@ -28,6 +28,9 @@ public class RedstoneLabClient implements ClientModInitializer {
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.fromNamespaceAndPath(RedstoneLab.MOD_ID, "timeline"),
 				TimelineHud.INSTANCE::render);
 		// Runs inside the game's per-tick drawing list.
-		ClientTickEvents.END_CLIENT_TICK.register(mc -> WorldMarkers.emit());
+		ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+			ClientItems.tick();
+			WorldMarkers.emit();
+		});
 	}
 }

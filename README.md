@@ -32,7 +32,7 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 - **Order**: who turns on first, from A. `A → 2t → B D` = B and D 2t after A.
 - `6t` exact · `3t/5t` alternates · `2t/3t/3t` pattern · `2t or 3t` no pattern
 - Dropper: bar = fires · Hopper: bar = locked · Chest: bar = signal > 0, `(3 at 83)` = signal 3 at 83 items
-- Repeater `delay 4t · locked` · Torch `burnt out` · Block `strong 15` (lights dust next to it) / `weak 13`
+- Repeater `delay 4t · locked` · Torch `burnt out` · Block `strong 15` (lights dust next to it) / `weak 13` · Target, daylight, sculk, weighted plate `power 7`
 - Meters follow blocks moved by pistons.
 
 **Up** freezes the game (`/tick`, needs op); Up again steps 1 tick (hold to repeat). **Down** runs it.
@@ -45,11 +45,18 @@ what happened that tick, in sub-tick order. Block / shape updates: **Show event 
 ## Pistons
 
 **Right-click a piston with an empty hand** to show what it does next. Again hides it. **P** hides all.
-- `✔ push 3`: numbers = move order · `breaks` = destroyed
+- `✔ push 3/12`: numbers = move order · `breaks` = destroyed
 - `✖ blocked` (`stuck`) · `✖ too many` (`13th`)
 - `⚡ QC` = powered from above · `⚡ BUD` = moves on next update
 - Several shown: `#1`, `#2 · +3t`, `#3 · same tick` = firing order, from the first one shown.
   Exact ticks with the mod on the server; otherwise lag can shift them by 1.
+
+## Items
+
+**I** = labels over dropped items: `12 Redstone Dust · 4:59 left · pickup 381t`.
+- `left` = until it despawns (5 min; red under 30 s, ticks under 10 s, `never despawns` for /give-style items)
+- `pickup` = ticks until players / mobs can pick it up (hoppers ignore it). `no pickup` = never.
+- Nearest 64 within 16 blocks (settings). Needs the mod on the server: only the server knows these numbers.
 
 ## Keys
 
@@ -63,6 +70,7 @@ what happened that tick, in sub-tick order. Block / shape updates: **Show event 
 | R + Space | freeze / unfreeze the timeline |
 | R + Backspace / Enter | timeline 1 tick back / forward |
 | P | hide piston previews |
+| I | item labels on / off |
 | R + G | meter groups |
 | R + C | settings (also Mod Menu) |
 
@@ -76,6 +84,6 @@ Needs op; `/rlab config set permissionLevel 0` lets everyone use it.
 ## Build
 
 `./gradlew build` (JDK 25; the mod runs on Java 21). Jar in `build/libs/`.
-- `./gradlew runGameTest`: 28 tests that check the mod against the real game (clocks, pistons,
+- `./gradlew runGameTest`: 29 tests that check the mod against the real game (clocks, pistons,
   QC, comparators, hoppers, sub-tick order, random circuits and piston builds).
 - `xvfb-run ./gradlew runClientGameTest`: real client, real keys and clicks.
