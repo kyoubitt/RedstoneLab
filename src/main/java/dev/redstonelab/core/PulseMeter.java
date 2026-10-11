@@ -5,7 +5,7 @@ package dev.redstonelab.core;
  * in the same game tick is a 0-tick pulse.
  */
 public final class PulseMeter {
-	/** Ticks without any change after which the pulse lengths start over. */
+	/** An off time longer than this (and 3x every recent length) is a pause, not part of the clock. */
 	public static final long IDLE_RESET = 100;
 
 	private final RunStats widths;
@@ -17,6 +17,7 @@ public final class PulseMeter {
 	private long lastFall = Long.MIN_VALUE;
 	private long lastOnLength = -1;
 	private long lastOffLength = -1;
+	private boolean lastWasPause;
 
 	public PulseMeter(int window) {
 		this.widths = new RunStats(window);
@@ -38,32 +39,36 @@ public final class PulseMeter {
 		if (nowOn == this.on) {
 			return 0;
 		}
-		// Length of the on/off state that just ended (kept even when the stats start over below).
+		// Length of the on/off state that just ended.
 		long since = nowOn ? this.lastFall : this.lastRise;
 		long length = since == Long.MIN_VALUE ? -1 : gameTime - since;
 		this.lastOnLength = nowOn ? -1 : length;
 		this.lastOffLength = nowOn ? length : -1;
-		// Quiet for a while: this is a new run, forget the old pulses (e.g. while building it).
-		long lastEdge = Math.max(this.lastRise, this.lastFall);
-		if (lastEdge != Long.MIN_VALUE && gameTime - lastEdge > IDLE_RESET) {
+		this.on = nowOn;
+		if (!nowOn) {
+			// An on time is always real, however long (a slow clock, a lamp left on).
+			if (length >= 0) {
+				this.widths.add(length);
+			}
+			this.lastFall = gameTime;
+			return -1;
+		}
+		// A long off time is a pause (the circuit stopped, or is being built): start over without
+		// it. A slow clock isn't paused: its off times are like its other lengths.
+		this.lastWasPause = length > Math.max(IDLE_RESET, 3 * Math.max(this.widths.max(), this.gaps.max()));
+		if (this.lastWasPause) {
 			this.widths.clear();
 			this.gaps.clear();
-			this.lastRise = Long.MIN_VALUE;
-			this.lastFall = Long.MIN_VALUE;
+		} else if (length >= 0) {
+			this.gaps.add(length);
 		}
-		this.on = nowOn;
-		if (nowOn) {
-			if (this.lastFall != Long.MIN_VALUE) {
-				this.gaps.add(gameTime - this.lastFall);
-			}
-			this.lastRise = gameTime;
-			return 1;
-		}
-		if (this.lastRise != Long.MIN_VALUE) {
-			this.widths.add(gameTime - this.lastRise);
-		}
-		this.lastFall = gameTime;
-		return -1;
+		this.lastRise = gameTime;
+		return 1;
+	}
+
+	/** The off time that ended with the latest rising edge was a pause (not checked, not shown). */
+	public boolean lastWasPause() {
+		return this.lastWasPause;
 	}
 
 	/** On length that ended with the latest falling edge (also a long one), else -1. */

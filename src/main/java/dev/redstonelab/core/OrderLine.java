@@ -14,7 +14,7 @@ import java.util.TreeMap;
  * first meter) are listed separately ("· own timing: E F") instead of jumping around.
  */
 public final class OrderLine {
-	/** Meters that didn't turn on for this long are left out. */
+	/** Meters that didn't turn on for this long (or 2 periods of the first meter, if longer) are left out. */
 	public static final long MAX_AGE = 100;
 
 	/** One meter: its letter and its recent turn-on times (any order, unused slots = Long.MIN_VALUE). */
@@ -25,6 +25,18 @@ public final class OrderLine {
 				best = Math.max(best, r);
 			}
 			return best;
+		}
+
+		/** Time between the two newest turn-ons, or 0. */
+		long period() {
+			long newest = this.newest();
+			long before = Long.MIN_VALUE;
+			for (long r : this.rises) {
+				if (r != Long.MIN_VALUE && r < newest && r > before) {
+					before = r;
+				}
+			}
+			return before == Long.MIN_VALUE ? 0 : newest - before;
 		}
 
 		long oldest() {
@@ -63,12 +75,14 @@ public final class OrderLine {
 		if (anchor == null) {
 			return "";
 		}
+		// A slow clock (hopper clock) still counts as running for 2 of its periods.
+		long maxAge = Math.max(MAX_AGE, 2 * anchor.period());
 		TreeMap<Long, List<String>> groups = new TreeMap<>();
 		List<String> ownTiming = new ArrayList<>();
 		int total = 0;
 		for (Input m : meters) {
 			long rise = m.newest();
-			if (rise == Long.MIN_VALUE || now - rise > MAX_AGE) {
+			if (rise == Long.MIN_VALUE || now - rise > maxAge) {
 				continue;
 			}
 			// The delay of every remembered turn-on (that the first meter's history still covers).
@@ -78,7 +92,7 @@ public final class OrderLine {
 					continue;
 				}
 				long start = anchor.atOrBefore(r);
-				if (start != Long.MIN_VALUE && r - start <= MAX_AGE) {
+				if (start != Long.MIN_VALUE && r - start <= maxAge) {
 					delays.add(r - start);
 				}
 			}

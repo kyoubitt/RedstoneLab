@@ -243,6 +243,9 @@ public final class MeterFeature {
 				} else if (!from.isAir() && to.isAir()) {
 					this.flag(MeterEvent.BROKEN);
 				}
+				if (from.getBlock() != to.getBlock() && !to.isAir() && !to.is(Blocks.MOVING_PISTON)) {
+					this.kindChanged = true;
+				}
 			}
 			if (change.readingChanged()) {
 				this.apply(change.gameTime(), change.newReading());
@@ -278,8 +281,8 @@ public final class MeterFeature {
 			int dir = this.pulses.update(time, nowActive ? 15 : 0);
 			if (dir < 0 && this.pulses.lastOnLength() >= 0) {
 				this.check(true, this.pulses.lastOnLength());
-			} else if (dir > 0 && this.pulses.lastOffLength() >= 0 && this.pulses.lastOffLength() <= PulseMeter.IDLE_RESET) {
-				// a longer off time is a pause (circuit stopped), not a wrong pulse
+			} else if (dir > 0 && this.pulses.lastOffLength() >= 0 && !this.pulses.lastWasPause()) {
+				// a pause (the circuit stopped) is not a wrong pulse
 				this.check(false, this.pulses.lastOffLength());
 			}
 		}
@@ -315,19 +318,19 @@ public final class MeterFeature {
 					}
 				}
 				ServerLevel level = LabServer.level(this.dimension);
-				if (level != null && level.hasChunkAt(this.pos) && PowerUtil.chestBlocked(level, this.pos)) {
+				if (level != null && loadedAround(level, this.pos) && PowerUtil.chestBlocked(level, this.pos)) {
 					// Vanilla: a chest that can't open gives comparators 0.
 					sb.append(" \u00b7 blocked");
 				}
 				appendRate(sb, "fires", this.fireGaps, this.lastFire);
 				appendRate(sb, "in", this.inGaps, this.lastIn);
 				// A dropper firing is its items going out: say it once.
-				if (this.fireGaps.isEmpty() || this.now - this.lastFire > 200) {
+				if (this.fireGaps.isEmpty() || !this.recent(this.fireGaps, this.lastFire)) {
 					appendRate(sb, "out", this.outGaps, this.lastOut);
 				}
 				return sb.toString();
 			}
-			if (this.piston && !this.extendGaps.isEmpty() && this.now - this.lastExtend <= 200) {
+			if (this.piston && !this.extendGaps.isEmpty() && this.recent(this.extendGaps, this.lastExtend)) {
 				// Pistons: what they really did, from the game's own piston events.
 				sb.append(" \u00b7 moves every ").append(range(this.extendGaps));
 				if (!this.outLengths.isEmpty()) {
@@ -361,7 +364,7 @@ public final class MeterFeature {
 		 */
 		private String blockInfo() {
 			ServerLevel level = LabServer.level(this.dimension);
-			if (level == null || !level.hasChunkAt(this.pos)) {
+			if (level == null || !loadedAround(level, this.pos)) {
 				return "";
 			}
 			BlockState state = level.getBlockState(this.pos);
@@ -398,9 +401,14 @@ public final class MeterFeature {
 			return "";
 		}
 
+		/** It happened within 2 of its own periods (at least 10 s): a slow clock still counts as running. */
+		private boolean recent(RunStats gaps, long last) {
+			return last != Long.MIN_VALUE && this.now - last <= Math.max(200, 2 * gaps.max());
+		}
+
 		/** " · in every 8t" while it keeps happening (hidden after 10 s without it). */
 		private void appendRate(StringBuilder sb, String what, RunStats gaps, long last) {
-			if (gaps.isEmpty() || last == Long.MIN_VALUE || this.now - last > 200) {
+			if (gaps.isEmpty() || !this.recent(gaps, last)) {
 				return;
 			}
 			sb.append(" \u00b7 ").append(what).append(" every ").append(Ticks.exact(gaps.values()));
@@ -453,6 +461,23 @@ public final class MeterFeature {
 
 		String name(ServerLevel level) {
 			return Fmt.pretty(level.getBlockState(this.pos));
+		}
+
+		/** A different block is here now (replaced, or placed where the meter was): what to show depends on it. */
+		boolean kindChanged;
+
+		/** Name and kind (piston, comparator, container...) of the block under the meter. */
+		void readKind(ServerLevel level) {
+			BlockState placed = level.getBlockState(this.pos);
+			this.blockName = Fmt.pretty(placed);
+			this.piston = placed.getBlock() instanceof PistonBaseBlock;
+			this.comparator = placed.getBlock() instanceof net.minecraft.world.level.block.ComparatorBlock;
+			this.wire = placed.is(Blocks.REDSTONE_WIRE);
+			this.fires = placed.hasProperty(BlockStateProperties.TRIGGERED);
+			this.itemCount = itemCount(level, this.pos);
+			this.nextLevel = this.itemCount > 0 ? nextLevel(level, this.pos, this.power) : "";
+			this.contents = contents(level, this.pos);
+			this.signalBased = this.itemCount >= 0 && !this.fires && !(placed.getBlock() instanceof net.minecraft.world.level.block.HopperBlock);
 		}
 	}
 
@@ -604,16 +629,7 @@ public final class MeterFeature {
 
 	private static Meter addMeter(State state, ServerLevel level, BlockPos pos) {
 		Meter m = new Meter(state, level.dimension(), pos.immutable(), freeIndex(state), PowerUtil.read(level, pos, level.getBlockState(pos)));
-		m.blockName = m.name(level);
-		m.piston = level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.piston.PistonBaseBlock;
-		m.comparator = level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ComparatorBlock;
-		m.wire = level.getBlockState(pos).is(Blocks.REDSTONE_WIRE);
-		BlockState placed = level.getBlockState(pos);
-		m.fires = placed.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.TRIGGERED);
-		m.itemCount = itemCount(level, pos);
-		m.nextLevel = m.itemCount > 0 ? nextLevel(level, pos, m.power) : "";
-		m.contents = contents(level, pos);
-		m.signalBased = m.itemCount >= 0 && !m.fires && !(placed.getBlock() instanceof net.minecraft.world.level.block.HopperBlock);
+		m.readKind(level);
 		state.meters.add(m);
 		PowerWatch.add(level, pos, m);
 		state.dirty = true;
@@ -626,7 +642,7 @@ public final class MeterFeature {
 	 * blocked chest) and every stack has the same stack size (64, 16 or 1), so items count alike.
 	 */
 	private static String nextLevel(ServerLevel level, BlockPos pos, int signal) {
-		net.minecraft.world.Container container = level.hasChunkAt(pos) ? PowerUtil.container(level, pos) : null;
+		net.minecraft.world.Container container = loadedAround(level, pos) ? PowerUtil.container(level, pos) : null;
 		if (container == null || signal != net.minecraft.world.inventory.AbstractContainerMenu.getRedstoneSignalFromContainer(container)
 				|| level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.CrafterBlock
 				|| level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ChiseledBookShelfBlock
@@ -677,7 +693,7 @@ public final class MeterFeature {
 	 * when empty or not a container).
 	 */
 	static String contents(ServerLevel level, BlockPos pos) {
-		net.minecraft.world.Container container = level.hasChunkAt(pos) ? PowerUtil.container(level, pos) : null;
+		net.minecraft.world.Container container = loadedAround(level, pos) ? PowerUtil.container(level, pos) : null;
 		if (container == null) {
 			return "";
 		}
@@ -725,9 +741,14 @@ public final class MeterFeature {
 		}
 	}
 
+	/** The block and everything next to it is loaded: reading it never makes the game load a chunk. */
+	private static boolean loadedAround(ServerLevel level, BlockPos pos) {
+		return level.hasChunksAt(pos.offset(-1, 0, -1), pos.offset(1, 0, 1));
+	}
+
 	/** Items inside a hopper, chest (both halves), dropper..., or -1 if the block is not a container. */
 	private static int itemCount(ServerLevel level, BlockPos pos) {
-		net.minecraft.world.Container container = level.hasChunkAt(pos) ? PowerUtil.container(level, pos) : null;
+		net.minecraft.world.Container container = loadedAround(level, pos) ? PowerUtil.container(level, pos) : null;
 		if (container == null) {
 			return -1;
 		}
@@ -1074,6 +1095,16 @@ public final class MeterFeature {
 				}
 			}
 			events[i] = m.events;
+			if (m.kindChanged && meterLevel != null && meterLevel.hasChunkAt(m.pos)) {
+				m.kindChanged = false;
+				m.readKind(meterLevel);
+				m.extendGaps.clear();
+				m.outLengths.clear();
+				m.inGaps.clear();
+				m.outGaps.clear();
+				m.fireGaps.clear();
+				state.dirty = true;
+			}
 			if ((m.events & (MeterEvent.MOVED.bit() | MeterEvent.PLACED.bit() | MeterEvent.BROKEN.bit())) != 0) {
 				ServerLevel level = player.level().dimension() == m.dimension ? player.level() : null;
 				BlockState now = level != null ? level.getBlockState(m.pos) : null;

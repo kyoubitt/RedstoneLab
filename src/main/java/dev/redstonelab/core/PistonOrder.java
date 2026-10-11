@@ -12,7 +12,7 @@ import java.util.Map;
  * same tick are ordered by when the game ran them inside that tick.
  */
 public final class PistonOrder {
-	/** Pistons that didn't extend for this long are left out. */
+	/** Pistons that didn't extend for this long (or 2 of their periods, if longer) are left out. */
 	public static final long MAX_AGE = 100;
 	private static final int HISTORY = 8;
 
@@ -47,6 +47,23 @@ public final class PistonOrder {
 		long newestSeq() {
 			int i = this.newestIndex();
 			return i < 0 ? Long.MIN_VALUE : this.seqs[i];
+		}
+
+		/** Time between the two newest extensions, or 0. */
+		long period() {
+			long newest = this.newest();
+			long before = Long.MIN_VALUE;
+			for (int i = 0; i < this.count; i++) {
+				if (this.times[i] < newest && this.times[i] > before) {
+					before = this.times[i];
+				}
+			}
+			return before == Long.MIN_VALUE ? 0 : newest - before;
+		}
+
+		/** Extended lately: within 2 of its own periods (at least {@link #MAX_AGE}). */
+		boolean recent(long now) {
+			return this.count > 0 && now - this.newest() <= Math.max(MAX_AGE, 2 * this.period());
 		}
 
 		long oldest() {
@@ -86,7 +103,7 @@ public final class PistonOrder {
 		pistons.forEach(p -> labels.add(""));
 		Fires anchor = null;
 		for (Fires f : pistons) {
-			if (f.count > 0 && now - f.newest() <= MAX_AGE) {
+			if (f.recent(now)) {
 				anchor = f;
 				break;
 			}
@@ -94,13 +111,14 @@ public final class PistonOrder {
 		if (anchor == null) {
 			return labels;
 		}
+		long maxAge = Math.max(MAX_AGE, 2 * anchor.period());
 		record Entry(int index, long delay, long time, long seq) {
 		}
 		List<Entry> ordered = new ArrayList<>();
 		List<Integer> ownTiming = new ArrayList<>();
 		for (int i = 0; i < pistons.size(); i++) {
 			Fires f = pistons.get(i);
-			if (f.count == 0 || now - f.newest() > MAX_AGE) {
+			if (f.count == 0 || now - f.newest() > maxAge) {
 				continue;
 			}
 			Map<Long, Integer> delays = new HashMap<>();
@@ -110,7 +128,7 @@ public final class PistonOrder {
 					continue;
 				}
 				long start = anchor.atOrBefore(r);
-				if (start != Long.MIN_VALUE && r - start <= MAX_AGE) {
+				if (start != Long.MIN_VALUE && r - start <= maxAge) {
 					delays.merge(r - start, 1, Integer::sum);
 				}
 			}

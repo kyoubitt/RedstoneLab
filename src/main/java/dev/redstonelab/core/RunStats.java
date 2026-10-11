@@ -32,6 +32,15 @@ public final class RunStats {
 		return this.values.isEmpty() ? 0 : this.values.peekLast();
 	}
 
+	/** Longest kept value, 0 when empty. */
+	public long max() {
+		long max = 0;
+		for (long v : this.values) {
+			max = Math.max(max, v);
+		}
+		return max;
+	}
+
 	public List<Long> values() {
 		return new ArrayList<>(this.values);
 	}

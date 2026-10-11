@@ -759,6 +759,100 @@ public class RedstoneLabGameTests {
 		container.setChanged();
 	}
 
+	/**
+	 * A meter keeps up when its block is replaced by a different one: stone, then a chest
+	 * (items and signal), then a piston (its moves).
+	 */
+	@GameTest(maxTicks = 60)
+	public void meterOnReplacedBlock(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		floor(helper, 7, 7);
+		BlockPos spot = new BlockPos(3, 1, 3);
+		helper.setBlock(spot, Blocks.STONE);
+		MeterFeature.toggle(player, level, helper.absolutePos(spot));
+		helper.runAtTickTime(3, () -> {
+			helper.setBlock(spot, Blocks.CHEST);
+			((Container) level.getBlockEntity(helper.absolutePos(spot))).setItem(0, new ItemStack(Items.STONE, 5));
+		});
+		helper.runAtTickTime(6, () -> {
+			String a = MeterFeature.statusForTest(player, "A");
+			helper.assertTrue(a.startsWith("Chest" + DOT + "5 Stone" + DOT + "signal 1"), "stone -> chest: " + a);
+			helper.setBlock(spot, Blocks.AIR);
+			helper.setBlock(spot, Blocks.PISTON.defaultBlockState().setValue(BlockStateProperties.FACING, Direction.UP));
+		});
+		// Two pushes 12t apart.
+		helper.runAtTickTime(10, () -> helper.setBlock(spot.east(), Blocks.REDSTONE_BLOCK));
+		helper.runAtTickTime(16, () -> helper.setBlock(spot.east(), Blocks.AIR));
+		helper.runAtTickTime(22, () -> helper.setBlock(spot.east(), Blocks.REDSTONE_BLOCK));
+		helper.runAtTickTime(30, () -> {
+			String a = MeterFeature.statusForTest(player, "A");
+			helper.assertTrue(a.startsWith("Piston" + DOT + "moves every 12t"), "chest -> piston: " + a);
+			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
+	/**
+	 * A slow clock (150t on, 150t off, like a hopper clock) shows its lengths, is checked against
+	 * the expected ones, and keeps its order line between pulses.
+	 */
+	@GameTest(maxTicks = 900)
+	public void slowClock(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		floor(helper, 7, 7);
+		BlockPos dust = new BlockPos(2, 1, 2);
+		BlockPos repeater = new BlockPos(3, 1, 2);
+		helper.setBlock(dust, Blocks.REDSTONE_WIRE);
+		helper.setBlock(repeater, Blocks.REPEATER.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.WEST)
+				.setValue(BlockStateProperties.DELAY, 4));
+		MeterFeature.toggle(player, level, helper.absolutePos(dust));
+		MeterFeature.toggle(player, level, helper.absolutePos(repeater));
+		MeterFeature.expect(player, "A", 150, 150, false);
+		for (int t = 10; t < 700; t += 300) {
+			helper.runAtTickTime(t, () -> helper.setBlock(new BlockPos(1, 1, 2), Blocks.REDSTONE_BLOCK));
+			helper.runAtTickTime(t + 150, () -> helper.setBlock(new BlockPos(1, 1, 2), Blocks.AIR));
+		}
+		helper.runAtTickTime(880, () -> {
+			String a = MeterFeature.statusForTest(player, "A");
+			helper.assertTrue(a.contains("on 150t" + DOT + "off 150t"), "slow clock lengths: " + a);
+			helper.assertTrue(a.contains("\u2714 5 ok"), "3 on + 2 off lengths checked: " + a);
+			String order = MeterFeature.orderForTest(player, level.getGameTime());
+			helper.assertTrue(order.equals("A \u2192 8t \u2192 B"), "order line 270t after the last pulse: '" + order + "'");
+			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
+	/** After a pause (circuit stopped, rebuilt) the old lengths are forgotten: no "3t or 5t". */
+	@GameTest(maxTicks = 360)
+	public void pauseForgetsOldLengths(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		BlockPos dust = new BlockPos(2, 1, 2);
+		helper.setBlock(dust, Blocks.REDSTONE_WIRE);
+		MeterFeature.toggle(player, level, helper.absolutePos(dust));
+		for (int t = 5; t < 30; t += 6) {
+			helper.runAtTickTime(t, () -> helper.setBlock(new BlockPos(1, 1, 2), Blocks.REDSTONE_BLOCK));
+			helper.runAtTickTime(t + 3, () -> helper.setBlock(new BlockPos(1, 1, 2), Blocks.AIR));
+		}
+		for (int t = 300; t < 330; t += 10) {
+			helper.runAtTickTime(t, () -> helper.setBlock(new BlockPos(1, 1, 2), Blocks.REDSTONE_BLOCK));
+			helper.runAtTickTime(t + 5, () -> helper.setBlock(new BlockPos(1, 1, 2), Blocks.AIR));
+		}
+		helper.runAtTickTime(40, () -> {
+			String a = MeterFeature.statusForTest(player, "A");
+			helper.assertTrue(a.endsWith("on 3t" + DOT + "off 3t"), "first clock: " + a);
+		});
+		helper.runAtTickTime(335, () -> {
+			String a = MeterFeature.statusForTest(player, "A");
+			helper.assertTrue(a.endsWith("on 5t" + DOT + "off 5t"), "after the pause only the new clock: " + a);
+			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
 	/** Two pistons with meters powered 3 ticks apart: the order line must read "A → 3t → B". */
 	@GameTest(maxTicks = 30)
 	public void pistonFireTiming(GameTestHelper helper) {

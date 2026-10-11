@@ -177,10 +177,16 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		}
 	}
 
-	/** Up freezes the real game (/tick), Up again steps exactly 1 tick, Down runs it again. */
+	/**
+	 * Up freezes the real game (/tick), Up again steps exactly 1 tick, Down runs it again. The
+	 * first Up is pressed while Ctrl (sprint) is held: other held keys must not block hotkeys.
+	 */
 	private void freezeAndStep(ClientGameTestContext context, TestSingleplayerContext world) {
 		context.runOnClient(client -> LabKeys.setPaused(false));
+		context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL);
+		context.waitTicks(1);
 		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
+		context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL);
 		context.waitTicks(5);
 		if (!world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
 			throw new AssertionError("Up should freeze the game");

@@ -77,6 +77,6 @@ Needs op; `/rlab config set permissionLevel 0` lets everyone use it.
 ## Build
 
 `./gradlew build` (JDK 25; the mod runs on Java 21). Jar in `build/libs/`.
-- `./gradlew runGameTest`: 29 tests that check the mod against the real game (clocks, pistons,
+- `./gradlew runGameTest`: 32 tests that check the mod against the real game (clocks, pistons,
   QC, comparators, hoppers, sub-tick order, random circuits and piston builds).
 - `xvfb-run ./gradlew runClientGameTest`: real client, real keys and clicks.

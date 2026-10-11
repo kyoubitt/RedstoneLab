@@ -16,7 +16,7 @@ CODE
               TimelineHud, WorldMarkers (vanilla gizmos)
 
 TESTS
-  ./gradlew runGameTest                         29 server tests against the real game
+  ./gradlew runGameTest                         32 server tests against the real game
   xvfb-run ./gradlew runClientGameTest          real client: keys, clicks, screenshots
   Accuracy checks that run every time:
   * 8 random circuits, every meter vs the real block every tick (~6000 checks)
@@ -26,6 +26,8 @@ TESTS
   * client-side power check vs the game (433k checks; comparators read from their lit state)
   * firing order of 4 pistons on a clock; items in / out in the right part of the tick
   * container meters vs real comparators (double chest, blocked chest, composter, "x at y")
+  * slow clock (150t / 150t), pause between two clocks, block replaced under a meter
+  * client: hotkeys while another key (sprint) is held
 
 RELEASES (change mod_version on main -> GitHub builds the jar)
   0.2.0  no MaLiLib; own settings, key combos, HUD; piston previews client-side
@@ -42,6 +44,8 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
   0.3.7  item labels removed (push N/12, power N stay)
   0.3.8  containers read like comparators: double chests, blocked chests, crafters, shelves;
          "x at y" only when exact; dropper signal; signal N on composters, cauldrons, cakes...
+  0.3.9  slow clocks (> 5 s) measured, order lines kept for 2 periods; hotkeys work while
+         walking / sprinting; meter follows a replaced block; no chunk loads from meter text
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

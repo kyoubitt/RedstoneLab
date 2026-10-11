@@ -80,9 +80,21 @@ public final class LabKeys {
 		if (mc.screen != null || mc.player == null) {
 			return false;
 		}
+		// Keys that start a combo (R in "R + M"). Other held keys (walking, sprinting) don't matter.
+		java.util.Set<Integer> modifiers = new java.util.HashSet<>();
 		for (LabConfig.Hotkey hotkey : LabConfig.hotkeys()) {
 			List<Integer> keys = hotkey.value.keys();
-			if (keys.isEmpty() || keys.get(keys.size() - 1) != key || HELD.size() != keys.size() || !HELD.containsAll(keys)) {
+			modifiers.addAll(keys.subList(0, Math.max(0, keys.size() - 1)));
+		}
+		java.util.Set<Integer> held = new java.util.HashSet<>();
+		for (int k : HELD) {
+			if (k == key || modifiers.contains(k)) {
+				held.add(k);
+			}
+		}
+		for (LabConfig.Hotkey hotkey : LabConfig.hotkeys()) {
+			List<Integer> keys = hotkey.value.keys();
+			if (keys.isEmpty() || keys.get(keys.size() - 1) != key || !held.equals(new java.util.HashSet<>(keys))) {
 				continue;
 			}
 			if (action == GLFW.GLFW_REPEAT && !hotkey.repeats) {
