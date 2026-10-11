@@ -17,7 +17,7 @@ import dev.redstonelab.RedstoneLab;
  * (checked with {@code ServerPlayNetworking.canSend}), so vanilla clients never see them.
  */
 public final class LabPayloads {
-	public static final int PROTOCOL = 11;
+	public static final int PROTOCOL = 12;
 
 	/** Client capability: can render the HUD (meter timeline). */
 	public static final int CAP_HUD = 1;
@@ -348,8 +348,11 @@ public final class LabPayloads {
 		}
 	}
 
-	/** Nearby items this tick: entity id, age and pickup delay (same order). */
-	public record ItemInfoS2C(int[] ids, int[] ages, int[] pickups) implements CustomPacketPayload {
+	/**
+	 * Nearby items this tick (same order): entity id, age, pickup delay, hopper
+	 * ({@code ItemLife.Hopper} ordinal | value << 4) and speed in blocks per second.
+	 */
+	public record ItemInfoS2C(int[] ids, int[] ages, int[] pickups, int[] hoppers, float[] speeds) implements CustomPacketPayload {
 		public static final Type<ItemInfoS2C> TYPE = payloadType("item_info");
 		public static final StreamCodec<FriendlyByteBuf, ItemInfoS2C> CODEC = CustomPacketPayload.codec(ItemInfoS2C::write, ItemInfoS2C::read);
 		private static final int MAX = 256;
@@ -359,12 +362,16 @@ public final class LabPayloads {
 			int[] ids = new int[n];
 			int[] ages = new int[n];
 			int[] pickups = new int[n];
+			int[] hoppers = new int[n];
+			float[] speeds = new float[n];
 			for (int i = 0; i < n; i++) {
 				ids[i] = buf.readVarInt();
 				ages[i] = buf.readInt();
 				pickups[i] = buf.readVarInt();
+				hoppers[i] = buf.readVarInt();
+				speeds[i] = buf.readFloat();
 			}
-			return new ItemInfoS2C(ids, ages, pickups);
+			return new ItemInfoS2C(ids, ages, pickups, hoppers, speeds);
 		}
 
 		private void write(FriendlyByteBuf buf) {
@@ -374,6 +381,8 @@ public final class LabPayloads {
 				buf.writeVarInt(this.ids[i]);
 				buf.writeInt(this.ages[i]);
 				buf.writeVarInt(this.pickups[i]);
+				buf.writeVarInt(this.hoppers[i]);
+				buf.writeFloat(this.speeds[i]);
 			}
 		}
 

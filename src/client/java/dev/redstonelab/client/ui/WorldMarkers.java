@@ -68,19 +68,27 @@ public final class WorldMarkers {
 		}
 	}
 
-	/** Item labels: "64 Stone · 4:31 left · pickup 8t" above each item, with the server's numbers. */
+	/** Item labels: name, then despawn / pickup / hopper / speed, with the server's numbers. */
 	private static void items(Minecraft mc) {
 		int[] ids = ClientItems.ids;
 		int[] ages = ClientItems.ages;
 		int[] pickups = ClientItems.pickups;
-		for (int i = 0; i < ids.length && i < ages.length && i < pickups.length; i++) {
+		int[] hoppers = ClientItems.hoppers;
+		float[] speeds = ClientItems.speeds;
+		int n = Math.min(Math.min(ids.length, ages.length), Math.min(pickups.length, Math.min(hoppers.length, speeds.length)));
+		ItemLife.Hopper[] kinds = ItemLife.Hopper.values();
+		for (int i = 0; i < n; i++) {
 			if (!(mc.level.getEntity(ids[i]) instanceof ItemEntity item)) {
 				continue;
 			}
 			ItemStack stack = item.getItem();
-			String text = ItemLife.label(stack.getCount(), stack.getHoverName().getString(), ages[i], pickups[i]);
-			Gizmos.billboardText(text, item.position().add(0, 0.8, 0),
-					TextGizmo.Style.forColorAndCentered(ItemLife.color(ages[i])).withScale(TEXT_SCALE)).setAlwaysOnTop();
+			ItemLife.Hopper hopper = kinds[Math.min(hoppers[i] & 15, kinds.length - 1)];
+			String[] lines = ItemLife.label(stack.getCount(), stack.getHoverName().getString(), ages[i], pickups[i], hopper, hoppers[i] >> 4, speeds[i])
+					.split("\n");
+			TextGizmo.Style style = TextGizmo.Style.forColorAndCentered(ItemLife.color(ages[i])).withScale(TEXT_SCALE);
+			for (int l = 0; l < lines.length; l++) {
+				Gizmos.billboardText(lines[l], item.position().add(0, 0.6 + (lines.length - 1 - l) * LINE, 0), style).setAlwaysOnTop();
+			}
 		}
 	}
 }

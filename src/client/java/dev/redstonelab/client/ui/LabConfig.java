@@ -33,6 +33,7 @@ public final class LabConfig {
 		METERS("Meters"),
 		GUI("GUI"),
 		PISTONS("Pistorder"),
+		ITEMS("Items"),
 		HOTKEYS("Hotkeys");
 
 		public final String title;
@@ -241,9 +242,6 @@ public final class LabConfig {
 			"Outlines, letters and piston previews in the world");
 	public static final Bool EVENT_MARKS = new Bool(Tab.METERS, "showEventMarks", false,
 			"Marks for what happened each tick, and block / shape updates in the tick list");
-	public static final Bool ITEM_LABELS = new Bool(Tab.METERS, "itemLabels", false,
-			"Labels over dropped items: despawn time, pickup delay (mod on the server)");
-	public static final Int ITEM_RANGE = new Int(Tab.METERS, "itemRange", 16, 4, 32, "Item labels: range in blocks (nearest 64)");
 	public static final Int TIMELINE_TICKS = new Int(Tab.METERS, "timelineTicks", 80, 20, 200, "Ticks shown");
 	public static final Bool SHOW_INSPECT = new Bool(Tab.METERS, "showTickInspector", true,
 			"Frozen: list what happened in the tick, in order");
@@ -264,6 +262,10 @@ public final class LabConfig {
 
 	public static final Bool PISTON_LANDING = new Bool(Tab.PISTONS, "pistonLanding", false,
 			"Also outline where pushed blocks land (light blue)");
+
+	public static final Bool ITEM_LABELS = new Bool(Tab.ITEMS, "itemLabels", false,
+			"Labels over dropped items: despawn, pickup delay, hopper, speed (mod on the server)");
+	public static final Int ITEM_RANGE = new Int(Tab.ITEMS, "itemRange", 16, 4, 32, "Range in blocks (nearest 64 items)");
 
 	public static final Hotkey TOGGLE_METER = new Hotkey("toggleMeter", "M", false, "Meter on / off (block you look at)");
 	public static final Hotkey REMOVE_METER = new Hotkey("removeMeter", "BACKSPACE", false, "Remove the meter you look at, else the newest");

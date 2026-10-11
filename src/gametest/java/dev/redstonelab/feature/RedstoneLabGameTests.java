@@ -701,20 +701,254 @@ public class RedstoneLabGameTests {
 			String[] labels = new String[4];
 			for (int i = 0; i < 4; i++) {
 				labels[i] = dev.redstonelab.core.ItemLife.label(items[i].getItem().getCount(), items[i].getItem().getHoverName().getString(),
-						items[i].getAge(), ((dev.redstonelab.mixin.ItemEntityAccessor) items[i]).redstonelab$pickupDelay());
+						items[i].getAge(), ((dev.redstonelab.mixin.ItemEntityAccessor) items[i]).redstonelab$pickupDelay(),
+						dev.redstonelab.core.ItemLife.Hopper.NONE, 0, 0);
 			}
 			String all = String.join(" | ", labels);
 			int left = 6000 - items[0].getAge();
 			String time = left / 20 / 60 + ":" + String.format("%02d", left / 20 % 60);
-			helper.assertTrue(labels[0].equals("1 Stone" + DOT + time + " left"), "normal (pickup delay over): " + all);
-			helper.assertTrue(labels[1].startsWith("2 Dirt" + DOT + "9:5"), "extended lifetime (10 min): " + all);
-			helper.assertTrue(labels[2].equals("3 Gravel" + DOT + "never despawns"), "unlimited: " + all);
+			helper.assertTrue(labels[0].equals("1 Stone\ndespawn " + time), "normal (pickup delay over): " + all);
+			helper.assertTrue(labels[1].startsWith("2 Dirt\ndespawn 9:5"), "extended lifetime (10 min): " + all);
+			helper.assertTrue(labels[2].equals("3 Gravel\nnever despawns"), "unlimited: " + all);
 			helper.assertTrue(labels[3].endsWith(DOT + "no pickup"), "never picked up: " + all);
 			for (net.minecraft.world.entity.item.ItemEntity item : items) {
 				item.discard();
 			}
 			helper.succeed();
 		});
+	}
+
+	/**
+	 * "hopper in Nt" is exact: every tick, an item the label says goes next must be gone exactly
+	 * N ticks later (also for an item in the bowl of a hopper with a block on top, taken when the
+	 * item moves). Locked and full hoppers must really leave their item alone.
+	 */
+	@GameTest(maxTicks = 80)
+	public void hopperPickupPrediction(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		floor(helper, 7, 7);
+		BlockPos hopper = new BlockPos(2, 1, 2);
+		helper.setBlock(hopper, Blocks.HOPPER);
+		net.minecraft.world.item.Item[] kinds = {Items.STONE, Items.DIRT, Items.SAND, Items.GRAVEL};
+		java.util.List<net.minecraft.world.entity.item.ItemEntity> queue = new java.util.ArrayList<>();
+		for (net.minecraft.world.item.Item kind : kinds) {
+			queue.add(spawnItem(helper, hopper, 1.3, kind));
+		}
+		// Locked (redstone block next to it), full (5 x 64 dirt), blocked (stone on top, item inside).
+		BlockPos locked = new BlockPos(5, 1, 2);
+		helper.setBlock(locked, Blocks.HOPPER);
+		helper.setBlock(new BlockPos(6, 1, 2), Blocks.REDSTONE_BLOCK);
+		BlockPos full = new BlockPos(2, 1, 5);
+		helper.setBlock(full, Blocks.HOPPER);
+		Container fullHopper = (Container) level.getBlockEntity(helper.absolutePos(full));
+		for (int i = 0; i < 5; i++) {
+			fullHopper.setItem(i, new ItemStack(Items.DIRT, 64));
+		}
+		// Stone on top: the hopper's own move is blocked, but an item in its bowl still gets taken
+		// (when the item moves): that time is predicted too.
+		BlockPos covered = new BlockPos(5, 1, 5);
+		helper.setBlock(covered, Blocks.HOPPER);
+		helper.setBlock(covered.above(), Blocks.STONE);
+		queue.add(spawnItem(helper, covered, 0.7, Items.COBBLESTONE));
+		net.minecraft.world.entity.item.ItemEntity[] stuck = {spawnItem(helper, locked, 1.3, Items.STONE),
+				spawnItem(helper, full, 1.3, Items.STONE)};
+		dev.redstonelab.core.ItemLife.Hopper[] want = {dev.redstonelab.core.ItemLife.Hopper.LOCKED,
+				dev.redstonelab.core.ItemLife.Hopper.FULL};
+		// tick -> (item -> predicted ticks), and when each item really went into the hopper.
+		java.util.Map<net.minecraft.world.entity.item.ItemEntity, Long> gone = new java.util.HashMap<>();
+		java.util.List<long[]> predictions = new java.util.ArrayList<>();
+		java.util.List<net.minecraft.world.entity.item.ItemEntity> predicted = new java.util.ArrayList<>();
+		String[] stuckSeen = new String[2];
+		for (int t = 2; t < 70; t++) {
+			int tick = t;
+			helper.runAtTickTime(t, () -> {
+				java.util.Map<BlockPos, java.util.List<net.minecraft.world.entity.item.ItemEntity>> cache = new java.util.HashMap<>();
+				for (net.minecraft.world.entity.item.ItemEntity item : queue) {
+					if (!item.isAlive()) {
+						gone.putIfAbsent(item, (long) tick);
+						continue;
+					}
+					ItemInfoFeature.HopperInfo info = ItemInfoFeature.hopper(level, item, cache);
+					if (info.kind() == dev.redstonelab.core.ItemLife.Hopper.NEXT) {
+						predictions.add(new long[]{tick, info.value()});
+						predicted.add(item);
+					}
+				}
+				for (int i = 0; i < 2; i++) {
+					stuckSeen[i] = ItemInfoFeature.hopper(level, stuck[i], cache).kind() + (stuck[i].isAlive() ? "" : " (taken!)");
+				}
+			});
+		}
+		helper.runAtTickTime(72, () -> {
+			helper.assertTrue(gone.size() == 5, "all 5 items should be in their hoppers by now, " + gone.size());
+			int checked = 0;
+			for (int i = 0; i < predictions.size(); i++) {
+				long[] p = predictions.get(i);
+				long actual = gone.get(predicted.get(i)) - p[0];
+				helper.assertTrue(actual == p[1], "tick " + p[0] + ": said hopper in " + p[1] + "t, took " + actual + "t");
+				checked++;
+			}
+			helper.assertTrue(checked >= 20, "too few predictions checked: " + checked);
+			for (int i = 0; i < 2; i++) {
+				helper.assertTrue(stuckSeen[i].equals(want[i].name()), want[i] + " hopper: label says " + stuckSeen[i]);
+			}
+			queue.forEach(net.minecraft.world.entity.Entity::discard);
+			for (net.minecraft.world.entity.item.ItemEntity item : stuck) {
+				item.discard();
+			}
+			helper.succeed();
+		});
+	}
+
+	/**
+	 * Random item drops onto a hopper chain (hopper -> hopper -> chest, some hoppers covered by a
+	 * block) over 10 rounds: every "hopper in Nt" must come true exactly, unless a new item landed
+	 * in that hopper's area meanwhile (it can get ahead in the game's own list).
+	 */
+	@GameTest(maxTicks = 620)
+	public void hopperPredictionsRandom(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		java.util.Random random = new java.util.Random(31337);
+		// Every drop a different item, so no two items merge (a merge isn't a hopper pickup).
+		java.util.List<net.minecraft.world.item.Item> kinds = new java.util.ArrayList<>();
+		net.minecraft.core.registries.BuiltInRegistries.ITEM.forEach(i -> {
+			if (i != Items.AIR && new ItemStack(i).getMaxStackSize() > 1) {
+				kinds.add(i);
+			}
+		});
+		int[] nextKind = new int[1];
+		java.util.List<net.minecraft.world.entity.item.ItemEntity> items = new java.util.ArrayList<>();
+		java.util.Map<net.minecraft.world.entity.item.ItemEntity, Long> gone = new java.util.HashMap<>();
+		java.util.List<Object[]> predictions = new java.util.ArrayList<>();
+		java.util.Map<String, Integer> kindsSeen = new java.util.TreeMap<>();
+		java.util.Map<net.minecraft.world.entity.item.ItemEntity, Long> cleared = new java.util.HashMap<>();
+		// Per hopper: when each item first entered its pickup list (a new item can land ahead).
+		java.util.Map<BlockPos, java.util.Map<net.minecraft.world.entity.item.ItemEntity, Long>> entered = new java.util.HashMap<>();
+		java.util.Map<BlockPos, java.util.List<Long>> arrivals = new java.util.HashMap<>();
+		BlockPos[] hoppers = {new BlockPos(1, 2, 2), new BlockPos(2, 2, 2), new BlockPos(3, 2, 2), new BlockPos(1, 2, 5), new BlockPos(2, 2, 5)};
+		for (int round = 0; round < 10; round++) {
+			int start = 2 + round * 60;
+			helper.runAtTickTime(start, () -> {
+				for (BlockPos p : BlockPos.betweenClosed(helper.absolutePos(new BlockPos(0, 1, 0)), helper.absolutePos(new BlockPos(7, 4, 7)))) {
+					level.setBlock(p, Blocks.AIR.defaultBlockState(), 2 | 16);
+				}
+				floor(helper, 7, 7);
+				// Row 1: hopper -> hopper -> hopper -> chest. Row 2: two hoppers into a chest.
+				helper.setBlock(new BlockPos(1, 2, 2), Blocks.HOPPER.defaultBlockState().setValue(BlockStateProperties.FACING_HOPPER, Direction.EAST));
+				helper.setBlock(new BlockPos(2, 2, 2), Blocks.HOPPER.defaultBlockState().setValue(BlockStateProperties.FACING_HOPPER, Direction.EAST));
+				helper.setBlock(new BlockPos(3, 2, 2), Blocks.HOPPER.defaultBlockState().setValue(BlockStateProperties.FACING_HOPPER, Direction.EAST));
+				helper.setBlock(new BlockPos(4, 2, 2), Blocks.CHEST);
+				helper.setBlock(new BlockPos(1, 2, 5), Blocks.HOPPER.defaultBlockState().setValue(BlockStateProperties.FACING_HOPPER, Direction.EAST));
+				helper.setBlock(new BlockPos(2, 2, 5), Blocks.HOPPER.defaultBlockState().setValue(BlockStateProperties.FACING_HOPPER, Direction.EAST));
+				helper.setBlock(new BlockPos(3, 2, 5), Blocks.CHEST);
+				for (BlockPos h : hoppers) {
+					if (random.nextInt(4) == 0) {
+						helper.setBlock(h.above(), Blocks.STONE);
+					}
+				}
+			});
+			for (int t = start + 1; t < start + 58; t++) {
+				int tick = t;
+				helper.runAtTickTime(t, () -> {
+					// Drop 0-2 items this tick over a random hopper (in the bowl if it's covered).
+					for (int k = random.nextInt(4) == 0 ? 1 + random.nextInt(2) : 0; k > 0; k--) {
+						BlockPos h = hoppers[random.nextInt(hoppers.length)];
+						boolean covered = level.getBlockState(helper.absolutePos(h.above())).is(Blocks.STONE);
+						if (tick < start + 45) {
+							items.add(spawnItem(helper, h, covered ? 0.7 : 1.2 + random.nextDouble() * 0.6, kinds.get(nextKind[0]++ % kinds.size())));
+						}
+					}
+					java.util.Map<BlockPos, java.util.List<net.minecraft.world.entity.item.ItemEntity>> cache = new java.util.HashMap<>();
+					for (BlockPos h : hoppers) {
+						BlockPos abs = helper.absolutePos(h);
+						if (level.getBlockEntity(abs) instanceof net.minecraft.world.level.block.entity.HopperBlockEntity hb) {
+							for (net.minecraft.world.entity.item.ItemEntity e : net.minecraft.world.level.block.entity.HopperBlockEntity.getItemsAtAndAbove(level, hb)) {
+								if (entered.computeIfAbsent(abs, k -> new java.util.HashMap<>()).putIfAbsent(e, (long) tick) == null) {
+									arrivals.computeIfAbsent(abs, k -> new java.util.ArrayList<>()).add((long) tick);
+								}
+							}
+						}
+					}
+					for (net.minecraft.world.entity.item.ItemEntity item : items) {
+						if (!item.isAlive()) {
+							gone.putIfAbsent(item, (long) tick);
+						} else {
+							ItemInfoFeature.HopperInfo info = ItemInfoFeature.hopper(level, item, cache);
+							kindsSeen.merge(info.kind().name(), 1, Integer::sum);
+							if (info.kind() == dev.redstonelab.core.ItemLife.Hopper.NEXT) {
+								BlockPos ip = item.blockPosition();
+								String where = helper.relativePos(ip).toShortString() + " y" + String.format("%.2f", item.getY() - ip.getY())
+										+ (level.getBlockState(ip.above()).is(Blocks.STONE) || level.getBlockState(ip).is(Blocks.STONE) ? " covered" : "")
+										+ " ground " + item.onGround() + " hopperBelow " + hopperDebug(level, ip) + " / " + hopperDebug(level, ip.below());
+								BlockPos hopperPos = level.getBlockEntity(ip) instanceof net.minecraft.world.level.block.entity.HopperBlockEntity ? ip : ip.below();
+								predictions.add(new Object[]{item, (long) tick, info.value(), where, hopperPos});
+							}
+						}
+					}
+				});
+			}
+			helper.runAtTickTime(start + 58, () -> items.forEach(i -> {
+				if (i.isAlive()) {
+					i.discard();
+					gone.putIfAbsent(i, Long.MAX_VALUE);
+					cleared.put(i, (long) (start + 58));
+				}
+			}));
+		}
+		helper.runAtTickTime(2 + 10 * 60 + 2, () -> {
+			int checked = 0;
+			int wrong = 0;
+			String first = "";
+			for (Object[] p : predictions) {
+				long at = (Long) p[1];
+				int said = (Integer) p[2];
+				Long taken = gone.get((net.minecraft.world.entity.item.ItemEntity) p[0]);
+				// Not checkable: the test cleared the item before the predicted tick.
+				Long clearedAt = cleared.get((net.minecraft.world.entity.item.ItemEntity) p[0]);
+				if (taken == null || clearedAt != null && at + said >= clearedAt) {
+					continue;
+				}
+				// The claim is "unless a new item lands first": skip windows where one did.
+				boolean newcomer = false;
+				for (long arrived : arrivals.getOrDefault((BlockPos) p[4], java.util.List.of())) {
+					newcomer |= arrived > at && arrived <= at + said;
+				}
+				if (newcomer) {
+					continue;
+				}
+				checked++;
+				if (taken - at != said) {
+					wrong++;
+					if (wrong <= 12) {
+						dev.redstonelab.RedstoneLab.LOGGER.info("  wrong: tick {} said {}t took {} at {}", at, said, taken == Long.MAX_VALUE ? "never" : (taken - at) + "t", p[3]);
+					}
+					if (first.isEmpty()) {
+						first = "tick " + at + ": said hopper in " + said + "t, took " + (taken == Long.MAX_VALUE ? "never" : (taken - at) + "t");
+					}
+				}
+			}
+			dev.redstonelab.RedstoneLab.LOGGER.info("hopperPredictionsRandom: {} items, {} timed predictions checked, {} wrong; labels seen {}",
+					items.size(), checked, wrong, kindsSeen);
+			helper.assertTrue(checked > 100, "too few predictions checked: " + checked);
+			helper.assertTrue(wrong == 0, wrong + "/" + checked + " hopper predictions wrong. First: " + first);
+			helper.succeed();
+		});
+	}
+
+	private static String hopperDebug(ServerLevel level, BlockPos pos) {
+		if (!(level.getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.HopperBlockEntity h)) {
+			return "-";
+		}
+		return "cd" + ((dev.redstonelab.mixin.HopperBlockEntityAccessor) h).redstonelab$cooldown() + (h.isEmpty() ? " empty" : " items")
+				+ " list" + net.minecraft.world.level.block.entity.HopperBlockEntity.getItemsAtAndAbove(level, h).size();
+	}
+
+	private static net.minecraft.world.entity.item.ItemEntity spawnItem(GameTestHelper helper, BlockPos block, double dy, net.minecraft.world.item.Item kind) {
+		BlockPos p = helper.absolutePos(block);
+		net.minecraft.world.entity.item.ItemEntity item = new net.minecraft.world.entity.item.ItemEntity(helper.getLevel(),
+				p.getX() + 0.5, p.getY() + dy, p.getZ() + 0.5, new ItemStack(kind), 0, 0, 0);
+		helper.getLevel().addFreshEntity(item);
+		return item;
 	}
 
 	/** Two pistons with meters powered 3 ticks apart: the order line must read "A → 3t → B". */

@@ -53,10 +53,18 @@ what happened that tick, in sub-tick order. Block / shape updates: **Show event 
 
 ## Items
 
-**I** = labels over dropped items: `12 Redstone Dust · 4:59 left · pickup 381t`.
-- `left` = until it despawns (5 min; red under 30 s, ticks under 10 s, `never despawns` for /give-style items)
-- `pickup` = ticks until players / mobs can pick it up (hoppers ignore it). `no pickup` = never.
-- Nearest 64 within 16 blocks (settings). Needs the mod on the server: only the server knows these numbers.
+**I** = labels over dropped items (own tab in settings: on / off, range):
+```
+12 Redstone Dust
+despawn 4:59 · pickup in 19t · hopper in 3t · 4.8 b/s
+```
+- `despawn` 5 min (red under 30 s, ticks under 10 s; `never despawns`)
+- `pickup in` = until players / mobs can take it (hoppers ignore it); `no pickup` = never
+- `hopper in 3t` = exact, unless a new item lands ahead of it · `hopper next` = first, but something
+  feeds the hopper · `hopper queue 2` · `hopper locked` / `full` / `blocked` (block or container on
+  top) · `hopper busy` (in a covered hopper's bowl; taken when it's idle)
+- `b/s` = how fast it's moving (water streams, elevators)
+- Nearest 64 within 16 blocks. Needs the mod on the server: only the server has these numbers.
 
 ## Keys
 
@@ -84,6 +92,6 @@ Needs op; `/rlab config set permissionLevel 0` lets everyone use it.
 ## Build
 
 `./gradlew build` (JDK 25; the mod runs on Java 21). Jar in `build/libs/`.
-- `./gradlew runGameTest`: 29 tests that check the mod against the real game (clocks, pistons,
+- `./gradlew runGameTest`: 31 tests that check the mod against the real game (clocks, pistons,
   QC, comparators, hoppers, sub-tick order, random circuits and piston builds).
 - `xvfb-run ./gradlew runClientGameTest`: real client, real keys and clicks.

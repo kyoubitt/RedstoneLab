@@ -148,6 +148,8 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			context.setScreen(() -> new LabConfigScreen(null));
 			this.record(context, 40, "Settings: R + C. No other mods needed");
 			context.takeScreenshot("still-settings");
+			context.clickScreenButton("Items");
+			context.takeScreenshot("still-items-tab");
 			context.clickScreenButton("Hotkeys");
 			this.record(context, 40, "Hotkeys: click one, press the keys (e.g. hold R, press Left)");
 			context.takeScreenshot("still-hotkeys");
@@ -184,13 +186,23 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		int[] id = new int[1];
 		world.getServer().runOnServer(server -> {
 			ServerPlayer player = player(server);
-			net.minecraft.world.entity.item.ItemEntity item = new net.minecraft.world.entity.item.ItemEntity(player.level(),
-					player.getX() + 2, player.getY() + 1, player.getZ() + 3, new ItemStack(Items.REDSTONE, 12), 0, 0, 0);
+			ServerLevel level = player.level();
+			// Its own spot, away from the meter build.
+			BlockPos spot = base.offset(0, 0, -6);
+			net.minecraft.world.entity.item.ItemEntity item = new net.minecraft.world.entity.item.ItemEntity(level,
+					spot.getX() + 1.5, spot.getY() + 0.2, spot.getZ() - 3.5, new ItemStack(Items.REDSTONE, 12), 0, 0, 0);
 			item.setPickUpDelay(400);
-			player.level().addFreshEntity(item);
+			level.addFreshEntity(item);
 			id[0] = item.getId();
-			player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, item.position());
+			// A locked hopper with an item on it.
+			BlockPos hopper = spot.offset(-2, 0, -4);
+			level.setBlockAndUpdate(hopper, Blocks.HOPPER.defaultBlockState());
+			level.setBlockAndUpdate(hopper.west(), Blocks.REDSTONE_BLOCK.defaultBlockState());
+			level.addFreshEntity(new net.minecraft.world.entity.item.ItemEntity(level,
+					hopper.getX() + 0.5, hopper.getY() + 1.2, hopper.getZ() + 0.5, new ItemStack(Items.IRON_INGOT, 3), 0, 0, 0));
+			player.teleportTo(level, spot.getX() + 0.5, spot.getY() + 1, spot.getZ() + 0.5, java.util.Set.of(), 180f, 25f, false);
 		});
+		context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = false);
 		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_I);
 		context.waitTicks(20);
 		int clientAge = context.computeOnClient(client -> {
@@ -206,7 +218,9 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		if (clientAge == Integer.MIN_VALUE || Math.abs(serverAge - clientAge) > 2) {
 			throw new AssertionError("item label age: client " + clientAge + ", server " + serverAge);
 		}
+		context.waitTicks(60);
 		context.takeScreenshot("still-items");
+		context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = true);
 		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_I);
 		context.waitTicks(3);
 		if (context.computeOnClient(client -> ClientItems.ids.length) != 0) {
