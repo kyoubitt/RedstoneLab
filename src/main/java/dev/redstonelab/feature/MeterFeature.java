@@ -213,7 +213,7 @@ public final class MeterFeature {
 		long lastExtend = Long.MIN_VALUE;
 		boolean piston;
 		boolean comparator;
-		/** Dropper, dispenser, crafter: it fires; its comparator signal is not interesting. */
+		/** Dropper, dispenser, crafter: on = fires (crafts). */
 		boolean fires;
 		/** Chest-like container: on = comparator signal above 0. */
 		boolean signalBased;
@@ -309,12 +309,15 @@ public final class MeterFeature {
 					sb.append(" \u00b7 empty");
 				} else {
 					sb.append(" \u00b7 ").append(this.contents.isEmpty() ? this.itemCount + (this.itemCount == 1 ? " item" : " items") : this.contents);
-					if (!this.fires) {
-						sb.append(" \u00b7 signal ").append(this.power);
+					sb.append(" \u00b7 signal ").append(this.power);
+					if (!this.nextLevel.isEmpty()) {
+						sb.append(" (").append(this.nextLevel).append(")");
 					}
 				}
-				if (this.itemCount > 0 && !this.nextLevel.isEmpty() && !this.fires) {
-					sb.append(" (").append(this.nextLevel).append(")");
+				ServerLevel level = LabServer.level(this.dimension);
+				if (level != null && level.hasChunkAt(this.pos) && PowerUtil.chestBlocked(level, this.pos)) {
+					// Vanilla: a chest that can't open gives comparators 0.
+					sb.append(" \u00b7 blocked");
 				}
 				appendRate(sb, "fires", this.fireGaps, this.lastFire);
 				appendRate(sb, "in", this.inGaps, this.lastIn);
@@ -369,6 +372,10 @@ public final class MeterFeature {
 				// Target block, daylight detector, sculk sensors, weighted plates: the level matters.
 				int level15 = state.getValue(BlockStateProperties.POWER);
 				return level15 > 0 ? "power " + level15 : "";
+			}
+			if (state.hasAnalogOutputSignal()) {
+				// Composter, cauldron, cake, lectern, beehive, respawn anchor...: what a comparator reads.
+				return "signal " + PowerUtil.comparatorSignal(level, this.pos, state);
 			}
 			if (state.getBlock() instanceof RedstoneTorchBlock) {
 				// Off although its block isn't powered, after 8 toggles in 60t: the game's burnout.
@@ -613,20 +620,32 @@ public final class MeterFeature {
 		return m;
 	}
 
-	/** "3 at 83": the next comparator level and how many items it needs (one item type assumed). */
+	/**
+	 * "3 at 83": the next comparator level and the item count that gives it. Only when that is
+	 * exact: the signal is the usual fullness one (not a crafter, bookshelf, jukebox, shelf or
+	 * blocked chest) and every stack has the same stack size (64, 16 or 1), so items count alike.
+	 */
 	private static String nextLevel(ServerLevel level, BlockPos pos, int signal) {
-		if (!level.hasChunkAt(pos) || !(level.getBlockEntity(pos) instanceof net.minecraft.world.Container container)) {
+		net.minecraft.world.Container container = level.hasChunkAt(pos) ? PowerUtil.container(level, pos) : null;
+		if (container == null || signal != net.minecraft.world.inventory.AbstractContainerMenu.getRedstoneSignalFromContainer(container)
+				|| level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.CrafterBlock
+				|| level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ChiseledBookShelfBlock
+				|| level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.JukeboxBlock
+				|| level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ShelfBlock) {
 			return "";
 		}
-		int maxStack = 64;
+		int maxStack = -1;
 		for (int i = 0; i < container.getContainerSize(); i++) {
 			ItemStack stack = container.getItem(i);
 			if (!stack.isEmpty()) {
-				maxStack = stack.getMaxStackSize();
-				break;
+				int size = Math.min(container.getMaxStackSize(stack), stack.getMaxStackSize());
+				if (maxStack >= 0 && size != maxStack) {
+					return "";
+				}
+				maxStack = size;
 			}
 		}
-		long need = ContainerMath.itemsForNextLevel(signal, container.getContainerSize(), maxStack);
+		long need = ContainerMath.itemsForNextLevel(signal, container.getContainerSize(), maxStack < 0 ? 64 : maxStack);
 		return need < 0 ? "max" : (signal + 1) + " at " + need;
 	}
 
@@ -658,7 +677,8 @@ public final class MeterFeature {
 	 * when empty or not a container).
 	 */
 	static String contents(ServerLevel level, BlockPos pos) {
-		if (!level.hasChunkAt(pos) || !(level.getBlockEntity(pos) instanceof net.minecraft.world.Container container)) {
+		net.minecraft.world.Container container = level.hasChunkAt(pos) ? PowerUtil.container(level, pos) : null;
+		if (container == null) {
 			return "";
 		}
 		Map<Item, Integer> kinds = new java.util.LinkedHashMap<>();
@@ -705,9 +725,10 @@ public final class MeterFeature {
 		}
 	}
 
-	/** Items inside a hopper, chest, dropper..., or -1 if the block is not a container. */
+	/** Items inside a hopper, chest (both halves), dropper..., or -1 if the block is not a container. */
 	private static int itemCount(ServerLevel level, BlockPos pos) {
-		if (!level.hasChunkAt(pos) || !(level.getBlockEntity(pos) instanceof net.minecraft.world.Container container)) {
+		net.minecraft.world.Container container = level.hasChunkAt(pos) ? PowerUtil.container(level, pos) : null;
+		if (container == null) {
 			return -1;
 		}
 		int items = 0;

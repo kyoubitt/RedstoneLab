@@ -7,6 +7,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.ComparatorBlock;
 import net.minecraft.world.level.block.DiodeBlock;
 import net.minecraft.world.level.block.DispenserBlock;
@@ -30,7 +31,7 @@ import dev.redstonelab.mixin.RedstoneTorchBlockInvoker;
  *     <li>comparator: its block entity output signal</li>
  *     <li>other signal sources (repeater, torch, lever, button, observer, ...): the strongest
  *     signal they emit in any direction</li>
- *     <li>containers: the comparator level they produce</li>
+ *     <li>containers: what a comparator reads from them (vanilla's own output)</li>
  *     <li>pistons: the signal the piston itself reacts to, including QC (power next to the
  *     block above it), exactly like the game checks it</li>
  *     <li>everything else: the strongest signal the block receives</li>
@@ -57,6 +58,11 @@ public final class PowerUtil {
 			}
 			return 0;
 		}
+		if (state.hasBlockEntity() && level.getBlockEntity(pos) instanceof Container container) {
+			// What a comparator reads (double chests, blocked chests, crafters, bookshelves...).
+			return state.hasAnalogOutputSignal() ? comparatorSignal(level, pos, state)
+					: AbstractContainerMenu.getRedstoneSignalFromContainer(container);
+		}
 		if (state.isSignalSource()) {
 			int max = 0;
 			for (Direction d : DIRECTIONS) {
@@ -70,13 +76,31 @@ public final class PowerUtil {
 		if (state.getBlock() instanceof PistonBaseBlock && state.hasProperty(PistonBaseBlock.FACING)) {
 			return pistonPower(level, pos, state.getValue(PistonBaseBlock.FACING));
 		}
-		if (state.hasBlockEntity()) {
-			BlockEntity be = level.getBlockEntity(pos);
-			if (be instanceof Container container) {
-				return AbstractContainerMenu.getRedstoneSignalFromContainer(container);
-			}
-		}
 		return level.getBestNeighborSignal(pos);
+	}
+
+	/** What a comparator facing away from the block reads (the best side: shelves only give it to the front). */
+	public static int comparatorSignal(Level level, BlockPos pos, BlockState state) {
+		int max = 0;
+		for (Direction d : DIRECTIONS) {
+			max = Math.max(max, state.getAnalogOutputSignal(level, pos, d));
+		}
+		return max;
+	}
+
+	/** The items a block holds; a double chest is both halves, like comparators and hoppers see it. */
+	public static @org.jetbrains.annotations.Nullable Container container(Level level, BlockPos pos) {
+		BlockState state = level.getBlockState(pos);
+		if (state.getBlock() instanceof ChestBlock chest) {
+			return ChestBlock.getContainer(chest, state, level, pos, true);
+		}
+		return level.getBlockEntity(pos) instanceof Container c ? c : null;
+	}
+
+	/** A chest comparators can't read (solid block or cat on top of it or its other half): signal 0. */
+	public static boolean chestBlocked(Level level, BlockPos pos) {
+		BlockState state = level.getBlockState(pos);
+		return state.getBlock() instanceof ChestBlock chest && ChestBlock.getContainer(chest, state, level, pos, false) == null;
 	}
 
 	/**

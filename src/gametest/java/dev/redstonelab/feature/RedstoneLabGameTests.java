@@ -661,6 +661,104 @@ public class RedstoneLabGameTests {
 		});
 	}
 
+	/**
+	 * Container meters read what a real comparator reads: a double chest is both halves, a
+	 * chest under a block gives 0 ("blocked"), a composter gives its level. "x at y" is only
+	 * shown when exact, and is checked by filling a barrel to y and y - 1 items.
+	 */
+	@GameTest(maxTicks = 60)
+	public void containerMeters(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		floor(helper, 7, 7);
+		BlockState chest = Blocks.CHEST.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.NORTH);
+		// A: left half of a double chest; the items are all in the right half.
+		helper.setBlock(new BlockPos(1, 1, 1), chest.setValue(BlockStateProperties.CHEST_TYPE, net.minecraft.world.level.block.state.properties.ChestType.LEFT));
+		helper.setBlock(new BlockPos(2, 1, 1), chest.setValue(BlockStateProperties.CHEST_TYPE, net.minecraft.world.level.block.state.properties.ChestType.RIGHT));
+		Container right = (Container) level.getBlockEntity(helper.absolutePos(new BlockPos(2, 1, 1)));
+		for (int i = 0; i < 9; i++) {
+			right.setItem(i, new ItemStack(Items.STONE, 64));
+		}
+		right.setItem(9, new ItemStack(Items.STONE, 24));
+		// B: chest with stone on top: comparators read 0.
+		helper.setBlock(new BlockPos(4, 1, 1), chest);
+		helper.setBlock(new BlockPos(4, 2, 1), Blocks.STONE);
+		((Container) level.getBlockEntity(helper.absolutePos(new BlockPos(4, 1, 1)))).setItem(0, new ItemStack(Items.STONE, 64));
+		// C: composter at level 3.
+		helper.setBlock(new BlockPos(6, 1, 1), Blocks.COMPOSTER.defaultBlockState().setValue(BlockStateProperties.LEVEL_COMPOSTER, 3));
+		// D: hopper with 16- and 64-stacks: the item count for the next level isn't one number.
+		helper.setBlock(new BlockPos(1, 1, 4), Blocks.HOPPER);
+		Container hopper = (Container) level.getBlockEntity(helper.absolutePos(new BlockPos(1, 1, 4)));
+		hopper.setItem(0, new ItemStack(Items.ENDER_PEARL, 10));
+		hopper.setItem(1, new ItemStack(Items.STONE, 40));
+		helper.setBlock(new BlockPos(1, 2, 4), Blocks.STONE);
+		// E: barrel with 100 stone.
+		helper.setBlock(new BlockPos(4, 1, 4), Blocks.BARREL);
+		Container barrel = (Container) level.getBlockEntity(helper.absolutePos(new BlockPos(4, 1, 4)));
+		barrel.setItem(0, new ItemStack(Items.STONE, 64));
+		barrel.setItem(1, new ItemStack(Items.STONE, 36));
+		BlockPos[] blocks = {new BlockPos(1, 1, 1), new BlockPos(4, 1, 1), new BlockPos(6, 1, 1), new BlockPos(1, 1, 4), new BlockPos(4, 1, 4)};
+		for (BlockPos b : blocks) {
+			// A comparator south of each block, reading it.
+			helper.setBlock(b.south(), Blocks.COMPARATOR.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.NORTH));
+			MeterFeature.toggle(player, level, helper.absolutePos(b));
+		}
+		String[] labels = {"A", "B", "C", "D", "E"};
+		int[] at = new int[2];
+		// The contents were set before the comparators existed: tell them, like a hopper or player would.
+		helper.runAtTickTime(2, () -> {
+			for (BlockPos b : new BlockPos[]{blocks[0], new BlockPos(2, 1, 1), blocks[1], blocks[2], blocks[3], blocks[4]}) {
+				BlockPos abs = helper.absolutePos(b);
+				level.updateNeighbourForOutputSignal(abs, level.getBlockState(abs).getBlock());
+			}
+		});
+		helper.runAtTickTime(10, () -> {
+			StringBuilder all = new StringBuilder();
+			for (int i = 0; i < blocks.length; i++) {
+				all.append(labels[i]).append(": ").append(MeterFeature.statusForTest(player, labels[i])).append(" | ");
+			}
+			for (int i = 0; i < blocks.length; i++) {
+				int real = ((net.minecraft.world.level.block.entity.ComparatorBlockEntity) level.getBlockEntity(helper.absolutePos(blocks[i].south()))).getOutputSignal();
+				String status = MeterFeature.statusForTest(player, labels[i]);
+				int meter = dev.redstonelab.core.Reading.level(MeterFeature.readingForTest(player, labels[i]));
+				// Containers: the bar is the signal. Composter: only the text (its bar is the power it gets).
+				helper.assertTrue(i == 2 || meter == real, labels[i] + ": meter signal " + meter + ", comparator " + real + " | " + all);
+				helper.assertTrue(status.contains("signal " + real), labels[i] + " text: " + all);
+			}
+			String a = MeterFeature.statusForTest(player, "A");
+			helper.assertTrue(a.contains("600 Stone"), "double chest counts both halves: " + a);
+			String b = MeterFeature.statusForTest(player, "B");
+			helper.assertTrue(b.contains("signal 0") && b.endsWith("blocked") && !b.contains(" at "), "blocked chest: " + b);
+			helper.assertTrue(MeterFeature.statusForTest(player, "C").contains("signal 3"), "composter: " + all);
+			helper.assertTrue(!MeterFeature.statusForTest(player, "D").contains(" at "), "mixed stack sizes: " + all);
+			java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\((\\d+) at (\\d+)\\)").matcher(MeterFeature.statusForTest(player, "E"));
+			helper.assertTrue(m.find(), "barrel: " + all);
+			at[0] = Integer.parseInt(m.group(1));
+			at[1] = Integer.parseInt(m.group(2));
+			fill(barrel, at[1] - 1);
+		});
+		helper.runAtTickTime(20, () -> {
+			int real = ((net.minecraft.world.level.block.entity.ComparatorBlockEntity) level.getBlockEntity(helper.absolutePos(blocks[4].south()))).getOutputSignal();
+			helper.assertTrue(real == at[0] - 1, (at[1] - 1) + " items should still give " + (at[0] - 1) + ", comparator " + real);
+			fill(barrel, at[1]);
+		});
+		helper.runAtTickTime(30, () -> {
+			int real = ((net.minecraft.world.level.block.entity.ComparatorBlockEntity) level.getBlockEntity(helper.absolutePos(blocks[4].south()))).getOutputSignal();
+			helper.assertTrue(real == at[0], at[1] + " items should give " + at[0] + ", comparator " + real);
+			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
+	private static void fill(Container container, int items) {
+		container.clearContent();
+		for (int i = 0; items > 0; i++) {
+			container.setItem(i, new ItemStack(Items.STONE, Math.min(64, items)));
+			items -= 64;
+		}
+		container.setChanged();
+	}
+
 	/** Two pistons with meters powered 3 ticks apart: the order line must read "A → 3t → B". */
 	@GameTest(maxTicks = 30)
 	public void pistonFireTiming(GameTestHelper helper) {
@@ -1143,8 +1241,8 @@ public class RedstoneLabGameTests {
 		dropper.setChanged();
 		helper.runAtTickTime(3, () -> {
 			String meter = MeterFeature.statusForTest(player, "A");
-			// Droppers fire: no comparator signal in their text.
-			helper.assertTrue(meter.equals("Dropper" + DOT + "10 Stone"), "meter says '" + meter + "'");
+			// Droppers: the comparator signal and the next level too (9 slots: 2 at 42).
+			helper.assertTrue(meter.equals("Dropper" + DOT + "10 Stone" + DOT + "signal 1 (2 at 42)"), "meter says '" + meter + "'");
 			dropper.setItem(1, new ItemStack(Items.REDSTONE, 3));
 			dropper.setChanged();
 		});

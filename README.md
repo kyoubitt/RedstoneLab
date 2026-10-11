@@ -31,8 +31,9 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 - **bar** = on, number = ticks · **thin line** = powered, not on yet · **white line** = 0-tick
 - **Order**: who turns on first, from A. `A → 2t → B D` = B and D 2t after A.
 - `6t` exact · `3t/5t` alternates · `2t/3t/3t` pattern · `2t or 3t` no pattern
-- Dropper: bar = fires · Hopper: bar = locked · Chest: bar = signal > 0, `(3 at 83)` = signal 3 at 83 items
-- Repeater `delay 4t · locked` · Torch `burnt out` · Block `strong 15` (lights dust next to it) / `weak 13` · Target, daylight, sculk, weighted plate `power 7`
+- Dropper: bar = fires · Hopper: bar = locked · Chest: bar = signal > 0
+- `signal 3 (4 at 741)` = what a comparator reads; signal 4 at 741 items (shown when exact). Double chests count both halves; `blocked` = chest can't open, reads 0
+- Repeater `delay 4t · locked` · Torch `burnt out` · Block `strong 15` (lights dust next to it) / `weak 13` · Target, daylight, sculk, weighted plate `power 7` · Composter, cauldron, cake, lectern… `signal 3`
 - Meters follow blocks moved by pistons.
 
 **Up** freezes the game (`/tick`, needs op); Up again steps 1 tick (hold to repeat). **Down** runs it.
@@ -76,6 +77,6 @@ Needs op; `/rlab config set permissionLevel 0` lets everyone use it.
 ## Build
 
 `./gradlew build` (JDK 25; the mod runs on Java 21). Jar in `build/libs/`.
-- `./gradlew runGameTest`: 28 tests that check the mod against the real game (clocks, pistons,
+- `./gradlew runGameTest`: 29 tests that check the mod against the real game (clocks, pistons,
   QC, comparators, hoppers, sub-tick order, random circuits and piston builds).
 - `xvfb-run ./gradlew runClientGameTest`: real client, real keys and clicks.
