@@ -37,38 +37,6 @@ public class ComplexCircuitTests {
 				? BlockStateProperties.FACING : BlockStateProperties.HORIZONTAL_FACING, d);
 	}
 
-	/**
-	 * What the test does each tick, in a fixed order: first the actions (redstone blocks placed
-	 * or removed), then the probes (truth samples, preview checks). The framework runs separate
-	 * callbacks of one tick in no fixed order, so they all go through one callback per tick.
-	 */
-	private static final class Script {
-		private final java.util.Map<Integer, java.util.List<Runnable>> actions = new java.util.TreeMap<>();
-		private final java.util.List<Runnable> probes = new java.util.ArrayList<>();
-
-		void at(int tick, Runnable action) {
-			this.actions.computeIfAbsent(tick, k -> new java.util.ArrayList<>()).add(action);
-		}
-
-		void every(Runnable probe) {
-			this.probes.add(probe);
-		}
-
-		/** Runs ticks {@code from} to {@code to} (exclusive); then {@code end} at {@code to}. */
-		void run(GameTestHelper helper, int from, int to, Runnable end) {
-			for (int t = 1; t < to; t++) {
-				int tick = t;
-				helper.runAtTickTime(t, () -> {
-					this.actions.getOrDefault(tick, java.util.List.of()).forEach(Runnable::run);
-					if (tick >= from) {
-						this.probes.forEach(Runnable::run);
-					}
-				});
-			}
-			helper.runAtTickTime(to, end);
-		}
-	}
-
 	private static void meter(GameTestHelper helper, ServerPlayer player, BlockPos... blocks) {
 		for (BlockPos b : blocks) {
 			MeterFeature.toggle(player, helper.getLevel(), helper.absolutePos(b));
@@ -103,7 +71,7 @@ public class ComplexCircuitTests {
 		helper.setBlock(comparator, facing(Blocks.COMPARATOR, Direction.NORTH));
 		helper.setBlock(lamp, Blocks.REDSTONE_LAMP);
 		meter(helper, player, d1, d2, comparator, lamp);
-		Script script = new Script();
+		TestScript script = new TestScript();
 		for (int t = 10; t < 190; t += 20) {
 			script.at(t, () -> {
 				helper.setBlock(d1.above(), Blocks.REDSTONE_BLOCK);
@@ -157,7 +125,7 @@ public class ComplexCircuitTests {
 		helper.setBlock(repeater, facing(Blocks.REPEATER, Direction.SOUTH));
 		helper.setBlock(comparator, facing(Blocks.COMPARATOR, Direction.WEST).setValue(BlockStateProperties.MODE_COMPARATOR, ComparatorMode.SUBTRACT));
 		meter(helper, player, comparator, lamp, repeater, new BlockPos(3, 1, 3));
-		Script script = new Script();
+		TestScript script = new TestScript();
 		script.at(5, () -> helper.setBlock(new BlockPos(1, 1, 3), Blocks.REDSTONE_BLOCK));
 		CircuitTruth truth = new CircuitTruth(level, player);
 		script.every(truth::sample);
@@ -192,7 +160,7 @@ public class ComplexCircuitTests {
 			helper.setBlock(new BlockPos(x, 0, 3), Blocks.AIR);
 		}
 		meter(helper, player, p1, p2);
-		Script script = new Script();
+		TestScript script = new TestScript();
 		for (int t = 10; t < 170; t += 40) {
 			script.at(t, () -> helper.setBlock(new BlockPos(1, 1, 2), Blocks.REDSTONE_BLOCK));
 			script.at(t + 6, () -> helper.setBlock(new BlockPos(3, 1, 2), Blocks.REDSTONE_BLOCK));
@@ -233,7 +201,7 @@ public class ComplexCircuitTests {
 			helper.setBlock(d, Blocks.REDSTONE_WIRE);
 		}
 		meter(helper, player, torch, new BlockPos(2, 1, 4));
-		Script script = new Script();
+		TestScript script = new TestScript();
 		script.at(5, () -> helper.setBlock(torch, Blocks.REDSTONE_WALL_TORCH.defaultBlockState()
 				.setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST)));
 		// Burnt out = off and unpowered for 3+ ticks (between normal flips it's off for 2).
@@ -289,7 +257,7 @@ public class ComplexCircuitTests {
 		meter(helper, player, latch, lamp, lock);
 		BlockPos data = new BlockPos(2, 1, 3);
 		BlockPos lockIn = new BlockPos(3, 1, 5);
-		Script script = new Script();
+		TestScript script = new TestScript();
 		// data on, lock, data off (output stays on), unlock (output follows), data on / off unlocked, lock while on...
 		int[][] steps = {{10, 1, -1}, {20, -1, 1}, {30, 0, -1}, {45, -1, 0}, {60, 1, -1}, {70, 0, -1}, {80, 1, -1}, {90, -1, 1},
 				{100, 0, -1}, {115, -1, 0}};
@@ -340,7 +308,7 @@ public class ComplexCircuitTests {
 		helper.setBlock(h2, Blocks.HOPPER.defaultBlockState().setValue(BlockStateProperties.FACING_HOPPER, Direction.EAST));
 		helper.setBlock(chest, Blocks.CHEST);
 		meter(helper, player, dropper, h1, h2, chest);
-		Script script = new Script();
+		TestScript script = new TestScript();
 		for (int t = 10; t < 220; t += 20) {
 			script.at(t, () -> helper.setBlock(dropper.above(), Blocks.REDSTONE_BLOCK));
 			script.at(t + 2, () -> helper.setBlock(dropper.above(), Blocks.AIR));

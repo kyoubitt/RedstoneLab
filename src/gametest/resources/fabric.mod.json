@@ -7,7 +7,8 @@
 	"entrypoints": {
 		"fabric-gametest": [
 			"dev.redstonelab.feature.RedstoneLabGameTests",
-			"dev.redstonelab.feature.ComplexCircuitTests"
+			"dev.redstonelab.feature.ComplexCircuitTests",
+			"dev.redstonelab.feature.WikiCircuitTests"
 		],
 		"fabric-client-gametest": [
 			"dev.redstonelab.feature.RedstoneLabClientTests"

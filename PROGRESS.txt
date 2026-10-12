@@ -16,7 +16,7 @@ CODE
               TimelineHud, WorldMarkers (vanilla gizmos)
 
 TESTS
-  ./gradlew runGameTest                         38 server tests against the real game
+  ./gradlew runGameTest                         56 server tests against the real game
   xvfb-run ./gradlew runClientGameTest          real client: keys, clicks, screenshots
   Accuracy checks that run every time:
   * 8 random circuits, every meter vs the real block every tick (~6000 checks)
@@ -32,6 +32,12 @@ TESTS
     lengths and order line vs the recorded game): dropper pair with a QC BUD, comparator
     clock (0-tick lamp flicker), double piston extender (+ previews), torch burnout clock,
     repeater latch, hopper line
+  * Minecraft Wiki circuits (WikiCircuitTests, built by WikiSchematic from the wiki's own
+    {{Schematic}} text; test area 16x12x16): hopper-loop 7/7, 4-hopper loop 7/21, Etho hopper
+    clock 34/2 (+ previews), subtraction 4gt 2/2 and 8gt 4/4, fader pulser 58gt, 5- and
+    6-observer clocks, double observer 6gt / 4gt, piston clock D, TFF O1 / O / N, locked-
+    repeater and moved-block rising edge detectors, a flying machine (meters ride along)
+    Note: the wiki's "simple 4gt piston clock" runs 6gt as built here in 1.21.11.
 
 RELEASES (change mod_version on main -> GitHub builds the jar)
   0.2.0  no MaLiLib; own settings, key combos, HUD; piston previews client-side
@@ -52,6 +58,8 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          walking / sprinting; meter follows a replaced block; no chunk loads from meter text
   0.4.0  fix: piston "moves every" was reset by every retraction (0.3.9); order line starts
          from the first meter still running; hoppers "in / out every 8t"; complex build tests
+  0.4.1  torch "burnt out" stays right while burnt (other torches ticking pruned the game's
+         toggle list); 18 Minecraft Wiki circuits as tests
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

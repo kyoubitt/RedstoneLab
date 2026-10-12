@@ -25,6 +25,8 @@ final class CircuitTruth {
 	/** Per meter: the game's on / off at every sample (null = can't tell, e.g. mid-move). */
 	private final Map<String, List<Boolean>> states = new LinkedHashMap<>();
 	private final List<Long> times = new ArrayList<>();
+	/** Per meter: the game time of each of its samples (meters can be added part way). */
+	private final Map<String, List<Long>> labelTimes = new LinkedHashMap<>();
 	/** Meters whose text has a 0-tick length: their lengths can't be checked by sampling. */
 	final List<String> zeroTick = new ArrayList<>();
 	int checks;
@@ -45,6 +47,7 @@ final class CircuitTruth {
 			Boolean on = this.level.getBlockState(pos).is(net.minecraft.world.level.block.Blocks.MOVING_PISTON) ? Boolean.FALSE
 					: RedstoneLabGameTests.gameSaysOn(this.level, pos);
 			this.states.computeIfAbsent(label, k -> new ArrayList<>()).add(on);
+			this.labelTimes.computeIfAbsent(label, k -> new ArrayList<>()).add(this.level.getGameTime());
 			if (on != null) {
 				this.checks++;
 				boolean meter = Reading.active(MeterFeature.readingForTest(this.player, label));
@@ -62,10 +65,11 @@ final class CircuitTruth {
 	/** Turn-on times of a meter (game time of the first sample where it is on). */
 	List<Long> rises(String label) {
 		List<Boolean> s = this.states.getOrDefault(label, List.of());
+		List<Long> t = this.labelTimes.getOrDefault(label, List.of());
 		List<Long> rises = new ArrayList<>();
 		for (int i = 1; i < s.size(); i++) {
 			if (Boolean.TRUE.equals(s.get(i)) && Boolean.FALSE.equals(s.get(i - 1))) {
-				rises.add(this.times.get(i));
+				rises.add(t.get(i));
 			}
 		}
 		return rises;
@@ -83,7 +87,7 @@ final class CircuitTruth {
 			if (now == null || before == null || now.equals(before)) {
 				continue;
 			}
-			long t = this.times.get(i);
+			long t = this.labelTimes.get(label).get(i);
 			if (lastEdge != Long.MIN_VALUE) {
 				long length = t - lastEdge;
 				if (now) {

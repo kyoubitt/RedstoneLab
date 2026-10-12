@@ -77,7 +77,9 @@ Needs op; `/rlab config set permissionLevel 0` lets everyone use it.
 ## Build
 
 `./gradlew build` (JDK 25; the mod runs on Java 21). Jar in `build/libs/`.
-- `./gradlew runGameTest`: 38 tests that check the mod against the real game (clocks, pistons,
-  QC, comparators, hoppers, sub-tick order, random circuits and piston builds, and real builds:
-  double piston extender, comparator clock, torch burnout clock, repeater latch, hopper line).
+- `./gradlew runGameTest`: 56 tests that check the mod against the real game: clocks, pistons, QC,
+  comparators, hoppers, sub-tick order, random circuits and piston builds, and 18 circuits built
+  from the Minecraft Wiki's own schematics (hopper clocks, Etho hopper clock, subtraction clocks,
+  fader pulser, observer clocks, piston clock, 3 T flip-flops, edge detectors, a flying machine):
+  each runs at the wiki's timings and every meter matches the game every tick.
 - `xvfb-run ./gradlew runClientGameTest`: real client, real keys and clicks.

@@ -92,6 +92,8 @@ public final class MeterFeature {
 		final String label;
 		final int color;
 		final PulseMeter pulses;
+		/** Since when it is off and unpowered (a torch: burnt out after 2t), MAX_VALUE = it isn't. */
+		long offUnpoweredSince = Long.MAX_VALUE;
 		/** Power level 0-15 (what the block gives or gets). */
 		int power;
 		/** Active: lamp lit, piston extended, repeater output on... Pulse lengths are measured on this. */
@@ -269,7 +271,12 @@ public final class MeterFeature {
 			} else if (level != this.power && nowActive) {
 				this.flag(MeterEvent.POWER_CHANGED);
 			}
-			boolean edge = nowActive != this.active;
+			if (nowActive || nowPowered) {
+			this.offUnpoweredSince = Long.MAX_VALUE;
+		} else if (this.offUnpoweredSince == Long.MAX_VALUE) {
+			this.offUnpoweredSince = time;
+		}
+		boolean edge = nowActive != this.active;
 			this.tickState |= (nowActive && !this.active ? 4 : 0) | (nowPowered && !this.powered ? 8 : 0);
 			this.power = level;
 			this.active = nowActive;
@@ -394,9 +401,12 @@ public final class MeterFeature {
 				return "signal " + PowerUtil.comparatorSignal(level, this.pos, state);
 			}
 			if (state.getBlock() instanceof RedstoneTorchBlock) {
-				// Off although its block isn't powered, after 8 toggles in 60t: the game's burnout.
+				// Burnt out (8 toggles in 60t): off although its block isn't powered. A working torch
+				// relights 2t after its power goes; the game's toggle list can't be used for long
+				// (any torch ticking anywhere drops entries older than 60t, the torch stays out 160t).
 				boolean burnt = !state.getValue(RedstoneTorchBlock.LIT) && !this.powered
-						&& dev.redstonelab.mixin.RedstoneTorchBlockInvoker.redstonelab$toggledTooOften(level, this.pos, false);
+						&& (level.getGameTime() - this.offUnpoweredSince >= 2
+						|| dev.redstonelab.mixin.RedstoneTorchBlockInvoker.redstonelab$toggledTooOften(level, this.pos, false));
 				return burnt ? "burnt out" : "";
 			}
 			if (this.power > 0 && state.isRedstoneConductor(level, this.pos) && !state.isSignalSource() && !state.hasBlockEntity()
@@ -648,6 +658,9 @@ public final class MeterFeature {
 	private static Meter addMeter(State state, ServerLevel level, BlockPos pos) {
 		Meter m = new Meter(state, level.dimension(), pos.immutable(), freeIndex(state), PowerUtil.read(level, pos, level.getBlockState(pos)));
 		m.readKind(level);
+		if (!m.active && !m.powered) {
+			m.offUnpoweredSince = level.getGameTime();
+		}
 		state.meters.add(m);
 		PowerWatch.add(level, pos, m);
 		state.dirty = true;

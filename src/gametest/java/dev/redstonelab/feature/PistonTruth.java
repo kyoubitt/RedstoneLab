@@ -50,6 +50,7 @@ final class PistonTruth {
 	int stickyPulled;
 	int wrong;
 	int shownChecked;
+	int clearedByOther;
 	int shownWrong;
 	final List<String> problems = new ArrayList<>();
 	final List<String> shownProblems = new ArrayList<>();
@@ -89,6 +90,7 @@ final class PistonTruth {
 		Map<String, Boolean> checkable = new HashMap<>();
 		Map<BlockPos, String> groupOf = new LinkedHashMap<>();
 		java.util.Set<String> stickyKeys = new java.util.HashSet<>();
+		long sources = fresh.stream().filter(PistonMovingBlockEntity::isSourcePiston).count();
 		for (PistonMovingBlockEntity be : fresh) {
 			String key = be.getDirection() + (be.isExtending() ? " push" : " pull");
 			if (!be.isSourcePiston()) {
@@ -114,6 +116,13 @@ final class PistonTruth {
 				continue;
 			}
 			checkable.putIfAbsent(key, true);
+			if (!p.ok() && sources > 1) {
+				// Blocked at the last still tick, but another piston moved first in this tick and
+				// cleared the way (the Etho hopper clock does this): no preview could know.
+				this.clearedByOther++;
+				checkable.put(key, false);
+				continue;
+			}
 			if (!p.ok()) {
 				this.wrong++;
 				this.problem(this.problems, where + ": " + piston.toShortString() + " moved although the preview said '" + p.label() + "'");
@@ -154,7 +163,7 @@ final class PistonTruth {
 		for (Map.Entry<BlockPos, String> e : groupOf.entrySet()) {
 			Prediction p = this.shown.get(e.getKey());
 			String key = e.getValue();
-			if (p == null || firedIn.get(key).size() != 1 || p.extending() != key.endsWith("push")) {
+			if (p == null || firedIn.get(key).size() != 1 || p.extending() != key.endsWith("push") || !p.ok() && sources > 1) {
 				continue;
 			}
 			this.shownChecked++;
