@@ -19,6 +19,22 @@ Fabric API + this jar. Mod Menu optional.
 
 Client and server need the same version.
 
+## Look at redstone
+
+Look at any redstone block: under the crosshair, what it does now, why, and the rule behind it. Any server.
+
+```
+Dust · power 13 · 2 blocks from Repeater (15)
+Loses 1 power per block. Powers the block under it and what it points into.
+```
+- Repeater `locked off · by Repeater (north)` · Comparator `back 15, side 14 → out 1`
+- Torch `Stone behind it is powered by Lever (15)` · `burnt out (switched 8 times in 60t)`
+- Piston `powered from above (QC)` · `can't push: Obsidian can't move` · `moves on the next block update (BUD)`
+- Block `strongly powered by Repeater (west, 15) · powers dust too` / `weakly powered by Dust · powers components, not dust`
+- Lamp `powered but off: lights on the next block update (BUD)` · Hopper `locked` · Dropper `powered from above (QC)`
+
+Off: settings → **Look at redstone**.
+
 ## Meters
 
 **M** on a block = meter, **M** again removes it. **R + M** removes all.
@@ -36,15 +52,14 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 - Repeater `delay 4t · locked` · Torch `burnt out` · Block `strong 15` (lights dust next to it) / `weak 13` · Target, daylight, sculk, weighted plate `power 7` · Composter, cauldron, cake, lectern… `signal 3`
 - Meters follow blocks moved by pistons.
 
-**Arrow keys** = time (`/tick`, needs op):
-- **Up** freezes, Up again steps 1 tick (hold to repeat). **Down** runs again.
-- **Left / Right** running: slow motion, 1/2 → 1/4 → 1/10 → 1/20 speed and back (**Down**: full speed).
-- **Left / Right** frozen: timeline 1 tick back / forward, with what happened that tick in sub-tick order.
-  Block / shape updates: **Show event marks**.
-- Not op: Up stops just the timeline, Left / Right look back, Down = live.
+**Up** freezes the game (`/tick`, needs op); Up again steps 1 tick (hold to repeat).
+**Left / Right**: slow motion, 1/2 → 1/4 → 1/10 → 1/20 speed and back. **Down**: normal again.
+**R + Backspace / Enter**: timeline 1 tick back / forward (it stops; at now it runs again). Stopped or frozen,
+the timeline shows which keys do what. Stopped = list of
+what happened that tick, in sub-tick order. Block / shape updates: **Show event marks**.
 
 `/rlab meter expect A 2 4` (wrong pulses turn red) · `/rlab meter name A clock` ·
-`/rlab group <name>` (`/rlab group` lists)
+`/rlab group <name>` (**R + G** lists)
 
 ## Pistons
 
@@ -60,11 +75,13 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 | Key | Does |
 |---|---|
 | M | meter on / off |
-| R + M | remove all meters |
-| Up | freeze; frozen: step 1 tick |
-| Down | frozen: run; slow: full speed |
-| Left / Right | slow motion; frozen: 1 tick back / forward |
+| R + M | remove all |
+| Up | freeze the game; frozen: step 1 tick (`/tick`, op) |
+| Down | normal: unfreeze, full speed |
+| Left / Right | slow motion: slower / faster (`/tick rate`, op) |
+| R + Backspace / Enter | timeline 1 tick back / forward |
 | P | hide piston previews |
+| R + G | meter groups |
 | R + C | settings (also Mod Menu) |
 
 Change keys in settings: click one, hold the keys, let go. **Esc** unbinds.
@@ -77,9 +94,9 @@ Needs op; `/rlab config set permissionLevel 0` lets everyone use it.
 ## Build
 
 `./gradlew build` (JDK 25; the mod runs on Java 21). Jar in `build/libs/`.
-- `./gradlew runGameTest`: 66 tests that check the mod against the real game, every command
+- `./gradlew runGameTest`: 72 tests that check the mod against the real game, every command
   and the Meter Tool, groups saved / shared / reloaded, limits and permissions, and: clocks, pistons, QC,
-  comparators, hoppers, sub-tick order, random circuits and piston builds, and 18 circuits built
+  comparators, hoppers, sub-tick order, what looking at redstone says, random circuits and piston builds, and 18 circuits built
   from the Minecraft Wiki's own schematics (hopper clocks, Etho hopper clock, subtraction clocks,
   fader pulser, observer clocks, piston clock, 3 T flip-flops, edge detectors, a flying machine,
   a hopper item sorter), a 2x2 piston door, a 4-bit binary counter and a full adder:

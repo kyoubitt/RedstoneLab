@@ -235,6 +235,8 @@ public final class LabConfig {
 	// ------------------------------------------------------------------ the settings
 
 	public static final Bool SHOW_TIMELINE = new Bool(Tab.SETTINGS, "showTimeline", true, "Timeline on screen");
+	public static final Bool EXPLAIN = new Bool(Tab.SETTINGS, "lookAtRedstone", true,
+			"Look at redstone: what it does now, why, and the rule (under the crosshair)");
 	public static final Bool SHOW_OUTLINES = new Bool(Tab.SETTINGS, "showOutlines", true,
 			"Outlines, letters and piston previews in the world");
 	public static final Bool PISTON_LANDING = new Bool(Tab.SETTINGS, "pistonLanding", false,
@@ -256,18 +258,20 @@ public final class LabConfig {
 	/** Not in the menu: the one-time hint on the first join was shown. */
 	public static final Bool INTRO_SHOWN = new Bool(null, "introShown", false, "");
 	/** Not in the menu: which defaults the file was saved with (for moving old defaults to new ones). */
-	public static final Int CONFIG_VERSION = new Int(null, "configVersion", 1, 0, 1000, "");
+	public static final Int CONFIG_VERSION = new Int(null, "configVersion", 2, 0, 1000, "");
 
 	public static final Hotkey TOGGLE_METER = new Hotkey("toggleMeter", "M", false, "Meter on / off (block you look at)");
 	public static final Hotkey CLEAR_METERS = new Hotkey("clearMeters", "R,M", false, "Remove all meters");
+	public static final Hotkey REWIND = new Hotkey("rewind", "R,BACKSPACE", true, "Timeline 1 tick back (it stops there). Hold to repeat");
+	public static final Hotkey FORWARD = new Hotkey("forward", "R,ENTER", true, "Timeline 1 tick forward. Back at now it runs again");
 	public static final Hotkey FREEZE_GAME = new Hotkey("gameFreeze", "UP", true,
 			"Freeze the game (/tick, needs op). Frozen: step 1 tick, hold to repeat");
-	public static final Hotkey RUN_GAME = new Hotkey("gameRun", "DOWN", false, "Frozen: run. Slow motion: full speed");
-	public static final Hotkey SLOWER = new Hotkey("gameSlower", "LEFT", true,
-			"Slow motion: 1/2, 1/4, 1/10, 1/20 speed (/tick rate, needs op). Frozen: 1 tick back");
-	public static final Hotkey FASTER = new Hotkey("gameFaster", "RIGHT", true, "Faster, up to full speed. Frozen: 1 tick forward");
+	public static final Hotkey RUN_GAME = new Hotkey("gameRun", "DOWN", false, "Back to normal: unfreeze, full speed");
+	public static final Hotkey SLOWER = new Hotkey("gameSlower", "LEFT", false,
+			"Slow motion: 1/2, 1/4, 1/10, 1/20 speed (/tick rate, needs op)");
+	public static final Hotkey FASTER = new Hotkey("gameFaster", "RIGHT", false, "Faster again, up to full speed");
 	public static final Hotkey CLEAR_PISTONS = new Hotkey("clearPistons", "P", false, "Hide piston previews");
-	public static final Hotkey GROUPS = new Hotkey("meterGroups", "", false, "Meter groups (click one to switch)");
+	public static final Hotkey GROUPS = new Hotkey("meterGroups", "R,G", false, "Meter groups (click one to switch)");
 	public static final Hotkey OPEN_SETTINGS = new Hotkey("openSettings", "R,C", false, "This menu");
 
 	private LabConfig() {
@@ -326,8 +330,15 @@ public final class LabConfig {
 		} catch (IOException | RuntimeException e) {
 			RedstoneLab.LOGGER.warn("Could not read {}", file, e);
 		}
-		// Old default (before 0.6.0): groups are a command now.
-		if (CONFIG_VERSION.value < 1 && GROUPS.value.equals(KeyCombo.parse("R,G"))) {
+		// Old defaults (before 0.3.2) move to the new ones.
+		if (REWIND.value.equals(KeyCombo.parse("R,LEFT"))) {
+			REWIND.reset();
+		}
+		if (FORWARD.value.equals(KeyCombo.parse("R,RIGHT"))) {
+			FORWARD.reset();
+		}
+		// 0.6.0 (version 1) had no groups key: R + G is back.
+		if (CONFIG_VERSION.value == 1 && GROUPS.value.keys().isEmpty()) {
 			GROUPS.reset();
 		}
 		CONFIG_VERSION.reset();

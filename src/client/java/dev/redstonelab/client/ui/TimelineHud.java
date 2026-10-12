@@ -53,23 +53,26 @@ public final class TimelineHud {
 		boolean marks = LabConfig.EVENT_MARKS.value;
 		boolean showTitle = true;
 		boolean showInfo = LabConfig.SHOW_INFO.value;
-		// Stopped (game frozen, or the timeline stopped): read closely, look back with Left / Right.
-		boolean paused = LabKeys.stopped();
-		// The colour legend only while stopped: that's when you read the marks closely.
-		boolean showLegend = marks && paused;
+		// The colour legend only while frozen: that's when you read the marks closely.
+		boolean showLegend = marks && LabKeys.paused;
 		int laneH = marks ? LANE_H : 0;
 		int labelW = 12;
 		// One line per meter: the info text sits right of the bar.
 		int rowH = chH + laneH + 2;
 		String orderText = showInfo && !ClientState.order.isEmpty() ? "Order: " + ClientState.order : "";
 		int titleH = (showTitle ? 13 : 3) + (orderText.isEmpty() ? 0 : font.lineHeight + 2);
+		boolean paused = LabKeys.paused;
 		int scroll = paused ? LabKeys.scroll : 0;
 		String name = "default".equals(ClientState.group) ? "Meters" : "Meters: " + ClientState.group;
 		String speed = LabKeys.speedLabel();
-		String title = paused ? name + " [frozen" + (scroll > 0 ? " \u00b7 " + scroll + "t back" : "") + "]"
-				: speed.isEmpty() ? name : name + " [" + speed + "]";
+		String title = paused ? name + " [frozen" + (scroll > 0 ? " -" + scroll + "t" : "") + "]"
+				: LabKeys.gameFrozen() ? name + " [game frozen]" : speed.isEmpty() ? name : name + " [" + speed + "]";
+		// Stopped or frozen: which keys do what now.
+		String keys = paused ? LabConfig.REWIND.value.display() + " / " + LabConfig.FORWARD.value.display() + ": 1 tick back / forward"
+				: LabKeys.gameFrozen() ? LabConfig.FREEZE_GAME.value.display() + ": step 1 tick \u00b7 " + LabConfig.RUN_GAME.value.display()
+						+ ": run \u00b7 " + LabConfig.REWIND.value.display() + ": look back" : "";
 
-		String key = ClientState.layoutVersion + "," + visible + "," + marks + showTitle + showInfo + paused;
+		String key = ClientState.layoutVersion + "," + visible + "," + marks + showTitle + showInfo + showLegend + keys.isEmpty();
 		if (!key.equals(this.layoutKey)) {
 			this.layoutKey = key;
 			this.stableWidth = 0;
@@ -82,7 +85,6 @@ public final class TimelineHud {
 			panelW = Math.max(panelW, font.width(title) + 6);
 		}
 		panelW = Math.max(panelW, font.width(orderText) + 6);
-		String keys = paused ? LabKeys.stoppedKeys() : "";
 		panelW = Math.max(panelW, font.width(keys) + 6);
 		if (showInfo) {
 			for (ClientState.Channel ch : ClientState.SCOPE) {
@@ -98,15 +100,16 @@ public final class TimelineHud {
 			this.legendFlags |= visibleEvents(visible, scroll);
 		}
 		List<List<MeterEvent>> legend = showLegend ? legendLines(font, panelW - 4, this.legendFlags) : List.of();
-		// While stopped: the keys, one line explaining the bars (+ the mark colours when marks are on).
-		boolean showHint = paused;
-		int legendH = showHint ? (legend.size() + 2) * (font.lineHeight + 1) + 2 : 0;
+		// While frozen: one line explaining the bars (+ the mark colours when marks are on).
+		boolean showHint = LabKeys.paused;
+		int legendH = (showHint ? (legend.size() + 1) * (font.lineHeight + 1) + 2 : 0) + (keys.isEmpty() ? 0 : font.lineHeight + 1);
 		// Frozen: a cursor on the newest shown tick and a list of what happened in it, in order.
 		List<Inspected> inspected = paused && LabConfig.SHOW_INSPECT.value ? inspect(scroll) : null;
 		String inspectTitle = "";
 		if (inspected != null) {
 			int idx = ClientState.sampleIndex(scroll);
-			inspectTitle = "Tick " + (idx >= 0 ? ClientState.sampleTimes[idx] : "?") + (inspected.isEmpty() ? ": nothing happened" : "");
+			inspectTitle = "Tick " + (idx >= 0 ? ClientState.sampleTimes[idx] : "?") + (scroll == 0 ? " (newest)" : " (" + scroll + "t ago)")
+					+ (inspected.isEmpty() ? ": nothing happened" : "");
 			inspectColW = 0;
 			for (Inspected in : inspected) {
 				inspectColW = Math.max(inspectColW, font.width(in.text()) + (in.heading() ? 0 : 6) + 10);
@@ -177,9 +180,11 @@ public final class TimelineHud {
 			}
 		}
 		int ly = y + titleH + rowH * ClientState.SCOPE.size();
-		if (showHint) {
+		if (!keys.isEmpty()) {
 			ctx.drawString(font, keys, x + 3, ly, 0xFFFFDD77, true);
 			ly += font.lineHeight + 1;
+		}
+		if (showHint) {
 			ctx.drawString(font, "bar = on \u00b7 thin line = powered, not on yet", x + 3, ly, 0xFFCCCCCC, true);
 			ly += font.lineHeight + 1;
 		}

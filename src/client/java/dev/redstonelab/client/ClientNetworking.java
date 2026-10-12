@@ -23,7 +23,8 @@ public final class ClientNetworking {
 				dev.redstonelab.client.ui.LabConfig.INTRO_SHOWN.value = true;
 				dev.redstonelab.client.ui.LabConfig.save();
 				client.execute(() -> client.gui.getChat().addMessage(net.minecraft.network.chat.Component.literal(
-						"RedstoneLab: M = meter · right-click a piston = preview · arrow keys = freeze / slow motion · "
+						"RedstoneLab: look at redstone = what it does and why · M = meter · right-click a piston = preview · "
+								+ "Up = freeze · Left / Right = slow motion · "
 								+ dev.redstonelab.client.ui.LabConfig.OPEN_SETTINGS.value.display() + " = settings")
 						.withStyle(net.minecraft.ChatFormatting.GOLD)));
 			}
@@ -57,7 +58,6 @@ public final class ClientNetworking {
 		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.ScopeSampleS2C.TYPE, (payload, context) -> {
 			if (!dev.redstonelab.client.ui.LabKeys.paused) {
 				ClientState.addSample(payload);
-				dev.redstonelab.client.ui.LabKeys.onSample();
 			}
 		});
 	}

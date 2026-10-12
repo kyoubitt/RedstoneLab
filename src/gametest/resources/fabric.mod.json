@@ -9,7 +9,8 @@
 			"dev.redstonelab.feature.RedstoneLabGameTests",
 			"dev.redstonelab.feature.ComplexCircuitTests",
 			"dev.redstonelab.feature.WikiCircuitTests",
-			"dev.redstonelab.feature.FeatureTests"
+			"dev.redstonelab.feature.FeatureTests",
+			"dev.redstonelab.feature.ExplainTests"
 		],
 		"fabric-client-gametest": [
 			"dev.redstonelab.feature.RedstoneLabClientTests"

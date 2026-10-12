@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import dev.redstonelab.RedstoneLab;
 import dev.redstonelab.client.ui.LabConfig;
 import dev.redstonelab.client.ui.LabKeys;
+import dev.redstonelab.client.ui.LookHud;
 import dev.redstonelab.client.ui.TimelineHud;
 import dev.redstonelab.client.ui.WorldMarkers;
 
@@ -27,6 +28,9 @@ public class RedstoneLabClient implements ClientModInitializer {
 		LabKeys.init();
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.fromNamespaceAndPath(RedstoneLab.MOD_ID, "timeline"),
 				TimelineHud.INSTANCE::render);
+		LookHud.init();
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.fromNamespaceAndPath(RedstoneLab.MOD_ID, "explain"),
+				LookHud::render);
 		// Runs inside the game's per-tick drawing list.
 		ClientTickEvents.END_CLIENT_TICK.register(mc -> WorldMarkers.emit());
 	}

@@ -169,7 +169,7 @@ public final class RlabCommand {
 		source.sendSuccess(() -> Component.literal(" Pistons: ").withStyle(ChatFormatting.YELLOW)
 				.append(Component.literal("right-click with an empty hand (P hides)").withStyle(ChatFormatting.WHITE)), false);
 		source.sendSuccess(() -> Component.literal(" Game: ").withStyle(ChatFormatting.YELLOW)
-				.append(Component.literal("Up freeze / step · Down run · Left / Right slow motion (frozen: tick back / forward) · R + C settings").withStyle(ChatFormatting.WHITE)), false);
+				.append(Component.literal("Up freeze / step · Left / Right slow motion · Down normal · R + C settings").withStyle(ChatFormatting.WHITE)), false);
 		source.sendSuccess(() -> Component.literal(" ")
 				.append(Msg.button("Meters", "/rlab meter", "Meter history in chat"))
 				.append(" ")

@@ -84,6 +84,10 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          steps, Down runs at the same speed (again: full speed). Not op: Up stops just the
          timeline. Frozen timeline shows the keys. R + G unbound (/rlab group). Shorter
          first-join hint.
+  0.6.1  keys back as in 0.5.2 (0.6.0 lost looking back without freezing, slow motion while
+         frozen, R + G). New: look at any redstone block = what it does now, why, and the rule
+         (dust traced back to its source, torch / lamp / piston power incl. QC and BUD, locks,
+         comparator inputs, burnt-out torches); stopped / frozen timeline shows the keys
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.
