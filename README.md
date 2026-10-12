@@ -21,7 +21,7 @@ Client and server need the same version.
 
 ## Meters
 
-**M** on a block = meter. **M** again or **Backspace** removes it. **R + M** removes all.
+**M** on a block = meter, **M** again removes it. **R + M** removes all.
 
 ```
 Order: A → 2t → B D
@@ -36,8 +36,9 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 - Repeater `delay 4t · locked` · Torch `burnt out` · Block `strong 15` (lights dust next to it) / `weak 13` · Target, daylight, sculk, weighted plate `power 7` · Composter, cauldron, cake, lectern… `signal 3`
 - Meters follow blocks moved by pistons.
 
-**Up** freezes the game (`/tick`, needs op); Up again steps 1 tick (hold to repeat). **Down** runs it.
-**R + Backspace / Enter**: 1 tick back / forward (freezes; at now it runs again). Frozen = list of
+**Up** freezes the game (`/tick`, needs op); Up again steps 1 tick (hold to repeat).
+**Left / Right**: slow motion, 1/2 → 1/4 → 1/10 → 1/20 speed and back. **Down**: normal again.
+**R + Backspace / Enter**: timeline 1 tick back / forward (it stops; at now it runs again). Stopped = list of
 what happened that tick, in sub-tick order. Block / shape updates: **Show event marks**.
 
 `/rlab meter expect A 2 4` (wrong pulses turn red) · `/rlab meter name A clock` ·
@@ -57,11 +58,10 @@ what happened that tick, in sub-tick order. Block / shape updates: **Show event 
 | Key | Does |
 |---|---|
 | M | meter on / off |
-| Backspace | remove a meter |
 | R + M | remove all |
 | Up | freeze the game; frozen: step 1 tick (`/tick`, op) |
-| Down | unfreeze the game |
-| R + Space | freeze / unfreeze the timeline |
+| Down | normal: unfreeze, full speed |
+| Left / Right | slow motion: slower / faster (`/tick rate`, op) |
 | R + Backspace / Enter | timeline 1 tick back / forward |
 | P | hide piston previews |
 | R + G | meter groups |
@@ -77,9 +77,10 @@ Needs op; `/rlab config set permissionLevel 0` lets everyone use it.
 ## Build
 
 `./gradlew build` (JDK 25; the mod runs on Java 21). Jar in `build/libs/`.
-- `./gradlew runGameTest`: 56 tests that check the mod against the real game: clocks, pistons, QC,
+- `./gradlew runGameTest`: 58 tests that check the mod against the real game: clocks, pistons, QC,
   comparators, hoppers, sub-tick order, random circuits and piston builds, and 18 circuits built
   from the Minecraft Wiki's own schematics (hopper clocks, Etho hopper clock, subtraction clocks,
-  fader pulser, observer clocks, piston clock, 3 T flip-flops, edge detectors, a flying machine):
+  fader pulser, observer clocks, piston clock, 3 T flip-flops, edge detectors, a flying machine,
+  a hopper item sorter) and a 2x2 piston door:
   each runs at the wiki's timings and every meter matches the game every tick.
 - `xvfb-run ./gradlew runClientGameTest`: real client, real keys and clicks.

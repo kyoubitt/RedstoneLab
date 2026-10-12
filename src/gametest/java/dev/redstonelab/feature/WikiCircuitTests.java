@@ -537,6 +537,180 @@ public class WikiCircuitTests {
 				 | | rd-ne | rr-e2 | sp-n |""", "on 2t" + DOT + "off 58t", "A" + " \u2192 2t \u2192 " + "B");
 	}
 
+	/**
+	 * Basic hopper item sorter (wiki, side view), tiled twice along a hopper line: one filter
+	 * for diamonds, one for iron. Each filter hopper holds 41 of its item + 4 sticks (signal 2);
+	 * the 42nd item makes signal 3, which reaches the torch's block through the dust, unlocks the
+	 * hopper below, and it takes the extra item to the chest. Everything else goes to the end.
+	 */
+	@GameTest(structure = BIG, maxTicks = 700)
+	public void hopperItemSorter(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = start(helper);
+		// The hopper line on top runs south (z), the sorter slices are at z = 4 and z = 6.
+		int lineY = 5;
+		for (int z = 2; z <= 8; z++) {
+			helper.setBlock(new BlockPos(7, lineY, z), Blocks.HOPPER.defaultBlockState().setValue(BlockStateProperties.FACING_HOPPER, Direction.SOUTH));
+		}
+		helper.setBlock(new BlockPos(7, lineY, 9), Blocks.CHEST);
+		net.minecraft.world.item.Item[] sorted = {Items.DIAMOND, Items.IRON_INGOT};
+		int[] slices = {4, 6};
+		for (int i = 0; i < 2; i++) {
+			int z = slices[i];
+			// Side view, top row first (x = 3..7, y = 4..1):
+			//   |       | rd-$! | rd-$! | rc-$w! | ho-$w |
+			//   | rd-$  | SB    | SB    | SB     | ho-$e |
+			//   | SB    | rr-$e1| SB    | rt-$w! |       |
+			//   |       | SB    |       |        |       |
+			// Bottom up, so every part has its support when placed.
+			sideRow(helper, 3, 1, z, "", "SB", "", "", "");
+			sideRow(helper, 3, 2, z, "SB", "rr-e1", "SB", "rt-w", "");
+			sideRow(helper, 3, 3, z, "rd", "SB", "SB", "SB", "ho-e");
+			sideRow(helper, 3, 4, z, "", "rd", "rd", "rc-w", "ho-w");
+			helper.setBlock(new BlockPos(8, 3, z), Blocks.CHEST);
+			Container filter = (Container) level.getBlockEntity(helper.absolutePos(new BlockPos(7, 4, z)));
+			filter.setItem(0, new ItemStack(sorted[i], 41));
+			for (int k = 1; k < 5; k++) {
+				filter.setItem(k, new ItemStack(Items.STICK));
+			}
+		}
+		// Dust needs its final shape once everything is there.
+		for (int z : slices) {
+			for (BlockPos d : new BlockPos[]{new BlockPos(4, 4, z), new BlockPos(5, 4, z), new BlockPos(3, 3, z)}) {
+				helper.setBlock(d, WikiSchematic.dust(level, helper.absolutePos(d)));
+			}
+		}
+		meter(helper, player, new BlockPos(7, 4, 4), new BlockPos(6, 4, 4), new BlockPos(6, 2, 4), new BlockPos(7, 3, 4), new BlockPos(8, 3, 4),
+				new BlockPos(7, 4, 6), new BlockPos(7, lineY, 9));
+		TestScript script = new TestScript();
+		// Feed the line: 12 diamonds, 8 iron and 20 cobblestone, one item every 8t.
+		net.minecraft.world.item.Item[] feed = new net.minecraft.world.item.Item[40];
+		for (int k = 0; k < 40; k++) {
+			feed[k] = k % 10 < 3 ? Items.DIAMOND : k % 10 < 5 ? Items.IRON_INGOT : Items.COBBLESTONE;
+		}
+		for (int k = 0; k < 40; k++) {
+			net.minecraft.world.item.Item item = feed[k];
+			script.at(20 + k * 8, () -> ((Container) level.getBlockEntity(helper.absolutePos(new BlockPos(7, lineY, 2)))).setItem(0, new ItemStack(item)));
+		}
+		String[] filterText = new String[1];
+		script.at(10, () -> filterText[0] = MeterFeature.statusForTest(player, "A"));
+		CircuitTruth truth = new CircuitTruth(level, player);
+		script.every(truth::sample);
+		script.run(helper, 2, 660, () -> {
+			helper.assertTrue(filterText[0].equals("Hopper" + DOT + "41 Diamond + 4 Stick" + DOT + "signal 2 (3 at 46)"),
+					"filter hopper before: " + filterText[0]);
+			// In the chest, or still on the way in the hopper under the filter.
+			int diamonds = count(level, helper.absolutePos(new BlockPos(8, 3, 4)), Items.DIAMOND) + count(level, helper.absolutePos(new BlockPos(7, 3, 4)), Items.DIAMOND);
+			int iron = count(level, helper.absolutePos(new BlockPos(8, 3, 6)), Items.IRON_INGOT) + count(level, helper.absolutePos(new BlockPos(7, 3, 6)), Items.IRON_INGOT);
+			int cobble = count(level, helper.absolutePos(new BlockPos(7, lineY, 9)), Items.COBBLESTONE);
+			helper.assertTrue(diamonds == 12 && iron == 8 && cobble == 20, "sorted: " + diamonds + " diamonds, " + iron + " iron, " + cobble + " cobblestone | "
+					+ MeterFeature.statusForTest(player, "A") + " | " + MeterFeature.statusForTest(player, "B") + " | " + MeterFeature.statusForTest(player, "C")
+					+ " | " + MeterFeature.statusForTest(player, "D") + " | " + MeterFeature.statusForTest(player, "E") + " | line end " + MeterFeature.statusForTest(player, "G"));
+			String a = MeterFeature.statusForTest(player, "A");
+			helper.assertTrue(a.startsWith("Hopper" + DOT + "41 Diamond + 4 Stick" + DOT + "signal 2 (3 at 46)"), "filter hopper after: " + a);
+			String e = MeterFeature.statusForTest(player, "E");
+			int inChest = count(level, helper.absolutePos(new BlockPos(8, 3, 4)), Items.DIAMOND);
+			helper.assertTrue(e.startsWith("Chest" + DOT + inChest + " Diamond" + DOT + "signal 1"), "sorter chest: " + e);
+			String c = MeterFeature.statusForTest(player, "C");
+			helper.assertTrue(c.startsWith("Redstone Wall Torch"), "torch: " + c);
+			String diff = truth.compare();
+			helper.assertTrue(diff.isEmpty(), "item sorter: " + diff);
+			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
+	/** One row of a side view (x going east from {@code x0}, at height y, slice z), wiki ids. */
+	private static void sideRow(GameTestHelper helper, int x0, int y, int z, String... ids) {
+		for (int i = 0; i < ids.length; i++) {
+			if (!ids[i].isEmpty()) {
+				helper.setBlock(new BlockPos(x0 + i, y, z), WikiSchematic.state(ids[i]));
+			}
+		}
+	}
+
+	private static int count(ServerLevel level, BlockPos pos, net.minecraft.world.item.Item item) {
+		Container c = (Container) level.getBlockEntity(pos);
+		int n = 0;
+		for (int i = 0; i < c.getContainerSize(); i++) {
+			n += c.getItem(i).is(item) ? c.getItem(i).getCount() : 0;
+		}
+		return n;
+	}
+
+	/**
+	 * 2x2 sticky piston door: under each side a block with a torch on it; the torch powers the
+	 * bottom piston and, through the block above it, the top one. Input on = torches off = door
+	 * open. The doorway must really open and close, every piston preview must match, and the
+	 * meters must show the pistons' moves exactly.
+	 */
+	@GameTest(structure = BIG, maxTicks = 400)
+	public void pistonDoor2x2(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = start(helper);
+		int z = 6;
+		for (int y = 2; y <= 3; y++) {
+			helper.setBlock(new BlockPos(3, y, z), WikiSchematic.state("sp-e"));
+			helper.setBlock(new BlockPos(8, y, z), WikiSchematic.state("sp-w"));
+			helper.setBlock(new BlockPos(4, y, z), Blocks.STONE);
+			helper.setBlock(new BlockPos(7, y, z), Blocks.STONE);
+		}
+		for (int x : new int[]{2, 9}) {
+			helper.setBlock(new BlockPos(x, 1, z), Blocks.STONE);
+			helper.setBlock(new BlockPos(x, 2, z), Blocks.REDSTONE_TORCH);
+			helper.setBlock(new BlockPos(x, 3, z), Blocks.STONE);
+			// Input: a repeater into the block under the torch.
+			helper.setBlock(new BlockPos(x, 1, z - 1), WikiSchematic.state("rr-s1"));
+		}
+		BlockPos inL = new BlockPos(2, 1, z - 2);
+		BlockPos inR = new BlockPos(9, 1, z - 2);
+		TestScript script = new TestScript();
+		script.at(20, () -> meter(helper, player, new BlockPos(3, 3, z), new BlockPos(3, 2, z), new BlockPos(8, 3, z), new BlockPos(8, 2, z)));
+		for (int t = 40; t < 360; t += 80) {
+			script.at(t, () -> {
+				helper.setBlock(inL, Blocks.REDSTONE_BLOCK);
+				helper.setBlock(inR, Blocks.REDSTONE_BLOCK);
+			});
+			script.at(t + 40, () -> {
+				helper.setBlock(inL, Blocks.AIR);
+				helper.setBlock(inR, Blocks.AIR);
+			});
+		}
+		java.util.List<String> wrongDoor = new java.util.ArrayList<>();
+		for (int t = 30; t < 360; t += 40) {
+			int tick = t;
+			// 30t after each change the door must be fully open (input on) or closed.
+			script.at(tick, () -> {
+				boolean open = tick >= 70 && ((tick - 70) / 40) % 2 == 0;
+				for (int y = 2; y <= 3; y++) {
+					for (int x = 5; x <= 6; x++) {
+						BlockState st = helper.getBlockState(new BlockPos(x, y, z));
+						if (st.isAir() != open) {
+							wrongDoor.add("tick " + tick + " (" + x + "," + y + ") " + st + " but door should be " + (open ? "open" : "closed"));
+						}
+					}
+				}
+			});
+		}
+		PistonTruth previews = new PistonTruth(helper.absolutePos(new BlockPos(0, 1, 0)), helper.absolutePos(new BlockPos(15, 4, 15)));
+		script.every(() -> previews.step(level, "tick " + level.getGameTime()));
+		CircuitTruth truth = new CircuitTruth(level, player);
+		script.every(truth::sample);
+		script.run(helper, 2, 380, () -> {
+			helper.assertTrue(wrongDoor.isEmpty(), "door: " + wrongDoor);
+			String diff = truth.compare();
+			helper.assertTrue(diff.isEmpty(), "piston door: " + diff);
+			helper.assertTrue(previews.wrong == 0 && previews.shownWrong == 0 && previews.checked >= 16,
+					previews.summary() + " " + previews.problems + " " + previews.shownProblems);
+			for (String p : new String[]{"A", "B", "C", "D"}) {
+				String st = MeterFeature.statusForTest(player, p);
+				helper.assertTrue(st.contains("moves every 80t"), "piston " + p + ": " + st);
+			}
+			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
 	/** Replaces a block with air and back, with updates: the observer watching it starts the chain. */
 	private static void restart(GameTestHelper helper, BlockPos pos) {
 		BlockState s = helper.getBlockState(pos);

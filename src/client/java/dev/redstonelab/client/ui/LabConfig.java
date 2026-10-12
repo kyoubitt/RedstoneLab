@@ -252,9 +252,7 @@ public final class LabConfig {
 	public static final Int OFFSET_Y = new Int(Tab.GUI, "timelineOffsetY", 4, 0, 2000, "Gap from the top / bottom edge");
 	public static final Dbl SCALE = new Dbl(Tab.GUI, "timelineScale", 1.0, 0.5, 3.0,
 			"Size (1 = normal, same at every GUI scale)");
-	public static final Bool SHOW_BACKGROUND = new Bool(Tab.GUI, "showBackground", true, "Dark box behind it");
-	public static final Int BACKGROUND_OPACITY = new Int(Tab.GUI, "backgroundOpacity", 75, 0, 100, "0 = clear, 100 = solid");
-	public static final Bool SHOW_TITLE = new Bool(Tab.GUI, "showTitle", true, "The \"Meters\" title line");
+	public static final Int BACKGROUND_OPACITY = new Int(Tab.GUI, "backgroundOpacity", 75, 0, 100, "Dark box behind it: 0 = none, 100 = solid");
 	public static final Bool SHOW_INFO = new Bool(Tab.GUI, "showInfo", true, "Text next to each bar, and the order line");
 	public static final Bool SHOW_PULSE_LENGTHS = new Bool(Tab.GUI, "showPulseLengths", true, "Tick counts inside the bars");
 	public static final Bool SHOW_LEGEND = new Bool(Tab.GUI, "showLegend", true, "Frozen: explain the bars");
@@ -263,14 +261,15 @@ public final class LabConfig {
 			"Also outline where pushed blocks land (light blue)");
 
 	public static final Hotkey TOGGLE_METER = new Hotkey("toggleMeter", "M", false, "Meter on / off (block you look at)");
-	public static final Hotkey REMOVE_METER = new Hotkey("removeMeter", "BACKSPACE", false, "Remove the meter you look at, else the newest");
 	public static final Hotkey CLEAR_METERS = new Hotkey("clearMeters", "R,M", false, "Remove all meters");
-	public static final Hotkey PAUSE_TIMELINE = new Hotkey("pauseTimeline", "R,SPACE", false, "Freeze / unfreeze");
-	public static final Hotkey REWIND = new Hotkey("rewind", "R,BACKSPACE", true, "1 tick back (freezes). Hold to repeat");
-	public static final Hotkey FORWARD = new Hotkey("forward", "R,ENTER", true, "1 tick forward. Back at now it runs again");
+	public static final Hotkey REWIND = new Hotkey("rewind", "R,BACKSPACE", true, "Timeline 1 tick back (it stops there). Hold to repeat");
+	public static final Hotkey FORWARD = new Hotkey("forward", "R,ENTER", true, "Timeline 1 tick forward. Back at now it runs again");
 	public static final Hotkey FREEZE_GAME = new Hotkey("gameFreeze", "UP", true,
 			"Freeze the game (/tick, needs op). Frozen: step 1 tick, hold to repeat");
-	public static final Hotkey RUN_GAME = new Hotkey("gameRun", "DOWN", false, "Unfreeze the game");
+	public static final Hotkey RUN_GAME = new Hotkey("gameRun", "DOWN", false, "Back to normal: unfreeze, full speed");
+	public static final Hotkey SLOWER = new Hotkey("gameSlower", "LEFT", false,
+			"Slow motion: 1/2, 1/4, 1/10, 1/20 speed (/tick rate, needs op)");
+	public static final Hotkey FASTER = new Hotkey("gameFaster", "RIGHT", false, "Faster again, up to full speed");
 	public static final Hotkey CLEAR_PISTONS = new Hotkey("clearPistons", "P", false, "Hide piston previews");
 	public static final Hotkey GROUPS = new Hotkey("meterGroups", "R,G", false, "Meter groups (click one to switch)");
 	public static final Hotkey OPEN_SETTINGS = new Hotkey("openSettings", "R,C", false, "This menu");

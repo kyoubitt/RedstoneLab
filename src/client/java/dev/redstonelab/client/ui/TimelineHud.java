@@ -51,7 +51,7 @@ public final class TimelineHud {
 		int width = visible * PX;
 		int chH = 11;
 		boolean marks = LabConfig.EVENT_MARKS.value;
-		boolean showTitle = LabConfig.SHOW_TITLE.value;
+		boolean showTitle = true;
 		boolean showInfo = LabConfig.SHOW_INFO.value;
 		// The colour legend only while frozen: that's when you read the marks closely.
 		boolean showLegend = marks && LabConfig.SHOW_LEGEND.value && LabKeys.paused;
@@ -64,8 +64,9 @@ public final class TimelineHud {
 		boolean paused = LabKeys.paused;
 		int scroll = paused ? LabKeys.scroll : 0;
 		String name = "default".equals(ClientState.group) ? "Meters" : "Meters: " + ClientState.group;
+		String speed = LabKeys.speedLabel();
 		String title = paused ? name + " [frozen" + (scroll > 0 ? " -" + scroll + "t" : "") + "]"
-				: LabKeys.gameFrozen() ? name + " [game frozen]" : name;
+				: LabKeys.gameFrozen() ? name + " [game frozen]" : speed.isEmpty() ? name : name + " [" + speed + "]";
 
 		String key = ClientState.layoutVersion + "," + visible + "," + marks + showTitle + showInfo + showLegend;
 		if (!key.equals(this.layoutKey)) {
@@ -135,13 +136,14 @@ public final class TimelineHud {
 		// Smooth scrolling: between two samples everything slides left by up to one column.
 		float shift = 0;
 		if (!paused && LabConfig.SMOOTH_SCROLL.value) {
-			float sinceSample = (System.nanoTime() - ClientState.lastSampleNanos) / 50_000_000f;
+			// One tick is 50 ms at full speed, longer in slow motion.
+			float sinceSample = (System.nanoTime() - ClientState.lastSampleNanos) / (1_000_000_000f / Math.max(1f, LabKeys.tickRate()));
 			shift = Math.max(0, Math.min(1, sinceSample)) * PX;
 		}
 
 		ctx.pose().pushMatrix();
 		ctx.pose().scale(scale, scale);
-		if (LabConfig.SHOW_BACKGROUND.value) {
+		if (LabConfig.BACKGROUND_OPACITY.value > 0) {
 			int alpha = Math.round(LabConfig.BACKGROUND_OPACITY.value * 2.55f);
 			ctx.fill(x, y, x + panelW, y + panelH, (alpha << 24) | 0x101010);
 		}

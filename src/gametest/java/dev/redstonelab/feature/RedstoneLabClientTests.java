@@ -88,14 +88,14 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 				throw new AssertionError("R + Backspace twice, R + Enter once: should be frozen 1 tick back, is "
 						+ context.computeOnClient(client -> LabKeys.paused + " " + LabKeys.scroll));
 			}
-			// R + Backspace must not also remove a meter (plain Backspace does that).
+			// R + Backspace must not touch the meters.
 			if (context.computeOnClient(client -> ClientState.SCOPE.size()) != metersBefore) {
 				throw new AssertionError("R + Backspace removed a meter");
 			}
 			for (int step = 0; step <= 6; step++) {
 				int scroll = step;
 				context.runOnClient(client -> LabKeys.scroll = scroll);
-				this.record(context, 14, "Frozen (R+Space). R+Backspace = 1 tick back: everything that happened, in order");
+				this.record(context, 14, "R+Backspace = 1 tick back (it stops there): everything that happened, in order");
 			}
 			context.takeScreenshot("still-frozen");
 			context.runOnClient(client -> LabKeys.setPaused(false));
@@ -151,16 +151,16 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			this.record(context, 40, "Hotkeys: click one, press the keys (e.g. hold R, press Left)");
 			context.takeScreenshot("still-hotkeys");
 			// Click a hotkey, press Esc: it gets unbound (like vanilla controls) and the menu stays open.
-			context.clickScreenButton("R + Space");
+			context.clickScreenButton("R + M");
 			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE);
 			context.waitTick();
-			boolean unbound = context.computeOnClient(client -> LabConfig.PAUSE_TIMELINE.value.keys().isEmpty()
+			boolean unbound = context.computeOnClient(client -> LabConfig.CLEAR_METERS.value.keys().isEmpty()
 					&& client.screen instanceof LabConfigScreen);
 			if (!unbound) {
 				throw new AssertionError("Esc while setting a hotkey should unbind it and keep the menu open");
 			}
 			context.runOnClient(client -> {
-				LabConfig.PAUSE_TIMELINE.reset();
+				LabConfig.CLEAR_METERS.reset();
 				LabConfig.save();
 			});
 			context.setScreen(() -> null);
@@ -204,6 +204,29 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		context.waitTicks(5);
 		if (world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
 			throw new AssertionError("Down should run the game");
+		}
+		// Slow motion: Left twice = 1/4 speed (5 tps), Right = 1/2 (10 tps), Down = full speed.
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
+		context.waitTicks(3);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
+		context.waitTicks(3);
+		float slow = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate());
+		if (slow != 5) {
+			throw new AssertionError("Left twice should give 5 tps, got " + slow);
+		}
+		context.waitTicks(10);
+		context.takeScreenshot("still-slow-motion");
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT);
+		context.waitTicks(3);
+		float faster = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate());
+		if (faster != 10) {
+			throw new AssertionError("Right should give 10 tps, got " + faster);
+		}
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
+		context.waitTicks(3);
+		float normal = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate());
+		if (normal != 20) {
+			throw new AssertionError("Down should give full speed, got " + normal);
 		}
 	}
 

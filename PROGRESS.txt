@@ -16,7 +16,7 @@ CODE
               TimelineHud, WorldMarkers (vanilla gizmos)
 
 TESTS
-  ./gradlew runGameTest                         56 server tests against the real game
+  ./gradlew runGameTest                         58 server tests against the real game
   xvfb-run ./gradlew runClientGameTest          real client: keys, clicks, screenshots
   Accuracy checks that run every time:
   * 8 random circuits, every meter vs the real block every tick (~6000 checks)
@@ -38,6 +38,9 @@ TESTS
     6-observer clocks, double observer 6gt / 4gt, piston clock D, TFF O1 / O / N, locked-
     repeater and moved-block rising edge detectors, a flying machine (meters ride along)
     Note: the wiki's "simple 4gt piston clock" runs 6gt as built here in 1.21.11.
+  * hopper item sorter (wiki, 2 filters tiled: diamonds, iron; 41 + 4 sticks, "3 at 46")
+    and a 2x2 sticky piston door (doorway really opens / closes, previews, meters)
+  * client: slow motion keys (Left x2 = 5 tps, Right = 10, Down = 20)
 
 RELEASES (change mod_version on main -> GitHub builds the jar)
   0.2.0  no MaLiLib; own settings, key combos, HUD; piston previews client-side
@@ -60,6 +63,10 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          from the first meter still running; hoppers "in / out every 8t"; complex build tests
   0.4.1  torch "burnt out" stays right while burnt (other torches ticking pruned the game's
          toggle list); 18 Minecraft Wiki circuits as tests
+  0.5.0  slow motion: Left / Right = 1/2, 1/4, 1/10, 1/20 speed (/tick rate), Down = normal;
+         timeline title shows the speed. Simpler: no Backspace / R + Space keys (M removes,
+         R + Backspace stops the timeline), no "show title" / "show background" settings.
+         Tests: item sorter, 2x2 piston door
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

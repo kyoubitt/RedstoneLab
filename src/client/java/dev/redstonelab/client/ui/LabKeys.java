@@ -55,6 +55,47 @@ public final class LabKeys {
 		return mc.getConnection() != null && mc.getConnection().getCommands().getRoot().getChild("tick") != null;
 	}
 
+	/** Game speeds for slow motion, in ticks per second (20 = normal). */
+	private static final float[] RATES = {20, 10, 5, 2, 1};
+	/** The speed asked for last (the server's answer takes a moment to arrive). */
+	private static float asked = -1;
+	private static long askedAt;
+
+	/** The game's speed now, in ticks per second. */
+	public static float tickRate() {
+		Minecraft mc = Minecraft.getInstance();
+		float rate = mc.level == null ? 20 : mc.level.tickRateManager().tickrate();
+		// Real time: in slow motion the client ticks slower too.
+		return asked > 0 && System.currentTimeMillis() - askedAt < 2000 ? asked : rate;
+	}
+
+	/** "1/4 speed", or "" at full speed. */
+	public static String speedLabel() {
+		float rate = tickRate();
+		if (rate >= 20 - 0.01f) {
+			return "";
+		}
+		float part = 20 / rate;
+		return Math.abs(part - Math.round(part)) < 0.01f ? "1/" + Math.round(part) + " speed" : Math.round(rate) + " tps";
+	}
+
+	private static void setRate(Minecraft mc, float rate) {
+		asked = rate;
+		askedAt = System.currentTimeMillis();
+		tick("tick rate " + (rate == Math.round(rate) ? String.valueOf(Math.round(rate)) : String.valueOf(rate)));
+		String label = rate >= 20 ? "Full speed" : "Slow motion: " + speedLabelFor(rate);
+		mc.player.displayClientMessage(Component.literal(label + " \u00b7 " + LabConfig.SLOWER.value.display() + " / "
+				+ LabConfig.FASTER.value.display() + " \u00b7 " + LabConfig.RUN_GAME.value.display() + ": normal"), true);
+	}
+
+	private static String speedLabelFor(float rate) {
+		float before = asked;
+		asked = rate;
+		String label = speedLabel();
+		asked = before;
+		return label;
+	}
+
 	public static boolean gameFrozen() {
 		Minecraft mc = Minecraft.getInstance();
 		return mc.level != null && mc.level.tickRateManager().isFrozen();
@@ -115,9 +156,6 @@ public final class LabKeys {
 	private static void run(LabConfig.Hotkey hotkey, Minecraft mc) {
 		if (hotkey == LabConfig.OPEN_SETTINGS) {
 			mc.setScreen(new LabConfigScreen(null));
-		} else if (hotkey == LabConfig.PAUSE_TIMELINE) {
-			setPaused(!paused);
-			mc.player.displayClientMessage(Component.literal(paused ? "Timeline frozen" : "Timeline running"), true);
 		} else if (hotkey == LabConfig.REWIND) {
 			if (!paused) {
 				paused = true;
@@ -130,17 +168,33 @@ public final class LabKeys {
 				paused = false;
 				autoPaused = false;
 			}
-		} else if (hotkey == LabConfig.FREEZE_GAME || hotkey == LabConfig.RUN_GAME) {
+		} else if (hotkey == LabConfig.FREEZE_GAME || hotkey == LabConfig.RUN_GAME || hotkey == LabConfig.SLOWER
+				|| hotkey == LabConfig.FASTER) {
 			if (!canTick(mc)) {
-				mc.player.displayClientMessage(Component.literal("Freezing the game needs /tick (op)"), true);
+				mc.player.displayClientMessage(Component.literal("Needs /tick (op)"), true);
 				return;
 			}
 			boolean frozen = gameFrozen();
-			if (hotkey == LabConfig.RUN_GAME) {
+			float rate = tickRate();
+			if (hotkey == LabConfig.SLOWER || hotkey == LabConfig.FASTER) {
+				// The next speed down (or up) from the list, from wherever the speed is now.
+				float next = rate;
+				for (float r : RATES) {
+					if (hotkey == LabConfig.SLOWER ? r < rate - 0.01f && next == rate : r > rate + 0.01f) {
+						next = r;
+					}
+				}
+				if (next != rate) {
+					setRate(mc, next);
+				}
+			} else if (hotkey == LabConfig.RUN_GAME) {
 				if (frozen) {
 					tick("tick unfreeze");
-					mc.player.displayClientMessage(Component.literal("Game running"), true);
 				}
+				if (rate < 20 - 0.01f) {
+					setRate(mc, 20);
+				}
+				mc.player.displayClientMessage(Component.literal("Game running at full speed"), true);
 			} else if (frozen) {
 				tick("tick step 1");
 			} else {
@@ -157,13 +211,6 @@ public final class LabKeys {
 			send("rlab group");
 		} else if (hotkey == LabConfig.CLEAR_METERS) {
 			send("rlab meter clear");
-		} else if (hotkey == LabConfig.REMOVE_METER) {
-			BlockPos looked = mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK ? hit.getBlockPos() : null;
-			boolean metered = false;
-			for (ClientState.Channel ch : ClientState.SCOPE) {
-				metered |= ch.pos.equals(looked);
-			}
-			send(metered ? "rlab meter remove " + looked.getX() + " " + looked.getY() + " " + looked.getZ() : "rlab meter remove");
 		} else if (hotkey == LabConfig.TOGGLE_METER) {
 			if (mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
 				BlockPos pos = hit.getBlockPos();
