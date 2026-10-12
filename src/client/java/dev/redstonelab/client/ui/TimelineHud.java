@@ -54,7 +54,7 @@ public final class TimelineHud {
 		boolean showTitle = true;
 		boolean showInfo = LabConfig.SHOW_INFO.value;
 		// The colour legend only while frozen: that's when you read the marks closely.
-		boolean showLegend = marks && LabConfig.SHOW_LEGEND.value && LabKeys.paused;
+		boolean showLegend = marks && LabKeys.paused;
 		int laneH = marks ? LANE_H : 0;
 		int labelW = 12;
 		// One line per meter: the info text sits right of the bar.
@@ -96,7 +96,7 @@ public final class TimelineHud {
 		}
 		List<List<MeterEvent>> legend = showLegend ? legendLines(font, panelW - 4, this.legendFlags) : List.of();
 		// While frozen: one line explaining the bars (+ the mark colours when marks are on).
-		boolean showHint = LabConfig.SHOW_LEGEND.value && LabKeys.paused;
+		boolean showHint = LabKeys.paused;
 		int legendH = showHint ? (legend.size() + 1) * (font.lineHeight + 1) + 2 : 0;
 		// Frozen: a cursor on the newest shown tick and a list of what happened in it, in order.
 		List<Inspected> inspected = paused && LabConfig.SHOW_INSPECT.value ? inspect(scroll) : null;
@@ -135,7 +135,7 @@ public final class TimelineHud {
 
 		// Smooth scrolling: between two samples everything slides left by up to one column.
 		float shift = 0;
-		if (!paused && LabConfig.SMOOTH_SCROLL.value) {
+		if (!paused) {
 			// One tick is 50 ms at full speed, longer in slow motion.
 			float sinceSample = (System.nanoTime() - ClientState.lastSampleNanos) / (1_000_000_000f / Math.max(1f, LabKeys.tickRate()));
 			shift = Math.max(0, Math.min(1, sinceSample)) * PX;

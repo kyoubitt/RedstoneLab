@@ -30,9 +30,7 @@ public final class LabConfig {
 	private static final List<Option> ALL = new ArrayList<>();
 
 	public enum Tab {
-		METERS("Meters"),
-		GUI("GUI"),
-		PISTONS("Pistorder"),
+		SETTINGS("Settings"),
 		HOTKEYS("Hotkeys");
 
 		public final String title;
@@ -236,29 +234,24 @@ public final class LabConfig {
 
 	// ------------------------------------------------------------------ the settings
 
-	public static final Bool SHOW_TIMELINE = new Bool(Tab.METERS, "showTimeline", true, "Timeline on screen");
-	public static final Bool SHOW_OUTLINES = new Bool(Tab.METERS, "showOutlines", true,
+	public static final Bool SHOW_TIMELINE = new Bool(Tab.SETTINGS, "showTimeline", true, "Timeline on screen");
+	public static final Bool SHOW_OUTLINES = new Bool(Tab.SETTINGS, "showOutlines", true,
 			"Outlines, letters and piston previews in the world");
-	public static final Bool EVENT_MARKS = new Bool(Tab.METERS, "showEventMarks", false,
-			"Marks for what happened each tick, and block / shape updates in the tick list");
-	public static final Int TIMELINE_TICKS = new Int(Tab.METERS, "timelineTicks", 80, 20, 200, "Ticks shown");
-	public static final Bool SHOW_INSPECT = new Bool(Tab.METERS, "showTickInspector", true,
-			"Frozen: list what happened in the tick, in order");
-	public static final Bool SMOOTH_SCROLL = new Bool(Tab.METERS, "smoothScrolling", true,
-			"Slide instead of jumping a tick at a time");
-
-	public static final Choice POSITION = new Choice(Tab.GUI, "timelinePosition", Position.TOP_LEFT, "Where on screen");
-	public static final Int OFFSET_X = new Int(Tab.GUI, "timelineOffsetX", 4, 0, 2000, "Gap from the left / right edge");
-	public static final Int OFFSET_Y = new Int(Tab.GUI, "timelineOffsetY", 4, 0, 2000, "Gap from the top / bottom edge");
-	public static final Dbl SCALE = new Dbl(Tab.GUI, "timelineScale", 1.0, 0.5, 3.0,
+	public static final Bool PISTON_LANDING = new Bool(Tab.SETTINGS, "pistonLanding", false,
+			"Piston previews: also outline where pushed blocks land (light blue)");
+	public static final Int TIMELINE_TICKS = new Int(Tab.SETTINGS, "timelineTicks", 80, 20, 200, "Ticks shown");
+	public static final Choice POSITION = new Choice(Tab.SETTINGS, "timelinePosition", Position.TOP_LEFT, "Where on screen");
+	public static final Int OFFSET_X = new Int(Tab.SETTINGS, "timelineOffsetX", 4, 0, 2000, "Gap from the left / right edge");
+	public static final Int OFFSET_Y = new Int(Tab.SETTINGS, "timelineOffsetY", 4, 0, 2000, "Gap from the top / bottom edge");
+	public static final Dbl SCALE = new Dbl(Tab.SETTINGS, "timelineScale", 1.0, 0.5, 3.0,
 			"Size (1 = normal, same at every GUI scale)");
-	public static final Int BACKGROUND_OPACITY = new Int(Tab.GUI, "backgroundOpacity", 75, 0, 100, "Dark box behind it: 0 = none, 100 = solid");
-	public static final Bool SHOW_INFO = new Bool(Tab.GUI, "showInfo", true, "Text next to each bar, and the order line");
-	public static final Bool SHOW_PULSE_LENGTHS = new Bool(Tab.GUI, "showPulseLengths", true, "Tick counts inside the bars");
-	public static final Bool SHOW_LEGEND = new Bool(Tab.GUI, "showLegend", true, "Frozen: explain the bars");
-
-	public static final Bool PISTON_LANDING = new Bool(Tab.PISTONS, "pistonLanding", false,
-			"Also outline where pushed blocks land (light blue)");
+	public static final Int BACKGROUND_OPACITY = new Int(Tab.SETTINGS, "backgroundOpacity", 75, 0, 100, "Dark box behind it: 0 = none, 100 = solid");
+	public static final Bool SHOW_INFO = new Bool(Tab.SETTINGS, "showInfo", true, "Text next to each bar, and the order line");
+	public static final Bool SHOW_PULSE_LENGTHS = new Bool(Tab.SETTINGS, "showPulseLengths", true, "Tick counts inside the bars");
+	public static final Bool EVENT_MARKS = new Bool(Tab.SETTINGS, "showEventMarks", false,
+			"Marks for what happened each tick, and block / shape updates in the tick list");
+	public static final Bool SHOW_INSPECT = new Bool(Tab.SETTINGS, "showTickInspector", true,
+			"Timeline stopped: list what happened in the tick, in order");
 
 	/** Not in the menu: the one-time hint on the first join was shown. */
 	public static final Bool INTRO_SHOWN = new Bool(null, "introShown", false, "");

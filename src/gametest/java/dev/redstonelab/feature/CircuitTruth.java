@@ -189,6 +189,14 @@ final class CircuitTruth {
 
 	/** Every meter's pulse text and the order line must match; returns what differs, or "". */
 	String compare() {
+		return this.compare(true);
+	}
+
+	/**
+	 * Like {@link #compare()}; without the order line for circuits driven by arbitrary inputs
+	 * (not a repeating signal), where it has nothing steady to show.
+	 */
+	String compare(boolean withOrder) {
 		StringBuilder sb = new StringBuilder();
 		List<String> labels = MeterFeature.labels(this.player);
 		for (String label : labels) {
@@ -203,8 +211,8 @@ final class CircuitTruth {
 				sb.append(label).append(": meter '").append(got).append("', game '").append(want).append("'. ");
 			}
 		}
-		String want = this.order(labels);
-		String got = MeterFeature.orderForTest(this.player, this.level.getGameTime());
+		String want = withOrder ? this.order(labels) : "";
+		String got = withOrder ? MeterFeature.orderForTest(this.player, this.level.getGameTime()) : "";
 		for (String z : this.zeroTick) {
 			// Its turn-ons after 0-tick offs are invisible here: leave it out of the meter's line too.
 			got = got.replaceAll("(?<=^| )" + z + "(?= |$)", "").replaceAll(" {2,}", " ").trim();

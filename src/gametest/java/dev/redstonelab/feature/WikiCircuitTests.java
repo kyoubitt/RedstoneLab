@@ -711,6 +711,174 @@ public class WikiCircuitTests {
 		});
 	}
 
+	static final String LONG = "redstonelab-test:long";
+
+	/**
+	 * 4-bit binary counter: four of the wiki's observer T flip-flops (O1) in a row, each stage's
+	 * block of redstone, when pushed out, powering the next stage's first piston. The input
+	 * rises every 40t, so the bits toggle every 40t, 80t, 160t and 320t. Every meter must match
+	 * the game every tick, and the order line must show how the count ripples from bit to bit.
+	 */
+	@GameTest(structure = LONG, maxTicks = 1500)
+	public void binaryCounter4Bit(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		for (int x = 0; x < 40; x++) {
+			for (int z = 0; z < 8; z++) {
+				helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+			}
+		}
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		// One stage, 6 wide: |sp-e|obs-e||sp-e|BR|| and the next stage's first piston sits where
+		// the wiki has the output Q (next to where the block of redstone gets pushed).
+		StringBuilder row = new StringBuilder("|");
+		for (int k = 0; k < 4; k++) {
+			row.append("sp-e|obs-e||sp-e|BR||");
+		}
+		row.append("output");
+		int x0 = 3;
+		int z = 3;
+		WikiSchematic.build(helper, new BlockPos(x0, 1, z), row.toString());
+		BlockPos input = new BlockPos(x0 - 1, 1, z);
+		BlockPos q = new BlockPos(x0 + 24, 1, z);
+		helper.setBlock(q, WikiSchematic.dust(level, helper.absolutePos(q)));
+		TestScript script = new TestScript();
+		for (int t = 20; t < 1380; t += 40) {
+			script.at(t, () -> helper.setBlock(input, Blocks.REDSTONE_BLOCK));
+			script.at(t + 10, () -> helper.setBlock(input, Blocks.AIR));
+		}
+		// Meters: the input piston of each stage (bit 0 = what stage 1 sees ...), and the last bit.
+		script.at(5, () -> meter(helper, player, new BlockPos(x0, 1, z), new BlockPos(x0 + 6, 1, z), new BlockPos(x0 + 12, 1, z),
+				new BlockPos(x0 + 18, 1, z), q));
+		PistonTruth previews = new PistonTruth(helper.absolutePos(new BlockPos(0, 1, 0)), helper.absolutePos(new BlockPos(39, 3, 7)));
+		script.every(() -> previews.step(level, "tick " + level.getGameTime()));
+		CircuitTruth truth = new CircuitTruth(level, player);
+		script.every(truth::sample);
+		script.run(helper, 2, 1420, () -> {
+			String diff = truth.compare();
+			helper.assertTrue(diff.isEmpty(), "counter: " + diff);
+			String[] labels = {"A", "B", "C", "D", "E"};
+			int[] period = {40, 80, 160, 320, 640};
+			StringBuilder all = new StringBuilder();
+			for (int i = 0; i < 5; i++) {
+				all.append(labels[i]).append(": ").append(MeterFeature.pulsesForTest(player, labels[i])).append(" | ");
+			}
+			for (int i = 0; i < 5; i++) {
+				java.util.regex.Matcher m = java.util.regex.Pattern.compile("on (\\d+)t \u00b7 off (\\d+)t").matcher(MeterFeature.pulsesForTest(player, labels[i]));
+				helper.assertTrue(m.matches() && Integer.parseInt(m.group(1)) + Integer.parseInt(m.group(2)) == period[i],
+						labels[i] + " should repeat every " + period[i] + "t: " + all);
+			}
+			String order = MeterFeature.orderForTest(player, level.getGameTime());
+			helper.assertTrue(order.matches("A \u2192 \\d+t \u2192 B \u2192 \\d+t \u2192 C \u2192 \\d+t \u2192 D \u2192 \\d+t \u2192 E"),
+					"the order line shows the count rippling through: " + order + " | " + all);
+			helper.assertTrue(previews.wrong == 0 && previews.shownWrong == 0 && previews.checked > 50,
+					previews.summary() + " " + previews.problems + " " + previews.shownProblems);
+			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
+	/**
+	 * 1-bit full adder from the wiki's gates: two Basic Subtraction XOR gates (sum = A xor B xor
+	 * C, a repeater between them) and two Basic AND gates whose outputs meet in one dust line
+	 * (carry = AB + C(A + B)). All 8 inputs are tried; sum and carry must match the truth table,
+	 * and the meters must match the game every tick.
+	 */
+	@GameTest(structure = BIG, maxTicks = 320)
+	public void fullAdder(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = start(helper);
+		String xor = """
+				 |input+rd-ew|rd-sew|rd-sw|||-
+				 ||rd-nse|rs-e|rd-ew|output+rd-ew|-
+				 ||rd-nse|rs-e|SB||-
+				 |input+rd-ew|rd-new|rd-nw||""";
+		WikiSchematic.build(helper, new BlockPos(2, 1, 2), xor);
+		helper.setBlock(new BlockPos(7, 1, 3), WikiSchematic.state("rr-e1"));
+		WikiSchematic.build(helper, new BlockPos(8, 1, 3), xor);
+		andGate(helper, new BlockPos(2, 1, 8));
+		andGate(helper, new BlockPos(2, 1, 12));
+		for (int z = 9; z <= 13; z++) {
+			helper.setBlock(new BlockPos(7, 1, z), Blocks.REDSTONE_WIRE);
+		}
+		for (BlockPos p : BlockPos.betweenClosed(new BlockPos(0, 1, 0), new BlockPos(15, 2, 15))) {
+			if (helper.getBlockState(p).is(Blocks.REDSTONE_WIRE)) {
+				helper.setBlock(p, WikiSchematic.dust(level, helper.absolutePos(p)));
+			}
+		}
+		// Each input drives every gate that needs it (A three times, B three, C twice).
+		// The second AND gate's lower input is A or B: two sources into one dust line.
+		helper.setBlock(new BlockPos(2, 1, 14), WikiSchematic.dust(level, helper.absolutePos(new BlockPos(2, 1, 14))));
+		// Built without updates in between: let every block see its neighbours once, like after building by hand.
+		for (BlockPos p : BlockPos.betweenClosed(helper.absolutePos(new BlockPos(0, 1, 0)), helper.absolutePos(new BlockPos(15, 2, 15)))) {
+			if (!level.getBlockState(p).isAir()) {
+				level.updateNeighborsAt(p, level.getBlockState(p).getBlock());
+			}
+		}
+		BlockPos[] a = {new BlockPos(2, 1, 2), new BlockPos(2, 1, 8), new BlockPos(1, 1, 14)};
+		BlockPos[] b = {new BlockPos(2, 1, 5), new BlockPos(2, 1, 10), new BlockPos(2, 1, 15)};
+		BlockPos[] c = {new BlockPos(8, 1, 6), new BlockPos(2, 1, 12)};
+		BlockPos sum = new BlockPos(12, 1, 4);
+		BlockPos carry = new BlockPos(7, 1, 11);
+		TestScript script = new TestScript();
+		java.util.List<String> wrong = new java.util.ArrayList<>();
+		for (int n = 0; n < 8; n++) {
+			int bits = n;
+			int t = 20 + n * 30;
+			script.at(t, () -> {
+				for (BlockPos p : a) {
+					helper.setBlock(p, (bits & 1) != 0 ? Blocks.REDSTONE_BLOCK : Blocks.AIR);
+				}
+				for (BlockPos p : b) {
+					helper.setBlock(p, (bits & 2) != 0 ? Blocks.REDSTONE_BLOCK : Blocks.AIR);
+				}
+				for (BlockPos p : c) {
+					helper.setBlock(p, (bits & 4) != 0 ? Blocks.REDSTONE_BLOCK : Blocks.AIR);
+				}
+			});
+			script.at(t + 25, () -> {
+				int ones = Integer.bitCount(bits);
+				boolean wantS = ones % 2 == 1;
+				boolean wantC = ones >= 2;
+				boolean gotS = helper.getBlockState(sum).getValue(BlockStateProperties.POWER) > 0;
+				boolean gotC = helper.getBlockState(carry).getValue(BlockStateProperties.POWER) > 0;
+				boolean meterS = dev.redstonelab.core.Reading.active(MeterFeature.readingForTest(player, "A"));
+				boolean meterC = dev.redstonelab.core.Reading.active(MeterFeature.readingForTest(player, "B"));
+				if (gotS != wantS || gotC != wantC || meterS != gotS || meterC != gotC) {
+					wrong.add("A" + (bits & 1) + " B" + ((bits >> 1) & 1) + " C" + (bits >> 2) + ": sum " + gotS + " (want " + wantS + ", meter "
+							+ meterS + "), carry " + gotC + " (want " + wantC + ", meter " + meterC + ")");
+				}
+			});
+		}
+		script.at(10, () -> meter(helper, player, sum, carry, new BlockPos(6, 1, 3), new BlockPos(6, 1, 9), new BlockPos(6, 1, 13)));
+		CircuitTruth truth = new CircuitTruth(level, player);
+		script.every(truth::sample);
+		script.run(helper, 2, 290, () -> {
+			helper.assertTrue(wrong.isEmpty(), "full adder: " + wrong);
+			// Inputs change in no steady rhythm: the order line has nothing steady to show here.
+			String diff = truth.compare(false);
+			helper.assertTrue(diff.isEmpty(), "full adder meters: " + diff);
+			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
+	/**
+	 * The wiki's Basic AND Gate (A): two input lines into blocks with torches on top, the torches
+	 * power dust on a middle block, whose side torch is the output. Inputs at o and o + 2 south,
+	 * output dust at o + (4, 0, 1).
+	 */
+	private static void andGate(GameTestHelper helper, BlockPos o) {
+		for (int z : new int[]{0, 2}) {
+			helper.setBlock(o.offset(1, 0, z), Blocks.REDSTONE_WIRE);
+			helper.setBlock(o.offset(2, 0, z), Blocks.STONE);
+			helper.setBlock(o.offset(2, 1, z), Blocks.REDSTONE_TORCH);
+		}
+		helper.setBlock(o.offset(2, 0, 1), Blocks.STONE);
+		helper.setBlock(o.offset(2, 1, 1), Blocks.REDSTONE_WIRE);
+		helper.setBlock(o.offset(3, 0, 1), WikiSchematic.state("rt-w"));
+		helper.setBlock(o.offset(4, 0, 1), Blocks.REDSTONE_WIRE);
+	}
+
 	/** Replaces a block with air and back, with updates: the observer watching it starts the chain. */
 	private static void restart(GameTestHelper helper, BlockPos pos) {
 		BlockState s = helper.getBlockState(pos);
