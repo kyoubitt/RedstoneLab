@@ -243,7 +243,8 @@ public final class MeterFeature {
 				} else if (!from.isAir() && to.isAir()) {
 					this.flag(MeterEvent.BROKEN);
 				}
-				if (from.getBlock() != to.getBlock() && !to.isAir() && !to.is(Blocks.MOVING_PISTON)) {
+				// A piston passing through (retracting, being pushed) is not a new block.
+				if (!to.isAir() && !to.is(Blocks.MOVING_PISTON) && to.getBlock() != this.kindBlock) {
 					this.kindChanged = true;
 				}
 			}
@@ -323,10 +324,22 @@ public final class MeterFeature {
 					sb.append(" \u00b7 blocked");
 				}
 				appendRate(sb, "fires", this.fireGaps, this.lastFire);
-				appendRate(sb, "in", this.inGaps, this.lastIn);
 				// A dropper firing is its items going out: say it once.
-				if (this.fireGaps.isEmpty() || !this.recent(this.fireGaps, this.lastFire)) {
-					appendRate(sb, "out", this.outGaps, this.lastOut);
+				boolean firing = !this.fireGaps.isEmpty() && this.recent(this.fireGaps, this.lastFire);
+				boolean in = !this.inGaps.isEmpty() && this.recent(this.inGaps, this.lastIn);
+				boolean out = !firing && !this.outGaps.isEmpty() && this.recent(this.outGaps, this.lastOut);
+				String inText = Ticks.exact(this.inGaps.values());
+				String outText = Ticks.exact(this.outGaps.values());
+				if (in && out && inText.equals(outText)) {
+					// A hopper passing items on: "in / out every 8t".
+					sb.append(" \u00b7 in / out every ").append(inText);
+				} else if (in && out && inText.matches("\\d+t") && outText.matches("\\d+t")) {
+					sb.append(" \u00b7 in / out every ").append(inText).append(" / ").append(outText);
+				} else {
+					appendRate(sb, "in", this.inGaps, this.lastIn);
+					if (!firing) {
+						appendRate(sb, "out", this.outGaps, this.lastOut);
+					}
 				}
 				return sb.toString();
 			}
@@ -465,10 +478,15 @@ public final class MeterFeature {
 
 		/** A different block is here now (replaced, or placed where the meter was): what to show depends on it. */
 		boolean kindChanged;
+		/** The block the kind was read from. */
+		net.minecraft.world.level.block.Block kindBlock = Blocks.AIR;
 
 		/** Name and kind (piston, comparator, container...) of the block under the meter. */
 		void readKind(ServerLevel level) {
 			BlockState placed = level.getBlockState(this.pos);
+			if (!placed.isAir() && !placed.is(Blocks.MOVING_PISTON)) {
+				this.kindBlock = placed.getBlock();
+			}
 			this.blockName = Fmt.pretty(placed);
 			this.piston = placed.getBlock() instanceof PistonBaseBlock;
 			this.comparator = placed.getBlock() instanceof net.minecraft.world.level.block.ComparatorBlock;
@@ -1232,6 +1250,17 @@ public final class MeterFeature {
 			}
 		}
 		throw new IllegalArgumentException("no meter " + label);
+	}
+
+	/** For the game tests: the remembered turn-on times. */
+	static String risesForTest(ServerPlayer player, String label) {
+		Meter m = meterForTest(player, label);
+		return java.util.Arrays.toString(m.rises) + " count " + m.riseCount;
+	}
+
+	/** For the game tests: the pulse lengths text ("on 2t · off 4t"). */
+	static String pulsesForTest(ServerPlayer player, String label) {
+		return meterForTest(player, label).pulses.summary();
 	}
 
 	/** For the game tests: the meter's current reading (see {@link Reading}). */

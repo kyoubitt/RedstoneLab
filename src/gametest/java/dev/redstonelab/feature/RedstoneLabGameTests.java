@@ -1123,7 +1123,7 @@ public class RedstoneLabGameTests {
 	// ------------------------------------------------------------------ accuracy fuzz
 
 	/** What the game says: is this block "on" right now? Null for blocks we don't check. */
-	private static Boolean gameSaysOn(ServerLevel level, BlockPos pos) {
+	static Boolean gameSaysOn(ServerLevel level, BlockPos pos) {
 		BlockState s = level.getBlockState(pos);
 		if (s.is(Blocks.REDSTONE_WIRE)) {
 			return s.getValue(BlockStateProperties.POWER) > 0;

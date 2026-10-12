@@ -39,6 +39,12 @@ public final class OrderLine {
 			return before == Long.MIN_VALUE ? 0 : newest - before;
 		}
 
+		/** Turned on lately: within 2 of its own periods (at least {@link #MAX_AGE}). */
+		boolean recent(long now) {
+			long newest = this.newest();
+			return newest != Long.MIN_VALUE && now - newest <= Math.max(MAX_AGE, 2 * this.period());
+		}
+
 		long oldest() {
 			long best = Long.MAX_VALUE;
 			for (long r : this.rises) {
@@ -63,11 +69,14 @@ public final class OrderLine {
 	private OrderLine() {
 	}
 
-	/** The line, or "" when fewer than two meters turned on recently. The first meter with any turn-on is the start. */
+	/**
+	 * The line, or "" when fewer than two meters turned on lately. The start is the first meter
+	 * that turned on lately (a lever flicked once long ago doesn't count).
+	 */
 	public static String compute(List<Input> meters, long now) {
 		Input anchor = null;
 		for (Input m : meters) {
-			if (m.newest() != Long.MIN_VALUE) {
+			if (m.recent(now)) {
 				anchor = m;
 				break;
 			}
@@ -81,8 +90,7 @@ public final class OrderLine {
 		List<String> ownTiming = new ArrayList<>();
 		int total = 0;
 		for (Input m : meters) {
-			long rise = m.newest();
-			if (rise == Long.MIN_VALUE || now - rise > maxAge) {
+			if (!m.recent(now) && now - m.newest() > maxAge) {
 				continue;
 			}
 			// The delay of every remembered turn-on (that the first meter's history still covers).
