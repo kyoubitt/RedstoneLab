@@ -30,7 +30,12 @@ public final class LabConfig {
 	private static final List<Option> ALL = new ArrayList<>();
 
 	public enum Tab {
-		SETTINGS("Settings"),
+		/** What the timeline shows. */
+		TIMELINE("Timeline"),
+		/** Where it is on screen and how big. */
+		LAYOUT("Layout"),
+		/** In the world: outlines, letters, piston previews. */
+		WORLD("World"),
 		HOTKEYS("Hotkeys");
 
 		public final String title;
@@ -234,24 +239,26 @@ public final class LabConfig {
 
 	// ------------------------------------------------------------------ the settings
 
-	public static final Bool SHOW_TIMELINE = new Bool(Tab.SETTINGS, "showTimeline", true, "Timeline on screen");
-	public static final Bool SHOW_OUTLINES = new Bool(Tab.SETTINGS, "showOutlines", true,
-			"Outlines, letters and piston previews in the world");
-	public static final Bool PISTON_LANDING = new Bool(Tab.SETTINGS, "pistonLanding", false,
-			"Piston previews: also outline where pushed blocks land (light blue)");
-	public static final Int TIMELINE_TICKS = new Int(Tab.SETTINGS, "timelineTicks", 80, 20, 200, "Ticks shown");
-	public static final Choice POSITION = new Choice(Tab.SETTINGS, "timelinePosition", Position.TOP_LEFT, "Where on screen");
-	public static final Int OFFSET_X = new Int(Tab.SETTINGS, "timelineOffsetX", 4, 0, 2000, "Gap from the left / right edge");
-	public static final Int OFFSET_Y = new Int(Tab.SETTINGS, "timelineOffsetY", 4, 0, 2000, "Gap from the top / bottom edge");
-	public static final Dbl SCALE = new Dbl(Tab.SETTINGS, "timelineScale", 1.0, 0.5, 3.0,
-			"Size (1 = normal, same at every GUI scale)");
-	public static final Int BACKGROUND_OPACITY = new Int(Tab.SETTINGS, "backgroundOpacity", 75, 0, 100, "Dark box behind it: 0 = none, 100 = solid");
-	public static final Bool SHOW_INFO = new Bool(Tab.SETTINGS, "showInfo", true, "Text next to each bar, and the order line");
-	public static final Bool SHOW_PULSE_LENGTHS = new Bool(Tab.SETTINGS, "showPulseLengths", true, "Tick counts inside the bars");
-	public static final Bool EVENT_MARKS = new Bool(Tab.SETTINGS, "showEventMarks", false,
+	public static final Bool SHOW_TIMELINE = new Bool(Tab.TIMELINE, "showTimeline", true, "Timeline on screen");
+	public static final Int TIMELINE_TICKS = new Int(Tab.TIMELINE, "timelineTicks", 80, 20, 200, "Ticks shown");
+	public static final Bool SHOW_INFO = new Bool(Tab.TIMELINE, "showInfo", true, "Text next to each bar, and the order line");
+	public static final Bool SHOW_PULSE_LENGTHS = new Bool(Tab.TIMELINE, "showPulseLengths", true, "Tick counts inside the bars");
+	public static final Bool EVENT_MARKS = new Bool(Tab.TIMELINE, "showEventMarks", false,
 			"Marks for what happened each tick, and block / shape updates in the tick list");
-	public static final Bool SHOW_INSPECT = new Bool(Tab.SETTINGS, "showTickInspector", true,
+	public static final Bool SHOW_INSPECT = new Bool(Tab.TIMELINE, "showTickInspector", true,
 			"Timeline stopped: list what happened in the tick, in order");
+
+	public static final Choice POSITION = new Choice(Tab.LAYOUT, "timelinePosition", Position.TOP_LEFT, "Where on screen");
+	public static final Int OFFSET_X = new Int(Tab.LAYOUT, "timelineOffsetX", 4, 0, 2000, "Gap from the left / right edge");
+	public static final Int OFFSET_Y = new Int(Tab.LAYOUT, "timelineOffsetY", 4, 0, 2000, "Gap from the top / bottom edge");
+	public static final Dbl SCALE = new Dbl(Tab.LAYOUT, "timelineScale", 1.0, 0.5, 3.0,
+			"Size (1 = normal, same at every GUI scale)");
+	public static final Int BACKGROUND_OPACITY = new Int(Tab.LAYOUT, "backgroundOpacity", 75, 0, 100, "Dark box behind it: 0 = none, 100 = solid");
+
+	public static final Bool SHOW_OUTLINES = new Bool(Tab.WORLD, "showOutlines", true,
+			"Outlines, letters and piston previews in the world");
+	public static final Bool PISTON_LANDING = new Bool(Tab.WORLD, "pistonLanding", false,
+			"Piston previews: also outline where pushed blocks land (light blue)");
 
 	/** Not in the menu: the one-time hint on the first join was shown. */
 	public static final Bool INTRO_SHOWN = new Bool(null, "introShown", false, "");

@@ -17,13 +17,13 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 /**
- * The settings menu (R + C, or Mod Menu). Tabs: Settings, Hotkeys. Every change is
+ * The settings menu (R + C, or Mod Menu). Tabs by type: Timeline, Layout, World, Hotkeys. Every change is
  * saved right away. Hotkeys: click one, press the keys (e.g. hold R, press Enter), let go; Esc unbinds.
  */
 public class LabConfigScreen extends Screen {
 	private static final int ROW = 24;
 	private static final int TOP = 50;
-	private static LabConfig.Tab tab = LabConfig.Tab.SETTINGS;
+	private static LabConfig.Tab tab = LabConfig.Tab.TIMELINE;
 
 	private final @Nullable Screen parent;
 	private int firstRow;

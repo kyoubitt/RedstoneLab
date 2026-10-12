@@ -92,6 +92,8 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          the world on screen moves at the game's speed). Shorter text: lengths "2-3t"
          instead of "2t/3t/3t", action bar without key hints. Look-at text and the timeline
          key line removed again (too much on screen)
+  0.6.3  settings split by type: Timeline, Layout, World, Hotkeys. Slow motion: the world
+         glides smoothly between its ticks instead of jumping (the player still full speed)
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

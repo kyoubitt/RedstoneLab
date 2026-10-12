@@ -37,7 +37,7 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 - Meters follow blocks moved by pistons.
 
 **Up** freezes the game (`/tick`, needs op); Up again steps 1 tick (hold to repeat).
-**Left / Right**: slow motion, 1/2 → 1/4 → 1/10 → 1/20 speed and back. Only the world slows down, you move normally. **Down**: normal again.
+**Left / Right**: slow motion, 1/2 → 1/4 → 1/10 → 1/20 speed and back. Only the world slows down (pistons and mobs glide slowly), you move normally. **Down**: normal again.
 **R + Backspace / Enter**: timeline 1 tick back / forward (it stops; at now it runs again). Stopped or frozen,
 the timeline shows which keys do what. Stopped = list of
 what happened that tick, in sub-tick order. Block / shape updates: **Show event marks**.
@@ -68,7 +68,8 @@ what happened that tick, in sub-tick order. Block / shape updates: **Show event 
 | R + G | meter groups |
 | R + C | settings (also Mod Menu) |
 
-Change keys in settings: click one, hold the keys, let go. **Esc** unbinds.
+Settings (**R + C** or Mod Menu) by type: **Timeline** (what it shows), **Layout** (where, how big),
+**World** (outlines, piston previews), **Hotkeys** (click one, hold the keys, let go; **Esc** unbinds).
 
 ## Commands
 

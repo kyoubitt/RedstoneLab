@@ -9,14 +9,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.world.TickRateManager;
 
+import dev.redstonelab.client.SlowWorld;
+
 /**
  * In slow motion the client still ticks 20 times a second (the player moves normally), but the
  * world on screen (pistons moving, mobs, items, day time) only advances as often as the game does:
  * at 5 ticks a second, every 4th client tick. Same switch the game uses when frozen, so players
- * keep moving and everything else waits.
+ * keep moving and everything else waits; in between, the world is drawn sliding smoothly.
  */
 @Mixin(TickRateManager.class)
-public abstract class TickRateManagerClientMixin {
+public abstract class TickRateManagerClientMixin implements SlowWorld {
 	@Shadow
 	protected float tickrate;
 	@Shadow
@@ -24,14 +26,13 @@ public abstract class TickRateManagerClientMixin {
 	@Shadow
 	protected boolean isFrozen;
 
-	/** Game ticks owed to the world: grows by rate / 20 each client tick. */
+	/** How far the world is towards its next tick: grows by rate / 20 each client tick. */
 	@Unique
 	private float redstonelab$due;
 
 	@Inject(method = "tick", at = @At("TAIL"))
 	private void redstonelab$worldAtGameSpeed(CallbackInfo ci) {
-		// Only the client's own copy (the server's is a ServerTickRateManager).
-		if (((Object) this).getClass() != TickRateManager.class || this.isFrozen || this.tickrate >= 20) {
+		if (!this.redstonelab$slow()) {
 			this.redstonelab$due = 0;
 			return;
 		}
@@ -41,5 +42,23 @@ public abstract class TickRateManagerClientMixin {
 		} else {
 			this.runGameElements = false;
 		}
+	}
+
+	@Override
+	public boolean redstonelab$slow() {
+		// Only the client's own copy (the server's is a ServerTickRateManager).
+		return ((Object) this).getClass() == TickRateManager.class && !this.isFrozen && this.tickrate < 20;
+	}
+
+	@Override
+	public void redstonelab$hold() {
+		if (this.redstonelab$slow()) {
+			this.runGameElements = false;
+		}
+	}
+
+	@Override
+	public float redstonelab$partial(float clientPartial) {
+		return Math.min(1, this.redstonelab$due + clientPartial * this.tickrate / 20);
 	}
 }

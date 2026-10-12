@@ -41,6 +41,16 @@ import dev.redstonelab.client.ui.LabKeys;
  */
 public class RedstoneLabClientTests implements FabricClientGameTest {
 	private final List<String> captions = new ArrayList<>();
+	/** Client ticks in which the world on screen moved (counted while the tick runs). */
+	private static final java.util.concurrent.atomic.AtomicInteger WORLD_TICKS = new java.util.concurrent.atomic.AtomicInteger();
+
+	static {
+		net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_WORLD_TICK.register(level -> {
+			if (level.tickRateManager().runsNormally()) {
+				WORLD_TICKS.incrementAndGet();
+			}
+		});
+	}
 	/** Where the player spawned; the build is in front of it. */
 	private static BlockPos base;
 
@@ -164,6 +174,13 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			context.setScreen(() -> new LabConfigScreen(null));
 			this.record(context, 40, "Settings: R + C. No other mods needed");
 			context.takeScreenshot("still-settings");
+			// Settings by type: every tab has its own options.
+			context.clickScreenButton("Layout");
+			context.waitTick();
+			context.takeScreenshot("still-settings-layout");
+			context.clickScreenButton("World");
+			context.waitTick();
+			context.takeScreenshot("still-settings-world");
 			context.clickScreenButton("Hotkeys");
 			this.record(context, 40, "Hotkeys: click one, press the keys (e.g. hold R, press Left)");
 			context.takeScreenshot("still-hotkeys");
@@ -310,17 +327,32 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		if (clientMillis != 50) {
 			throw new AssertionError("slow motion should not slow the client (the player): tick " + clientMillis + " ms");
 		}
-		int worldTicks = 0;
+		// World ticks are counted while the client tick runs (between ticks the world waits).
+		WORLD_TICKS.set(0);
+		java.util.List<Float> partials = new java.util.ArrayList<>();
 		for (int i = 0; i < 40; i++) {
 			context.waitTick();
-			boolean runs = context.computeOnClient(client -> client.level.tickRateManager().runsNormally());
-			worldTicks += runs ? 1 : 0;
 			if (context.computeOnClient(client -> client.level.tickRateManager().isEntityFrozen(client.player))) {
 				throw new AssertionError("the player must never be held in slow motion");
 			}
+			partials.add(context.computeOnClient(client -> client.getDeltaTracker().getGameTimeDeltaPartialTick(false)));
 		}
+		int worldTicks = WORLD_TICKS.get();
 		if (worldTicks != 10) {
 			throw new AssertionError("at 1/4 speed the world on screen should move 10 of 40 client ticks, moved " + worldTicks);
+		}
+		// Between its ticks the world slides smoothly (0 -> 1 over 4 client ticks), it doesn't jump.
+		float low = 1;
+		float high = 0;
+		for (float f : partials) {
+			if (f < 0 || f > 1) {
+				throw new AssertionError("world timing out of range: " + partials);
+			}
+			low = Math.min(low, f);
+			high = Math.max(high, f);
+		}
+		if (high - low < 0.5f) {
+			throw new AssertionError("the slow world should slide smoothly between its ticks: " + partials);
 		}
 		context.waitTicks(10);
 		context.takeScreenshot("still-slow-motion");
