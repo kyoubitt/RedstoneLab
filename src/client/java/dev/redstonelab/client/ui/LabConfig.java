@@ -235,8 +235,6 @@ public final class LabConfig {
 	// ------------------------------------------------------------------ the settings
 
 	public static final Bool SHOW_TIMELINE = new Bool(Tab.SETTINGS, "showTimeline", true, "Timeline on screen");
-	public static final Bool EXPLAIN = new Bool(Tab.SETTINGS, "lookAtRedstone", true,
-			"Look at redstone: what it does now, why, and the rule (under the crosshair)");
 	public static final Bool SHOW_OUTLINES = new Bool(Tab.SETTINGS, "showOutlines", true,
 			"Outlines, letters and piston previews in the world");
 	public static final Bool PISTON_LANDING = new Bool(Tab.SETTINGS, "pistonLanding", false,

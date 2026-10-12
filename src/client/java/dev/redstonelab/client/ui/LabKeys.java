@@ -84,8 +84,7 @@ public final class LabKeys {
 		askedAt = System.currentTimeMillis();
 		tick("tick rate " + (rate == Math.round(rate) ? String.valueOf(Math.round(rate)) : String.valueOf(rate)));
 		String label = rate >= 20 ? "Full speed" : "Slow motion: " + speedLabelFor(rate);
-		mc.player.displayClientMessage(Component.literal(label + " \u00b7 " + LabConfig.SLOWER.value.display() + " / "
-				+ LabConfig.FASTER.value.display() + " \u00b7 " + LabConfig.RUN_GAME.value.display() + ": normal"), true);
+		mc.player.displayClientMessage(Component.literal(label), true);
 	}
 
 	private static String speedLabelFor(float rate) {
@@ -194,15 +193,14 @@ public final class LabKeys {
 				if (rate < 20 - 0.01f) {
 					setRate(mc, 20);
 				}
-				mc.player.displayClientMessage(Component.literal("Game running at full speed"), true);
+				mc.player.displayClientMessage(Component.literal("Full speed"), true);
 			} else if (frozen) {
 				tick("tick step 1");
 			} else {
 				// The timeline keeps showing the game (nothing moves while frozen).
 				tick("tick freeze");
 				setPaused(false);
-				mc.player.displayClientMessage(Component.literal("Game frozen \u00b7 " + LabConfig.FREEZE_GAME.value.display()
-						+ ": step 1t \u00b7 " + LabConfig.RUN_GAME.value.display() + ": run"), true);
+				mc.player.displayClientMessage(Component.literal("Game frozen"), true);
 			}
 		} else if (hotkey == LabConfig.CLEAR_PISTONS) {
 			ClientPistons.clear();

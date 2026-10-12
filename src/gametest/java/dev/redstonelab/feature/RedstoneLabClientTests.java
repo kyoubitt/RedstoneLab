@@ -114,7 +114,6 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			context.waitTicks(10);
 			this.record(context, 60, "In the world: every meter has its letter");
 			context.takeScreenshot("still-world");
-			this.lookExplains(context, world);
 
 			// Pistons, like Pistorder: right-click one with an empty hand (a real mouse click).
 			world.getServer().runOnServer(server -> {
@@ -195,43 +194,6 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-	/** Looking at the clock's repeater: under the crosshair, what it does and why, and the rule. */
-	private void lookExplains(ClientGameTestContext context, TestSingleplayerContext world) {
-		world.getServer().runOnServer(server -> {
-			ServerPlayer player = player(server);
-			// On the ground 2 blocks in front of it (further back, the ray hits the ground first).
-			player.teleportTo(player.level(), base.getX() + 2.5, base.getY(), base.getZ() + 2.5, java.util.Set.of(), 0f, 0f, false);
-			// A repeater is 2 pixels high: aim at its top.
-			player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES,
-					net.minecraft.world.phys.Vec3.atBottomCenterOf(base.offset(2, 0, 4)).add(0, 0.1, 0));
-		});
-		context.waitTicks(10);
-		List<String> lines = context.computeOnClient(client -> dev.redstonelab.client.ui.LookHud.lines());
-		if (lines.size() != 2 || !lines.get(0).startsWith("Repeater \u00b7 ") || !lines.get(1).startsWith("Waits its delay")) {
-			throw new AssertionError("looking at the repeater should explain it, shows " + lines + ", looking at "
-					+ context.computeOnClient(client -> client.hitResult instanceof net.minecraft.world.phys.BlockHitResult hit
-							? client.level.getBlockState(hit.getBlockPos()) + " at " + hit.getBlockPos().toShortString() : String.valueOf(client.hitResult))
-					+ "; repeater spot " + base.offset(2, 0, 4).toShortString() + " = "
-					+ context.computeOnClient(client -> client.level.getBlockState(base.offset(2, 0, 4)).toString())
-					+ "; eyes " + context.computeOnClient(client -> client.player.getEyePosition().toString() + " pitch " + client.player.getXRot()));
-		}
-		this.record(context, 60, "Look at redstone: what it does now, why, and the rule");
-		context.takeScreenshot("still-explain");
-		// Off in settings: nothing under the crosshair.
-		context.runOnClient(client -> LabConfig.EXPLAIN.value = false);
-		context.waitTicks(2);
-		if (!context.computeOnClient(client -> dev.redstonelab.client.ui.LookHud.lines().isEmpty())) {
-			throw new AssertionError("the explanation should go away when turned off");
-		}
-		context.runOnClient(client -> LabConfig.EXPLAIN.value = true);
-		// Back where the world view left the player, so the next step starts the same way.
-		world.getServer().runOnServer(server -> {
-			ServerPlayer player = player(server);
-			player.teleportTo(player.level(), base.getX() + 0.5, base.getY() + 2.5, base.getZ() - 1.5, java.util.Set.of(), 0f, 25f, false);
-		});
-		context.waitTicks(20);
 	}
 
 	/** Real keys on a real block: M adds a meter, M again removes it, R + M removes all. */
@@ -333,6 +295,32 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		float slow = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate());
 		if (slow != 5) {
 			throw new AssertionError("Left twice should give 5 tps, got " + slow);
+		}
+		// The player isn't slowed: the client still ticks every 50 ms. The world on screen
+		// (pistons, mobs, items) moves every 4th client tick, like the game.
+		float clientMillis = context.computeOnClient(client -> {
+			try {
+				java.lang.reflect.Method m = net.minecraft.client.Minecraft.class.getDeclaredMethod("getTickTargetMillis", float.class);
+				m.setAccessible(true);
+				return (Float) m.invoke(client, 50f);
+			} catch (ReflectiveOperationException e) {
+				throw new RuntimeException(e);
+			}
+		});
+		if (clientMillis != 50) {
+			throw new AssertionError("slow motion should not slow the client (the player): tick " + clientMillis + " ms");
+		}
+		int worldTicks = 0;
+		for (int i = 0; i < 40; i++) {
+			context.waitTick();
+			boolean runs = context.computeOnClient(client -> client.level.tickRateManager().runsNormally());
+			worldTicks += runs ? 1 : 0;
+			if (context.computeOnClient(client -> client.level.tickRateManager().isEntityFrozen(client.player))) {
+				throw new AssertionError("the player must never be held in slow motion");
+			}
+		}
+		if (worldTicks != 10) {
+			throw new AssertionError("at 1/4 speed the world on screen should move 10 of 40 client ticks, moved " + worldTicks);
 		}
 		context.waitTicks(10);
 		context.takeScreenshot("still-slow-motion");

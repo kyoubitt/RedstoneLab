@@ -19,22 +19,6 @@ Fabric API + this jar. Mod Menu optional.
 
 Client and server need the same version.
 
-## Look at redstone
-
-Look at any redstone block: under the crosshair, what it does now, why, and the rule behind it. Any server.
-
-```
-Dust · power 13 · 2 blocks from Repeater (15)
-Loses 1 power per block. Powers the block under it and what it points into.
-```
-- Repeater `locked off · by Repeater (north)` · Comparator `back 15, side 14 → out 1`
-- Torch `Stone behind it is powered by Lever (15)` · `burnt out (switched 8 times in 60t)`
-- Piston `powered from above (QC)` · `can't push: Obsidian can't move` · `moves on the next block update (BUD)`
-- Block `strongly powered by Repeater (west, 15) · powers dust too` / `weakly powered by Dust · powers components, not dust`
-- Lamp `powered but off: lights on the next block update (BUD)` · Hopper `locked` · Dropper `powered from above (QC)`
-
-Off: settings → **Look at redstone**.
-
 ## Meters
 
 **M** on a block = meter, **M** again removes it. **R + M** removes all.
@@ -46,14 +30,14 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 ```
 - **bar** = on, number = ticks · **thin line** = powered, not on yet · **white line** = 0-tick
 - **Order**: who turns on first, from A (or the first meter still running). `A → 2t → B D` = B and D 2t after A.
-- `6t` exact · `3t/5t` alternates · `2t/3t/3t` pattern · `2t or 3t` no pattern
+- `6t` always the same · `2-3t` varies between 2t and 3t
 - Dropper: bar = fires · Hopper: bar = locked, `in / out every 8t` · Chest: bar = signal > 0
 - `signal 3 (4 at 741)` = what a comparator reads; signal 4 at 741 items (shown when exact). Double chests count both halves; `blocked` = chest can't open, reads 0
 - Repeater `delay 4t · locked` · Torch `burnt out` · Block `strong 15` (lights dust next to it) / `weak 13` · Target, daylight, sculk, weighted plate `power 7` · Composter, cauldron, cake, lectern… `signal 3`
 - Meters follow blocks moved by pistons.
 
 **Up** freezes the game (`/tick`, needs op); Up again steps 1 tick (hold to repeat).
-**Left / Right**: slow motion, 1/2 → 1/4 → 1/10 → 1/20 speed and back. **Down**: normal again.
+**Left / Right**: slow motion, 1/2 → 1/4 → 1/10 → 1/20 speed and back. Only the world slows down, you move normally. **Down**: normal again.
 **R + Backspace / Enter**: timeline 1 tick back / forward (it stops; at now it runs again). Stopped or frozen,
 the timeline shows which keys do what. Stopped = list of
 what happened that tick, in sub-tick order. Block / shape updates: **Show event marks**.
@@ -94,9 +78,9 @@ Needs op; `/rlab config set permissionLevel 0` lets everyone use it.
 ## Build
 
 `./gradlew build` (JDK 25; the mod runs on Java 21). Jar in `build/libs/`.
-- `./gradlew runGameTest`: 72 tests that check the mod against the real game, every command
+- `./gradlew runGameTest`: 66 tests that check the mod against the real game, every command
   and the Meter Tool, groups saved / shared / reloaded, limits and permissions, and: clocks, pistons, QC,
-  comparators, hoppers, sub-tick order, what looking at redstone says, random circuits and piston builds, and 18 circuits built
+  comparators, hoppers, sub-tick order, random circuits and piston builds, and 18 circuits built
   from the Minecraft Wiki's own schematics (hopper clocks, Etho hopper clock, subtraction clocks,
   fader pulser, observer clocks, piston clock, 3 T flip-flops, edge detectors, a flying machine,
   a hopper item sorter), a 2x2 piston door, a 4-bit binary counter and a full adder:

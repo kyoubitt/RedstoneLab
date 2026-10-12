@@ -4,7 +4,9 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"KeyboardHandlerMixin",
-		"PistonBaseBlockClientMixin"
+		"MinecraftTickMixin",
+		"PistonBaseBlockClientMixin",
+		"TickRateManagerClientMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

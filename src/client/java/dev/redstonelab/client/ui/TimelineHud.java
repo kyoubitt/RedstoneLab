@@ -67,12 +67,8 @@ public final class TimelineHud {
 		String speed = LabKeys.speedLabel();
 		String title = paused ? name + " [frozen" + (scroll > 0 ? " -" + scroll + "t" : "") + "]"
 				: LabKeys.gameFrozen() ? name + " [game frozen]" : speed.isEmpty() ? name : name + " [" + speed + "]";
-		// Stopped or frozen: which keys do what now.
-		String keys = paused ? LabConfig.REWIND.value.display() + " / " + LabConfig.FORWARD.value.display() + ": 1 tick back / forward"
-				: LabKeys.gameFrozen() ? LabConfig.FREEZE_GAME.value.display() + ": step 1 tick \u00b7 " + LabConfig.RUN_GAME.value.display()
-						+ ": run \u00b7 " + LabConfig.REWIND.value.display() + ": look back" : "";
 
-		String key = ClientState.layoutVersion + "," + visible + "," + marks + showTitle + showInfo + showLegend + keys.isEmpty();
+		String key = ClientState.layoutVersion + "," + visible + "," + marks + showTitle + showInfo + showLegend;
 		if (!key.equals(this.layoutKey)) {
 			this.layoutKey = key;
 			this.stableWidth = 0;
@@ -85,7 +81,6 @@ public final class TimelineHud {
 			panelW = Math.max(panelW, font.width(title) + 6);
 		}
 		panelW = Math.max(panelW, font.width(orderText) + 6);
-		panelW = Math.max(panelW, font.width(keys) + 6);
 		if (showInfo) {
 			for (ClientState.Channel ch : ClientState.SCOPE) {
 				panelW = Math.max(panelW, infoX + font.width(ch.stats) + 4);
@@ -102,7 +97,7 @@ public final class TimelineHud {
 		List<List<MeterEvent>> legend = showLegend ? legendLines(font, panelW - 4, this.legendFlags) : List.of();
 		// While frozen: one line explaining the bars (+ the mark colours when marks are on).
 		boolean showHint = LabKeys.paused;
-		int legendH = (showHint ? (legend.size() + 1) * (font.lineHeight + 1) + 2 : 0) + (keys.isEmpty() ? 0 : font.lineHeight + 1);
+		int legendH = showHint ? (legend.size() + 1) * (font.lineHeight + 1) + 2 : 0;
 		// Frozen: a cursor on the newest shown tick and a list of what happened in it, in order.
 		List<Inspected> inspected = paused && LabConfig.SHOW_INSPECT.value ? inspect(scroll) : null;
 		String inspectTitle = "";
@@ -180,10 +175,6 @@ public final class TimelineHud {
 			}
 		}
 		int ly = y + titleH + rowH * ClientState.SCOPE.size();
-		if (!keys.isEmpty()) {
-			ctx.drawString(font, keys, x + 3, ly, 0xFFFFDD77, true);
-			ly += font.lineHeight + 1;
-		}
 		if (showHint) {
 			ctx.drawString(font, "bar = on \u00b7 thin line = powered, not on yet", x + 3, ly, 0xFFCCCCCC, true);
 			ly += font.lineHeight + 1;

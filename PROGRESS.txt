@@ -88,6 +88,10 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          frozen, R + G). New: look at any redstone block = what it does now, why, and the rule
          (dust traced back to its source, torch / lamp / piston power incl. QC and BUD, locks,
          comparator inputs, burnt-out torches); stopped / frozen timeline shows the keys
+  0.6.2  slow motion slows only the world, not the player (client keeps 20 ticks a second,
+         the world on screen moves at the game's speed). Shorter text: lengths "2-3t"
+         instead of "2t/3t/3t", action bar without key hints. Look-at text and the timeline
+         key line removed again (too much on screen)
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

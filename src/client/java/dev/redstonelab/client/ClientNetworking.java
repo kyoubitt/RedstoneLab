@@ -23,7 +23,7 @@ public final class ClientNetworking {
 				dev.redstonelab.client.ui.LabConfig.INTRO_SHOWN.value = true;
 				dev.redstonelab.client.ui.LabConfig.save();
 				client.execute(() -> client.gui.getChat().addMessage(net.minecraft.network.chat.Component.literal(
-						"RedstoneLab: look at redstone = what it does and why · M = meter · right-click a piston = preview · "
+						"RedstoneLab: M = meter · right-click a piston = preview · "
 								+ "Up = freeze · Left / Right = slow motion · "
 								+ dev.redstonelab.client.ui.LabConfig.OPEN_SETTINGS.value.display() + " = settings")
 						.withStyle(net.minecraft.ChatFormatting.GOLD)));

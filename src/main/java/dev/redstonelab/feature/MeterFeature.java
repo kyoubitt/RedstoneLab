@@ -335,8 +335,8 @@ public final class MeterFeature {
 				boolean firing = !this.fireGaps.isEmpty() && this.recent(this.fireGaps, this.lastFire);
 				boolean in = !this.inGaps.isEmpty() && this.recent(this.inGaps, this.lastIn);
 				boolean out = !firing && !this.outGaps.isEmpty() && this.recent(this.outGaps, this.lastOut);
-				String inText = Ticks.exact(this.inGaps.values());
-				String outText = Ticks.exact(this.outGaps.values());
+				String inText = Ticks.lengths(this.inGaps.values());
+				String outText = Ticks.lengths(this.outGaps.values());
 				if (in && out && inText.equals(outText)) {
 					// A hopper passing items on: "in / out every 8t".
 					sb.append(" \u00b7 in / out every ").append(inText);
@@ -434,11 +434,11 @@ public final class MeterFeature {
 			if (gaps.isEmpty() || !this.recent(gaps, last)) {
 				return;
 			}
-			sb.append(" \u00b7 ").append(what).append(" every ").append(Ticks.exact(gaps.values()));
+			sb.append(" \u00b7 ").append(what).append(" every ").append(Ticks.lengths(gaps.values()));
 		}
 
 		private static String range(RunStats r) {
-			return Ticks.exact(r.values());
+			return Ticks.lengths(r.values());
 		}
 
 

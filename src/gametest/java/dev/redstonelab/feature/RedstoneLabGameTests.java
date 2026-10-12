@@ -106,7 +106,7 @@ public class RedstoneLabGameTests {
 		for (int v : values.subList(Math.max(0, values.size() - 8), values.size())) {
 			last.add((long) v);
 		}
-		return dev.redstonelab.core.Ticks.exact(last);
+		return dev.redstonelab.core.Ticks.lengths(last);
 	}
 
 

@@ -106,10 +106,10 @@ final class CircuitTruth {
 		}
 		StringBuilder sb = new StringBuilder();
 		if (!on.isEmpty()) {
-			sb.append("on ").append(Ticks.exact(last8(on)));
+			sb.append("on ").append(Ticks.lengths(last8(on)));
 		}
 		if (!off.isEmpty()) {
-			sb.append(sb.isEmpty() ? "" : " · ").append("off ").append(Ticks.exact(last8(off)));
+			sb.append(sb.isEmpty() ? "" : " · ").append("off ").append(Ticks.lengths(last8(off)));
 		}
 		return sb.toString();
 	}

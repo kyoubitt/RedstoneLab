@@ -93,10 +93,10 @@ public final class PulseMeter {
 	public String summary() {
 		StringBuilder sb = new StringBuilder();
 		if (!this.widths.isEmpty()) {
-			sb.append("on ").append(Ticks.exact(this.widths.values()));
+			sb.append("on ").append(Ticks.lengths(this.widths.values()));
 		}
 		if (!this.gaps.isEmpty()) {
-			sb.append(sb.isEmpty() ? "" : " · ").append("off ").append(Ticks.exact(this.gaps.values()));
+			sb.append(sb.isEmpty() ? "" : " · ").append("off ").append(Ticks.lengths(this.gaps.values()));
 		}
 		return sb.toString();
 	}
