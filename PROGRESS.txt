@@ -79,6 +79,11 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          keys; hoppers "in / out every 6t / 8t" in one part; 6 feature tests + client key tests
   0.5.2  settings: 2 tabs (Settings, Hotkeys) instead of 4, legend and smooth scrolling always
          on; tests: 4-bit binary counter, full adder
+  0.6.0  easier to use: arrow keys do all the time control. One freeze (no separate timeline
+         pause): frozen, Left / Right = 1 tick back / forward (R + Backspace / Enter gone), Up
+         steps, Down runs at the same speed (again: full speed). Not op: Up stops just the
+         timeline. Frozen timeline shows the keys. R + G unbound (/rlab group). Shorter
+         first-join hint.
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

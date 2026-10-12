@@ -80,30 +80,36 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			this.record(context, 70, "/rlab meter expect B 3  ->  wrong pulses turn red");
 			world.getServer().runOnServer(server -> MeterFeature.expect(player(server), "B", null, null, true));
 
-			// Real keys: hold R, press Backspace = 1 tick back (freezes the timeline), Enter = forward.
+			// Real keys: Up freezes, Left twice / Right once = 1 tick back. Meters stay.
 			int metersBefore = context.computeOnClient(client -> ClientState.SCOPE.size());
-			context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
-			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE);
-			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE);
-			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER);
-			context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
+			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
+			context.waitTicks(3);
+			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
+			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
+			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT);
 			context.waitTicks(5);
-			boolean frozen = context.computeOnClient(client -> LabKeys.paused && LabKeys.scroll == 1);
-			if (!frozen) {
-				throw new AssertionError("R + Backspace twice, R + Enter once: should be frozen 1 tick back, is "
-						+ context.computeOnClient(client -> LabKeys.paused + " " + LabKeys.scroll));
+			boolean back = context.computeOnClient(client -> LabKeys.stopped() && LabKeys.scroll == 1)
+					&& world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen()
+							&& server.tickRateManager().tickrate() == 20);
+			if (!back) {
+				throw new AssertionError("Up, Left twice, Right once: should be frozen at full speed, 1 tick back, is "
+						+ context.computeOnClient(client -> LabKeys.stopped() + " " + LabKeys.scroll + " " + LabKeys.tickRate()));
 			}
-			// R + Backspace must not touch the meters.
 			if (context.computeOnClient(client -> ClientState.SCOPE.size()) != metersBefore) {
-				throw new AssertionError("R + Backspace removed a meter");
+				throw new AssertionError("the arrow keys changed the meters");
 			}
 			for (int step = 0; step <= 6; step++) {
 				int scroll = step;
 				context.runOnClient(client -> LabKeys.scroll = scroll);
-				this.record(context, 14, "R+Backspace = 1 tick back (it stops there): everything that happened, in order");
+				this.record(context, 14, "Up = freeze, Left / Right = 1 tick back / forward: everything that happened, in order");
 			}
 			context.takeScreenshot("still-frozen");
-			context.runOnClient(client -> LabKeys.setPaused(false));
+			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
+			context.waitTicks(5);
+			if (world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())
+					|| context.computeOnClient(client -> LabKeys.stopped() || LabKeys.scroll != 0)) {
+				throw new AssertionError("Down should run the game and the timeline again");
+			}
 
 			// The world: meter letters.
 			context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = false);
@@ -153,7 +159,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			this.record(context, 40, "Settings: R + C. No other mods needed");
 			context.takeScreenshot("still-settings");
 			context.clickScreenButton("Hotkeys");
-			this.record(context, 40, "Hotkeys: click one, press the keys (e.g. hold R, press Left)");
+			this.record(context, 40, "Hotkeys: click one, press the keys (e.g. hold R, press M)");
 			context.takeScreenshot("still-hotkeys");
 			// Click a hotkey, press Esc: it gets unbound (like vanilla controls) and the menu stays open.
 			context.clickScreenButton("R + M");
@@ -270,6 +276,21 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		}
 		context.waitTicks(5);
 		context.takeScreenshot("still-game-frozen");
+		// Frozen: Left / Right look back and forward, the speed stays.
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
+		context.waitTicks(3);
+		boolean lookedBack = context.computeOnClient(client -> LabKeys.scroll == 1)
+				&& world.getServer().computeOnServer(server -> server.tickRateManager().tickrate() == 20);
+		if (!lookedBack) {
+			throw new AssertionError("Left on a frozen game should look 1 tick back, not slow down: scroll "
+					+ context.computeOnClient(client -> LabKeys.scroll));
+		}
+		// Stepping shows the new tick.
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
+		context.waitTicks(3);
+		if (context.computeOnClient(client -> LabKeys.scroll) != 0) {
+			throw new AssertionError("a step should show the newest tick");
+		}
 		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
 		context.waitTicks(5);
 		if (world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
@@ -286,6 +307,16 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		}
 		context.waitTicks(10);
 		context.takeScreenshot("still-slow-motion");
+		// Freeze in slow motion; Down runs on at the same slow speed.
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
+		context.waitTicks(3);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
+		context.waitTicks(3);
+		boolean slowAgain = world.getServer().computeOnServer(server -> !server.tickRateManager().isFrozen()
+				&& server.tickRateManager().tickrate() == 5);
+		if (!slowAgain) {
+			throw new AssertionError("Down on a frozen slow game should run it at the same speed");
+		}
 		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT);
 		context.waitTicks(3);
 		float faster = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate());
@@ -298,6 +329,55 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		if (normal != 20) {
 			throw new AssertionError("Down should give full speed, got " + normal);
 		}
+		this.withoutTick(context, world);
+	}
+
+	/** Not op (no /tick): Up stops only the timeline, Left / Right look back, Down goes live. */
+	private void withoutTick(ClientGameTestContext context, TestSingleplayerContext world) {
+		world.getServer().runOnServer(server -> setCheats(server, false));
+		context.waitTicks(10);
+		if (context.computeOnClient(client -> client.getConnection().getCommands().getRoot().getChild("tick") != null)) {
+			throw new AssertionError("the test player should have lost /tick");
+		}
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
+		context.waitTicks(3);
+		boolean stopped = context.computeOnClient(client -> LabKeys.paused && LabKeys.scroll == 2)
+				&& !world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen());
+		if (!stopped) {
+			throw new AssertionError("without /tick, Up + Left twice should stop the timeline 2 ticks back (game running), is "
+					+ context.computeOnClient(client -> LabKeys.paused + " " + LabKeys.scroll));
+		}
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
+		context.waitTicks(3);
+		if (context.computeOnClient(client -> LabKeys.stopped())) {
+			throw new AssertionError("without /tick, Down should make the timeline live again");
+		}
+		world.getServer().runOnServer(server -> setCheats(server, true));
+		context.waitTicks(10);
+		if (!context.computeOnClient(client -> client.getConnection().getCommands().getRoot().getChild("tick") != null)) {
+			throw new AssertionError("the test player should have /tick again");
+		}
+	}
+
+	/** Cheats on / off for the world, as if created that way (the owner is op only with cheats on). */
+	private static void setCheats(MinecraftServer server, boolean on) {
+		var data = (net.minecraft.world.level.storage.PrimaryLevelData) server.getWorldData();
+		var old = data.getLevelSettings();
+		var settings = new net.minecraft.world.level.LevelSettings(old.levelName(), old.gameType(), old.hardcore(), old.difficulty(), on,
+				old.gameRules(), old.getDataConfiguration());
+		try {
+			for (var field : net.minecraft.world.level.storage.PrimaryLevelData.class.getDeclaredFields()) {
+				if (field.getType() == net.minecraft.world.level.LevelSettings.class) {
+					field.setAccessible(true);
+					field.set(data, settings);
+				}
+			}
+		} catch (ReflectiveOperationException e) {
+			throw new RuntimeException(e);
+		}
+		server.getPlayerList().sendPlayerPermissionLevel(player(server));
 	}
 
 	/** Three still pistons for the guide: pushes 4 (slime), blocked (obsidian), too many. */

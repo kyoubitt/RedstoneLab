@@ -36,13 +36,15 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 - Repeater `delay 4t · locked` · Torch `burnt out` · Block `strong 15` (lights dust next to it) / `weak 13` · Target, daylight, sculk, weighted plate `power 7` · Composter, cauldron, cake, lectern… `signal 3`
 - Meters follow blocks moved by pistons.
 
-**Up** freezes the game (`/tick`, needs op); Up again steps 1 tick (hold to repeat).
-**Left / Right**: slow motion, 1/2 → 1/4 → 1/10 → 1/20 speed and back. **Down**: normal again.
-**R + Backspace / Enter**: timeline 1 tick back / forward (it stops; at now it runs again). Stopped = list of
-what happened that tick, in sub-tick order. Block / shape updates: **Show event marks**.
+**Arrow keys** = time (`/tick`, needs op):
+- **Up** freezes, Up again steps 1 tick (hold to repeat). **Down** runs again.
+- **Left / Right** running: slow motion, 1/2 → 1/4 → 1/10 → 1/20 speed and back (**Down**: full speed).
+- **Left / Right** frozen: timeline 1 tick back / forward, with what happened that tick in sub-tick order.
+  Block / shape updates: **Show event marks**.
+- Not op: Up stops just the timeline, Left / Right look back, Down = live.
 
 `/rlab meter expect A 2 4` (wrong pulses turn red) · `/rlab meter name A clock` ·
-`/rlab group <name>` (**R + G** lists)
+`/rlab group <name>` (`/rlab group` lists)
 
 ## Pistons
 
@@ -58,13 +60,11 @@ what happened that tick, in sub-tick order. Block / shape updates: **Show event 
 | Key | Does |
 |---|---|
 | M | meter on / off |
-| R + M | remove all |
-| Up | freeze the game; frozen: step 1 tick (`/tick`, op) |
-| Down | normal: unfreeze, full speed |
-| Left / Right | slow motion: slower / faster (`/tick rate`, op) |
-| R + Backspace / Enter | timeline 1 tick back / forward |
+| R + M | remove all meters |
+| Up | freeze; frozen: step 1 tick |
+| Down | frozen: run; slow: full speed |
+| Left / Right | slow motion; frozen: 1 tick back / forward |
 | P | hide piston previews |
-| R + G | meter groups |
 | R + C | settings (also Mod Menu) |
 
 Change keys in settings: click one, hold the keys, let go. **Esc** unbinds.
