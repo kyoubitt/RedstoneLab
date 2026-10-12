@@ -46,6 +46,11 @@ public final class LabBossBar extends BossEvent {
 		}
 	}
 
+	/** The player sees this bar now. */
+	public boolean isShown() {
+		return this.shown;
+	}
+
 	public static BossBarColor colorFor(int channel) {
 		BossBarColor[] colors = {BossBarColor.RED, BossBarColor.BLUE, BossBarColor.GREEN, BossBarColor.YELLOW,
 				BossBarColor.PURPLE, BossBarColor.PINK, BossBarColor.WHITE, BossBarColor.YELLOW};

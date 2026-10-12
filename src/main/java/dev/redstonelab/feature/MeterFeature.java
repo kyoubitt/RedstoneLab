@@ -340,7 +340,7 @@ public final class MeterFeature {
 				if (in && out && inText.equals(outText)) {
 					// A hopper passing items on: "in / out every 8t".
 					sb.append(" \u00b7 in / out every ").append(inText);
-				} else if (in && out && inText.matches("\\d+t") && outText.matches("\\d+t")) {
+				} else if (in && out) {
 					sb.append(" \u00b7 in / out every ").append(inText).append(" / ").append(outText);
 				} else {
 					appendRate(sb, "in", this.inGaps, this.lastIn);
@@ -1263,6 +1263,11 @@ public final class MeterFeature {
 			}
 		}
 		throw new IllegalArgumentException("no meter " + label);
+	}
+
+	/** For the game tests: the meter's boss bar (players without the client mod) is up. */
+	static boolean bossBarForTest(ServerPlayer player, String label) {
+		return meterForTest(player, label).bossBar.isShown();
 	}
 
 	/** For the game tests: the remembered turn-on times. */

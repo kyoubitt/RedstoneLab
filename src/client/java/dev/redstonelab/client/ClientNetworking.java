@@ -18,6 +18,15 @@ public final class ClientNetworking {
 
 	public static void init() {
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+			if (!dev.redstonelab.client.ui.LabConfig.INTRO_SHOWN.value) {
+				// Once, on the very first join: the keys that matter.
+				dev.redstonelab.client.ui.LabConfig.INTRO_SHOWN.value = true;
+				dev.redstonelab.client.ui.LabConfig.save();
+				client.execute(() -> client.gui.getChat().addMessage(net.minecraft.network.chat.Component.literal(
+						"RedstoneLab: M meter · empty hand on a piston: preview · Up freeze · Left / Right slow · "
+								+ dev.redstonelab.client.ui.LabConfig.OPEN_SETTINGS.value.display() + " settings")
+						.withStyle(net.minecraft.ChatFormatting.GOLD)));
+			}
 			ClientState.reset();
 			if (ClientPlayNetworking.canSend(LabPayloads.HelloC2S.TYPE)) {
 				ClientPlayNetworking.send(new LabPayloads.HelloC2S(LabPayloads.PROTOCOL, capabilities(), RedstoneLab.version()));

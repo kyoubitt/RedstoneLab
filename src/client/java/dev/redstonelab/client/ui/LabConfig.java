@@ -260,6 +260,9 @@ public final class LabConfig {
 	public static final Bool PISTON_LANDING = new Bool(Tab.PISTONS, "pistonLanding", false,
 			"Also outline where pushed blocks land (light blue)");
 
+	/** Not in the menu: the one-time hint on the first join was shown. */
+	public static final Bool INTRO_SHOWN = new Bool(null, "introShown", false, "");
+
 	public static final Hotkey TOGGLE_METER = new Hotkey("toggleMeter", "M", false, "Meter on / off (block you look at)");
 	public static final Hotkey CLEAR_METERS = new Hotkey("clearMeters", "R,M", false, "Remove all meters");
 	public static final Hotkey REWIND = new Hotkey("rewind", "R,BACKSPACE", true, "Timeline 1 tick back (it stops there). Hold to repeat");

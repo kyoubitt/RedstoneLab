@@ -8,7 +8,8 @@
 		"fabric-gametest": [
 			"dev.redstonelab.feature.RedstoneLabGameTests",
 			"dev.redstonelab.feature.ComplexCircuitTests",
-			"dev.redstonelab.feature.WikiCircuitTests"
+			"dev.redstonelab.feature.WikiCircuitTests",
+			"dev.redstonelab.feature.FeatureTests"
 		],
 		"fabric-client-gametest": [
 			"dev.redstonelab.feature.RedstoneLabClientTests"

@@ -16,7 +16,7 @@ CODE
               TimelineHud, WorldMarkers (vanilla gizmos)
 
 TESTS
-  ./gradlew runGameTest                         58 server tests against the real game
+  ./gradlew runGameTest                         64 server tests against the real game
   xvfb-run ./gradlew runClientGameTest          real client: keys, clicks, screenshots
   Accuracy checks that run every time:
   * 8 random circuits, every meter vs the real block every tick (~6000 checks)
@@ -41,6 +41,12 @@ TESTS
   * hopper item sorter (wiki, 2 filters tiled: diamonds, iron; 41 + 4 sticks, "3 at 46")
     and a 2x2 sticky piston door (doorway really opens / closes, previews, meters)
   * client: slow motion keys (Left x2 = 5 tps, Right = 10, Down = 20)
+  * FeatureTests: every /rlab command through the real command tree (meter add / remove /
+    name / expect / clear, tool, piston landing, help, config set + bad value, group switch /
+    delete / share), Meter Tool clicks, groups saved and reloaded on join, meter limit,
+    permission levels, boss bars for players without the client mod
+  * client: M / M again / R + M on a real block, settings save + load, broken settings file,
+    first-join hint
 
 RELEASES (change mod_version on main -> GitHub builds the jar)
   0.2.0  no MaLiLib; own settings, key combos, HUD; piston previews client-side
@@ -67,6 +73,8 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          timeline title shows the speed. Simpler: no Backspace / R + Space keys (M removes,
          R + Backspace stops the timeline), no "show title" / "show background" settings.
          Tests: item sorter, 2x2 piston door
+  0.5.1  one-time hint on the first join (the keys that matter); /rlab help lists the game
+         keys; hoppers "in / out every 6t / 8t" in one part; 6 feature tests + client key tests
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

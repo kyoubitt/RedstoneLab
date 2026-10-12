@@ -54,9 +54,14 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			client.options.menuBackgroundBlurriness().set(0);
 		});
 		context.getInput().resizeWindow(1280, 720);
+		// A first-time player: the one-time hint must show on joining.
+		context.runOnClient(client -> LabConfig.INTRO_SHOWN.value = false);
 		// Cheats on, so the player may use RedstoneLab (like an op on a server).
 		try (TestSingleplayerContext world = context.worldBuilder().adjustSettings(s -> s.setAllowCommands(true)).create()) {
 			world.getClientWorld().waitForChunksRender();
+			if (!context.computeOnClient(client -> LabConfig.INTRO_SHOWN.value)) {
+				throw new AssertionError("the first-join hint should have been shown");
+			}
 			world.getServer().runOnServer(RedstoneLabClientTests::build);
 			context.waitTicks(100);
 			context.takeScreenshot("still-timeline");
@@ -169,12 +174,77 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			this.pistonGuideShot(context, world);
 			this.firingOrder(context, world);
 			this.clientPreviewsMatchServer(context, world);
+			this.meterKeys(context, world);
+			this.settingsFile(context);
 		}
 		try {
 			Files.write(Path.of("video-captions.txt"), this.captions, StandardCharsets.UTF_8);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	/** Real keys on a real block: M adds a meter, M again removes it, R + M removes all. */
+	private void meterKeys(ClientGameTestContext context, TestSingleplayerContext world) {
+		BlockPos[] spot = new BlockPos[1];
+		world.getServer().runOnServer(server -> {
+			ServerPlayer player = player(server);
+			spot[0] = base.offset(0, 0, -8);
+			player.level().setBlockAndUpdate(spot[0], Blocks.REDSTONE_LAMP.defaultBlockState());
+			player.level().setBlockAndUpdate(spot[0].above(), Blocks.AIR.defaultBlockState());
+			player.level().setBlockAndUpdate(spot[0].above(2), Blocks.AIR.defaultBlockState());
+			// Standing on it, looking straight down.
+			player.teleportTo(player.level(), spot[0].getX() + 0.5, spot[0].getY() + 1, spot[0].getZ() + 0.5, java.util.Set.of(), 0f, 90f, false);
+		});
+		context.waitTicks(10);
+		int before = context.computeOnClient(client -> ClientState.SCOPE.size());
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_M);
+		context.waitTicks(10);
+		boolean added = context.computeOnClient(client -> ClientState.SCOPE.stream().anyMatch(ch -> ch.pos.equals(spot[0])));
+		if (!added) {
+			throw new AssertionError("M should put a meter on the block below, meters at "
+					+ context.computeOnClient(client -> ClientState.SCOPE.stream().map(ch -> ch.pos.toShortString()).toList()) + ", looked at " + spot[0]);
+		}
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_M);
+		context.waitTicks(10);
+		if (context.computeOnClient(client -> ClientState.SCOPE.size()) != before) {
+			throw new AssertionError("M again should remove it");
+		}
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_M);
+		context.waitTicks(5);
+		context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_M);
+		context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
+		context.waitTicks(10);
+		if (context.computeOnClient(client -> ClientState.SCOPE.size()) != 0) {
+			throw new AssertionError("R + M should remove all meters, left " + context.computeOnClient(client -> ClientState.SCOPE.size()));
+		}
+	}
+
+	/** Settings survive save + load; a broken settings file doesn't crash and keeps the settings. */
+	private void settingsFile(ClientGameTestContext context) {
+		context.runOnClient(client -> {
+			int before = LabConfig.TIMELINE_TICKS.value;
+			LabConfig.TIMELINE_TICKS.value = 123;
+			LabConfig.save();
+			LabConfig.TIMELINE_TICKS.value = 50;
+			LabConfig.load();
+			if (LabConfig.TIMELINE_TICKS.value != 123) {
+				throw new AssertionError("saved setting not loaded back: " + LabConfig.TIMELINE_TICKS.value);
+			}
+			Path file = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("redstonelab.json");
+			try {
+				Files.writeString(file, "{ this is not json");
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+			LabConfig.load();
+			if (LabConfig.TIMELINE_TICKS.value != 123) {
+				throw new AssertionError("a broken file must not change the settings");
+			}
+			LabConfig.TIMELINE_TICKS.value = before;
+			LabConfig.save();
+		});
 	}
 
 	/**
