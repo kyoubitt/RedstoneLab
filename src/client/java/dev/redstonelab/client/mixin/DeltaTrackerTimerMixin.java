@@ -35,7 +35,7 @@ public abstract class DeltaTrackerTimerMixin {
 			return;
 		}
 		SlowWorld world = (SlowWorld) mc.level.tickRateManager();
-		if (world.redstonelab$slow()) {
+		if (world.redstonelab$smooth()) {
 			cir.setReturnValue(world.redstonelab$partial(this.paused ? this.pausedDeltaTickResidual : this.deltaTickResidual));
 		}
 	}

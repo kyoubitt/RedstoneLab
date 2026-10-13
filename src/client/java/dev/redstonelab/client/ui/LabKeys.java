@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
@@ -44,7 +45,13 @@ public final class LabKeys {
 	}
 
 	public static void init() {
-		ClientTickEvents.END_CLIENT_TICK.register(mc -> clientTicks++);
+		ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+			clientTicks++;
+			// The server answered (or someone else changed the speed): its speed counts again.
+			if (asked > 0 && mc.level != null && mc.level.tickRateManager().tickrate() != askedFrom) {
+				asked = -1;
+			}
+		});
 		// Our own /tick freeze / step / unfreeze answer in chat: hidden, the action bar says it.
 		ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> !(clientTicks - tickCommandAt < 40
 				&& message.getContents() instanceof TranslatableContents t && t.getKey().startsWith("commands.tick.")));
@@ -55,44 +62,48 @@ public final class LabKeys {
 		return mc.getConnection() != null && mc.getConnection().getCommands().getRoot().getChild("tick") != null;
 	}
 
-	/** Game speeds for slow motion, in ticks per second (20 = normal). */
-	private static final float[] RATES = {20, 10, 5, 2, 1};
+	/** Game speeds, in ticks per second (20 = normal): 1/20 ... 10x. Limits from the Speed tab. */
+	private static final float[] RATES = {1, 2, 5, 10, 20, 40, 80, 200};
+	/** Ticks stepped since the game was frozen ("Tick step 3"). */
+	private static int steps;
 	/** The speed asked for last (the server's answer takes a moment to arrive). */
 	private static float asked = -1;
 	private static long askedAt;
+	/** The game's speed when we asked: once it changes, the answer (or someone else's /tick) is in. */
+	private static float askedFrom;
 
 	/** The game's speed now, in ticks per second. */
 	public static float tickRate() {
 		Minecraft mc = Minecraft.getInstance();
 		float rate = mc.level == null ? 20 : mc.level.tickRateManager().tickrate();
-		// Real time: in slow motion the client ticks slower too.
 		return asked > 0 && System.currentTimeMillis() - askedAt < 2000 ? asked : rate;
 	}
 
-	/** "1/4 speed", or "" at full speed. */
+	/** "1/4 speed", "2x speed", or "" at normal speed. */
 	public static String speedLabel() {
-		float rate = tickRate();
-		if (rate >= 20 - 0.01f) {
+		return speedLabel(tickRate());
+	}
+
+	private static String speedLabel(float rate) {
+		if (Math.abs(rate - 20) < 0.01f) {
 			return "";
+		}
+		if (rate > 20) {
+			float times = rate / 20;
+			return (Math.abs(times - Math.round(times)) < 0.01f ? String.valueOf(Math.round(times)) : String.format(java.util.Locale.ROOT, "%.1f", times))
+					+ "x speed";
 		}
 		float part = 20 / rate;
 		return Math.abs(part - Math.round(part)) < 0.01f ? "1/" + Math.round(part) + " speed" : Math.round(rate) + " tps";
 	}
 
 	private static void setRate(Minecraft mc, float rate) {
+		askedFrom = mc.level == null ? 20 : mc.level.tickRateManager().tickrate();
 		asked = rate;
 		askedAt = System.currentTimeMillis();
 		tick("tick rate " + (rate == Math.round(rate) ? String.valueOf(Math.round(rate)) : String.valueOf(rate)));
-		String label = rate >= 20 ? "Full speed" : "Slow motion: " + speedLabelFor(rate);
+		String label = Math.abs(rate - 20) < 0.01f ? "Normal speed" : (rate < 20 ? "Slow motion: " : "Fast forward: ") + speedLabel(rate);
 		mc.player.displayClientMessage(Component.literal(label), true);
-	}
-
-	private static String speedLabelFor(float rate) {
-		float before = asked;
-		asked = rate;
-		String label = speedLabel();
-		asked = before;
-		return label;
 	}
 
 	public static boolean gameFrozen() {
@@ -169,6 +180,11 @@ public final class LabKeys {
 			}
 		} else if (hotkey == LabConfig.FREEZE_GAME || hotkey == LabConfig.RUN_GAME || hotkey == LabConfig.SLOWER
 				|| hotkey == LabConfig.FASTER) {
+			// Like G4mespeed: creative only (Down, back to normal, always works).
+			if (hotkey != LabConfig.RUN_GAME && (mc.gameMode == null || mc.gameMode.getPlayerMode() != GameType.CREATIVE)) {
+				mc.player.displayClientMessage(Component.literal("Game speed: creative only"), true);
+				return;
+			}
 			if (!canTick(mc)) {
 				mc.player.displayClientMessage(Component.literal("Needs /tick (op)"), true);
 				return;
@@ -176,29 +192,39 @@ public final class LabKeys {
 			boolean frozen = gameFrozen();
 			float rate = tickRate();
 			if (hotkey == LabConfig.SLOWER || hotkey == LabConfig.FASTER) {
-				// The next speed down (or up) from the list, from wherever the speed is now.
+				// The next speed down (or up) from the list, from wherever the speed is now,
+				// within the slowest / fastest set in the Speed tab.
+				boolean slower = hotkey == LabConfig.SLOWER;
 				float next = rate;
 				for (float r : RATES) {
-					if (hotkey == LabConfig.SLOWER ? r < rate - 0.01f && next == rate : r > rate + 0.01f) {
+					if (r < LabConfig.SLOWEST.value() - 0.01f || r > LabConfig.FASTEST.value() + 0.01f) {
+						continue;
+					}
+					if (slower ? r < rate - 0.01f : r > rate + 0.01f && next == rate) {
 						next = r;
 					}
 				}
 				if (next != rate) {
 					setRate(mc, next);
+				} else {
+					mc.player.displayClientMessage(Component.literal((slower ? "Slowest: " : "Fastest: ")
+							+ (speedLabel(rate).isEmpty() ? "normal speed" : speedLabel(rate)) + " (Speed tab)"), true);
 				}
 			} else if (hotkey == LabConfig.RUN_GAME) {
 				if (frozen) {
 					tick("tick unfreeze");
 				}
-				if (rate < 20 - 0.01f) {
+				if (Math.abs(rate - 20) > 0.01f) {
 					setRate(mc, 20);
 				}
-				mc.player.displayClientMessage(Component.literal("Full speed"), true);
+				mc.player.displayClientMessage(Component.literal("Normal speed"), true);
 			} else if (frozen) {
 				tick("tick step 1");
+				mc.player.displayClientMessage(Component.literal("Tick step " + (++steps)), true);
 			} else {
 				// The timeline keeps showing the game (nothing moves while frozen).
 				tick("tick freeze");
+				steps = 0;
 				setPaused(false);
 				mc.player.displayClientMessage(Component.literal("Game frozen"), true);
 			}

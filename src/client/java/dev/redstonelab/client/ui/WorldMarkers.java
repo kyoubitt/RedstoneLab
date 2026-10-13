@@ -27,13 +27,27 @@ public final class WorldMarkers {
 	private WorldMarkers() {
 	}
 
+	/** Drew outlines this tick / the tick before (one more refresh clears them when they go). */
+	private static boolean drawn;
+	private static boolean drawnBefore;
+
+	/**
+	 * The game shows this tick's list only while the world runs normally; frozen or in slow
+	 * motion it would keep showing old outlines (even removed meters). While we draw, it always
+	 * shows the newest list (see the Minecraft mixin).
+	 */
+	public static boolean needsRefresh() {
+		return drawn || drawnBefore;
+	}
+
 	public static void emit() {
+		drawnBefore = drawn;
+		drawn = false;
 		Minecraft mc = Minecraft.getInstance();
-		if (mc.player == null || mc.level == null || !LabConfig.SHOW_OUTLINES.value || ClientState.MARKERS.isEmpty()
-				// The game only clears this list while it runs: frozen (/tick freeze), the last one stays up.
-				|| !mc.level.tickRateManager().runsNormally()) {
+		if (mc.player == null || mc.level == null || !LabConfig.SHOW_OUTLINES.value || ClientState.MARKERS.isEmpty()) {
 			return;
 		}
+		drawn = true;
 		Vec3 eye = mc.player.getEyePosition();
 		double maxDistSq = MAX_DISTANCE * MAX_DISTANCE;
 		int budget = MAX_MARKERS;

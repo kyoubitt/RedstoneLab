@@ -178,6 +178,9 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			context.clickScreenButton("GUI");
 			context.waitTick();
 			context.takeScreenshot("still-settings-gui");
+			context.clickScreenButton("Speed");
+			context.waitTick();
+			context.takeScreenshot("still-settings-speed");
 			context.clickScreenButton("Hotkeys");
 			this.record(context, 40, "Hotkeys: click one, press the keys (e.g. hold R, press Left)");
 			context.takeScreenshot("still-hotkeys");
@@ -238,6 +241,13 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		}
 		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_M);
 		context.waitTicks(5);
+		// Frozen game: the outlines must still go away with the meters (they used to stay drawn).
+		context.runOnClient(client -> ClientPistons.clear());
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
+		context.waitTicks(5);
+		if (context.computeOnClient(client -> client.getPerTickGizmos().isEmpty())) {
+			throw new AssertionError("frozen with a meter: its outline should be drawn");
+		}
 		context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
 		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_M);
 		context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
@@ -245,6 +255,12 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		if (context.computeOnClient(client -> ClientState.SCOPE.size()) != 0) {
 			throw new AssertionError("R + M should remove all meters, left " + context.computeOnClient(client -> ClientState.SCOPE.size()));
 		}
+		if (!context.computeOnClient(client -> client.getPerTickGizmos().isEmpty())) {
+			throw new AssertionError("frozen, meters removed: the outlines should be gone, still drawn: "
+					+ context.computeOnClient(client -> client.getPerTickGizmos().size()));
+		}
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
+		context.waitTicks(5);
 	}
 
 	/** Settings survive save + load; a broken settings file doesn't crash and keeps the settings. */
@@ -289,7 +305,13 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		}
 		long before = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
 		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
-		context.waitTicks(5);
+		context.waitTicks(2);
+		// The step slides into place (the game itself would draw it at the end at once: 1.0).
+		float stepPartial = context.computeOnClient(client -> client.getDeltaTracker().getGameTimeDeltaPartialTick(false));
+		if (stepPartial >= 1) {
+			throw new AssertionError("a tick step should slide into place, not pop: " + stepPartial);
+		}
+		context.waitTicks(3);
 		long after = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
 		if (after - before != 1 || !world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
 			throw new AssertionError("Up on a frozen game should step 1 tick and stay frozen, stepped " + (after - before));
@@ -325,7 +347,9 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			throw new AssertionError("slow motion should not slow the client (the player): tick " + clientMillis + " ms");
 		}
 		// World ticks are counted while the client tick runs (between ticks the world waits).
+		// With RedstoneLab on the server the world moves exactly when the server ticks.
 		WORLD_TICKS.set(0);
+		long serverBefore = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
 		java.util.List<Float> partials = new java.util.ArrayList<>();
 		for (int i = 0; i < 40; i++) {
 			context.waitTick();
@@ -335,21 +359,21 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			partials.add(context.computeOnClient(client -> client.getDeltaTracker().getGameTimeDeltaPartialTick(false)));
 		}
 		int worldTicks = WORLD_TICKS.get();
-		if (worldTicks != 10) {
-			throw new AssertionError("at 1/4 speed the world on screen should move 10 of 40 client ticks, moved " + worldTicks);
+		long serverTicks = world.getServer().computeOnServer(server -> server.overworld().getGameTime()) - serverBefore;
+		if (Math.abs(worldTicks - serverTicks) > 1) {
+			throw new AssertionError("the world on screen should move once per server tick: " + worldTicks + " moves, " + serverTicks + " server ticks");
 		}
-		// Between its ticks the world slides smoothly (0 -> 1 over 4 client ticks), it doesn't jump.
-		float low = 1;
-		float high = 0;
+		// Between its ticks the world slides (part way from one tick to the next), it isn't held
+		// at the end of the tick (1.0, how the game draws a frozen world).
+		float sum = 0;
 		for (float f : partials) {
 			if (f < 0 || f > 1) {
 				throw new AssertionError("world timing out of range: " + partials);
 			}
-			low = Math.min(low, f);
-			high = Math.max(high, f);
+			sum += f;
 		}
-		if (high - low < 0.5f) {
-			throw new AssertionError("the slow world should slide smoothly between its ticks: " + partials);
+		if (sum / partials.size() > 0.9f) {
+			throw new AssertionError("the slow world should slide between its ticks, not jump: " + partials);
 		}
 		context.waitTicks(10);
 		context.takeScreenshot("still-slow-motion");
@@ -365,6 +389,62 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		if (normal != 20) {
 			throw new AssertionError("Down should give full speed, got " + normal);
 		}
+		// Fast forward: Right from normal = 2x, 4x (the default fastest), then it stops.
+		for (float want : new float[]{40, 80, 80}) {
+			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT);
+			context.waitTicks(3);
+			float got = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate());
+			if (got != want) {
+				throw new AssertionError("Right from normal: expected " + want + " tps, got " + got);
+			}
+		}
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
+		context.waitTicks(3);
+		if (world.getServer().computeOnServer(server -> server.tickRateManager().tickrate()) != 20) {
+			throw new AssertionError("Down should bring fast forward back to normal");
+		}
+		// The Speed tab's limits: fastest Normal = no fast forward, slowest 1/2 = Left stops at 10 tps.
+		context.runOnClient(client -> {
+			LabConfig.FASTEST.index = 0;
+			LabConfig.SLOWEST.index = 0;
+		});
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT);
+		context.waitTicks(3);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
+		context.waitTicks(3);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
+		context.waitTicks(3);
+		float limited = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate());
+		if (limited != 10) {
+			throw new AssertionError("with fastest Normal and slowest 1/2: Right, Left, Left should end at 10 tps, got " + limited);
+		}
+		context.runOnClient(client -> {
+			LabConfig.FASTEST.reset();
+			LabConfig.SLOWEST.reset();
+			LabConfig.save();
+		});
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
+		context.waitTicks(3);
+		// Creative only (like G4mespeed): in survival the speed keys do nothing, Down still works.
+		world.getServer().runOnServer(server -> player(server).setGameMode(GameType.SURVIVAL));
+		context.waitTicks(5);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
+		context.waitTicks(3);
+		boolean untouched = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate() == 20
+				&& !server.tickRateManager().isFrozen());
+		if (!untouched) {
+			throw new AssertionError("in survival the game speed keys should do nothing");
+		}
+		world.getServer().runOnServer(server -> server.tickRateManager().setTickRate(10));
+		context.waitTicks(3);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
+		context.waitTicks(3);
+		if (world.getServer().computeOnServer(server -> server.tickRateManager().tickrate()) != 20) {
+			throw new AssertionError("Down should bring back full speed in any game mode");
+		}
+		world.getServer().runOnServer(server -> player(server).setGameMode(GameType.CREATIVE));
+		context.waitTicks(5);
 	}
 
 	/** Three still pistons for the guide: pushes 4 (slime), blocked (obsidian), too many. */

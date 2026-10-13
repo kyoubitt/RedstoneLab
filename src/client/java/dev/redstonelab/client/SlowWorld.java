@@ -8,6 +8,9 @@ public interface SlowWorld {
 	/** Slow motion is on (game slower than 20 ticks a second, not frozen). */
 	boolean redstonelab$slow();
 
+	/** The world is drawn with its own timing: slow motion, or a single step sliding into place. */
+	boolean redstonelab$smooth();
+
 	/** After a client tick: the world waits until its next tick (only the player moves). */
 	void redstonelab$hold();
 

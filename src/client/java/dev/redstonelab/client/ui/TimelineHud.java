@@ -65,7 +65,8 @@ public final class TimelineHud {
 		int scroll = paused ? LabKeys.scroll : 0;
 		String name = "default".equals(ClientState.group) ? "Meters" : "Meters: " + ClientState.group;
 		String speed = LabKeys.speedLabel();
-		String title = paused ? name + " [frozen" + (scroll > 0 ? " -" + scroll + "t" : "") + "]"
+		// Stopped = only the timeline (R + Backspace), the game keeps running.
+		String title = paused ? name + (scroll > 0 ? " [" + scroll + "t back]" : " [stopped]")
 				: LabKeys.gameFrozen() ? name + " [game frozen]" : speed.isEmpty() ? name : name + " [" + speed + "]";
 
 		String key = ClientState.layoutVersion + "," + visible + "," + marks + showTitle + showInfo + showLegend;

@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.world.TickRateManager;
 
 import dev.redstonelab.client.SlowWorld;
+import dev.redstonelab.client.WorldTicks;
 
 /**
  * In slow motion the client still ticks 20 times a second (the player moves normally), but the
@@ -32,8 +33,19 @@ public abstract class TickRateManagerClientMixin implements SlowWorld {
 
 	@Inject(method = "tick", at = @At("TAIL"))
 	private void redstonelab$worldAtGameSpeed(CallbackInfo ci) {
+		if (this.isFrozen && this.runGameElements && ((Object) this).getClass() == TickRateManager.class) {
+			// Frozen and stepping one tick: it slides into place instead of popping.
+			WorldTicks.onStep();
+		}
 		if (!this.redstonelab$slow()) {
 			this.redstonelab$due = 0;
+			return;
+		}
+		if (WorldTicks.synced()) {
+			// RedstoneLab on the server: one step per server tick, in step with its block updates.
+			if (!WorldTicks.take()) {
+				this.runGameElements = false;
+			}
 			return;
 		}
 		this.redstonelab$due += this.tickrate / 20;
@@ -51,14 +63,25 @@ public abstract class TickRateManagerClientMixin implements SlowWorld {
 	}
 
 	@Override
+	public boolean redstonelab$smooth() {
+		return this.redstonelab$slow() || ((Object) this).getClass() == TickRateManager.class && this.isFrozen && WorldTicks.stepping(this.tickrate);
+	}
+
+	@Override
 	public void redstonelab$hold() {
-		if (this.redstonelab$slow()) {
+		if (this.redstonelab$slow() || this.isFrozen && ((Object) this).getClass() == TickRateManager.class) {
 			this.runGameElements = false;
 		}
 	}
 
 	@Override
 	public float redstonelab$partial(float clientPartial) {
+		if (this.isFrozen) {
+			return WorldTicks.stepPartial(this.tickrate);
+		}
+		if (WorldTicks.synced()) {
+			return WorldTicks.partial(this.tickrate);
+		}
 		return Math.min(1, this.redstonelab$due + clientPartial * this.tickrate / 20);
 	}
 }

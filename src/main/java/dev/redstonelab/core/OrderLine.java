@@ -17,8 +17,26 @@ public final class OrderLine {
 	/** Meters that didn't turn on for this long (or 2 periods of the first meter, if longer) are left out. */
 	public static final long MAX_AGE = 100;
 
-	/** One meter: its letter and its recent turn-on times (any order, unused slots = Long.MIN_VALUE). */
-	public record Input(String label, long[] rises) {
+	/**
+	 * One meter: its letter, its recent turn-on times (any order, unused slots = Long.MIN_VALUE)
+	 * and for each, its place in the game's order inside that tick (higher = later).
+	 */
+	public record Input(String label, long[] rises, int[] seqs) {
+		public Input(String label, long[] rises) {
+			this(label, rises, new int[rises.length]);
+		}
+
+		/** Place inside its tick of the newest turn-on. */
+		int newestSeq() {
+			long newest = this.newest();
+			for (int i = 0; i < this.rises.length; i++) {
+				if (this.rises[i] == newest) {
+					return this.seqs[i];
+				}
+			}
+			return 0;
+		}
+
 		long newest() {
 			long best = Long.MIN_VALUE;
 			for (long r : this.rises) {
@@ -86,7 +104,8 @@ public final class OrderLine {
 		}
 		// A slow clock (hopper clock) still counts as running for 2 of its periods.
 		long maxAge = Math.max(MAX_AGE, 2 * anchor.period());
-		TreeMap<Long, List<String>> groups = new TreeMap<>();
+		// Same delay = same tick: listed in the order the game turned them on inside that tick.
+		TreeMap<Long, List<Input>> groups = new TreeMap<>();
 		List<String> ownTiming = new ArrayList<>();
 		int total = 0;
 		for (Input m : meters) {
@@ -111,7 +130,7 @@ public final class OrderLine {
 			if (delays.size() > 1) {
 				ownTiming.add(m.label());
 			} else {
-				groups.computeIfAbsent(delays.iterator().next(), k -> new ArrayList<>()).add(m.label());
+				groups.computeIfAbsent(delays.iterator().next(), k -> new ArrayList<>()).add(m);
 			}
 		}
 		if (total < 2) {
@@ -119,11 +138,15 @@ public final class OrderLine {
 		}
 		StringBuilder sb = new StringBuilder();
 		long previous = 0;
-		for (Map.Entry<Long, List<String>> g : groups.entrySet()) {
+		for (Map.Entry<Long, List<Input>> g : groups.entrySet()) {
 			if (!sb.isEmpty()) {
 				sb.append(" → ").append(g.getKey() - previous).append("t → ");
 			}
-			sb.append(String.join(" ", g.getValue()));
+			List<Input> group = g.getValue();
+			group.sort((a, b) -> a.newest() != b.newest() ? Long.compare(a.newest(), b.newest()) : Integer.compare(a.newestSeq(), b.newestSeq()));
+			List<String> names = new ArrayList<>();
+			group.forEach(m -> names.add(m.label()));
+			sb.append(String.join(" ", names));
 			previous = g.getKey();
 		}
 		if (!ownTiming.isEmpty()) {

@@ -202,7 +202,7 @@ final class CircuitTruth {
 		for (String label : labels) {
 			String want = this.pulses(label);
 			String got = MeterFeature.pulsesForTest(this.player, label);
-			if (got.matches(".*\\b0t.*")) {
+			if (got.matches(".*\\b0(t|-\\d+t).*")) {
 				// A 0-tick pulse (on and off inside one tick) can't be seen sampling once a tick.
 				this.zeroTick.add(label);
 				continue;
@@ -217,13 +217,33 @@ final class CircuitTruth {
 			// Its turn-ons after 0-tick offs are invisible here: leave it out of the meter's line too.
 			got = got.replaceAll("(?<=^| )" + z + "(?= |$)", "").replaceAll(" {2,}", " ").trim();
 		}
-		if (!want.equals(got)) {
+		// Meters turning on in the same tick are listed in game order; the truth only knows the tick.
+		if (!sameTickSorted(want).equals(sameTickSorted(got))) {
 			sb.append("order: meter '").append(got).append("', game '").append(want).append("'. ");
 		}
 		if (this.wrong > 0) {
 			sb.append(this.wrong).append('/').append(this.checks).append(" ticks wrong, first ").append(this.firstWrong);
 		}
 		return sb.toString();
+	}
+
+	/** "C A → 2t → B" -> "A C → 2t → B": letters inside each same-tick group sorted. */
+	static String sameTickSorted(String line) {
+		String own = "";
+		int at = line.indexOf(" \u00b7 own timing: ");
+		if (at >= 0) {
+			own = line.substring(at);
+			line = line.substring(0, at);
+		}
+		String[] parts = line.split(" \u2192 ");
+		for (int i = 0; i < parts.length; i++) {
+			if (!parts[i].matches("\\d+t")) {
+				String[] letters = parts[i].split(" ");
+				java.util.Arrays.sort(letters);
+				parts[i] = String.join(" ", letters);
+			}
+		}
+		return String.join(" \u2192 ", parts) + own;
 	}
 
 	private static long max(List<Long> values) {

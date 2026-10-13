@@ -9,11 +9,14 @@ import java.util.Map;
  * Firing order of the shown pistons: "#1", "#2 · +3t", "#3 · same tick". Like the meters' order
  * line, every piston's extensions are measured from the first shown piston's extension just
  * before them, so the numbers stay put while a clock keeps running. Pistons that extend in the
- * same tick are ordered by when the game ran them inside that tick.
+ * same tick are ordered by when the game ran them inside that tick. A piston more than 1 s after
+ * the one before isn't part of the same firing (pushed separately).
  */
 public final class PistonOrder {
 	/** Pistons that didn't extend for this long (or 2 of their periods, if longer) are left out. */
 	public static final long MAX_AGE = 100;
+	/** A piston more than this long after the one before isn't part of the same firing (1 s). */
+	public static final long LINK = 20;
 	private static final int HISTORY = 8;
 
 	/** Recent extensions of one piston: game time and a sequence number (later = higher). */
@@ -150,6 +153,16 @@ public final class PistonOrder {
 		// Same delay = same tick: the one the game ran first goes first.
 		ordered.sort((a, b) -> a.delay() != b.delay() ? Long.compare(a.delay(), b.delay())
 				: a.time() == b.time() ? Long.compare(a.seq(), b.seq()) : 0);
+		// Pushed separately (a big gap) isn't a firing order: stop at the first gap over 1 s.
+		for (int n = 1; n < ordered.size(); n++) {
+			if (ordered.get(n).delay() - ordered.get(n - 1).delay() > LINK) {
+				ordered.subList(n, ordered.size()).clear();
+				break;
+			}
+		}
+		if (ordered.size() + ownTiming.size() < 2) {
+			return labels;
+		}
 		for (int n = 0; n < ordered.size(); n++) {
 			Entry e = ordered.get(n);
 			String label = "#" + (n + 1);

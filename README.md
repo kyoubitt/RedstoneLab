@@ -29,18 +29,25 @@ A ▮▮ 4 ▮▮ 4   clock · Observer · on 2t · off 4t
 B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 ```
 - **bar** = on, number = ticks · **thin line** = powered, not on yet · **white line** = 0-tick
-- **Order**: who turns on first, from A (or the first meter still running). `A → 2t → B D` = B and D 2t after A.
+- **Order**: who turns on first, from A (or the first meter still running). `A → 2t → B D` = B and D 2t after A,
+  in the same tick: B first (same-tick meters are listed in the order the game ran them).
 - `6t` always the same · `2-3t` varies between 2t and 3t
 - Dropper: bar = fires · Hopper: bar = locked, `in / out every 8t` · Chest: bar = signal > 0
 - `signal 3 (4 at 741)` = what a comparator reads; signal 4 at 741 items (shown when exact). Double chests count both halves; `blocked` = chest can't open, reads 0
-- Repeater `delay 4t · locked` · Torch `burnt out` · Block `strong 15` (lights dust next to it) / `weak 13` · Target, daylight, sculk, weighted plate `power 7` · Composter, cauldron, cake, lectern… `signal 3`
+- Repeater `delay 4t · locked` · Torch `burnt out` · Target, daylight, sculk, weighted plate `power 7` · Composter, cauldron, cake, lectern… `signal 3`
+  (dust power: texture packs show it on the dust)
 - Meters follow blocks moved by pistons.
 
-**Up** freezes the game (`/tick`, needs op); Up again steps 1 tick (hold to repeat).
-**Left / Right**: slow motion, 1/2 → 1/4 → 1/10 → 1/20 speed and back. Only the world slows down (pistons and mobs glide slowly), you move normally. **Down**: normal again.
-**R + Backspace / Enter**: timeline 1 tick back / forward (it stops; at now it runs again). Stopped or frozen,
-the timeline shows which keys do what. Stopped = list of
-what happened that tick, in sub-tick order. Block / shape updates: **Show event marks**.
+**Game speed** (creative and op, like G4mespeed):
+- **Up** freezes the game; Up again steps 1 tick (`Tick step 1`, `2`…, hold to repeat). Each step slides into place.
+- **Left / Right**: slower / faster: 1/20 · 1/10 · 1/4 · 1/2 · normal · 2x · 4x (limits: settings → **Speed**, up to 10x).
+  Only the world slows down: you move normally, pistons and mobs glide, in step with the server's ticks.
+  Sounds of the world play lower / higher to match (settings → Speed → **Sound pitch**).
+- **Down**: normal again (works in any game mode).
+
+**R + Backspace / Enter**: only the timeline goes 1 tick back / forward; the game keeps running (title `[3t back]`,
+at now it runs again). Stopped = list of what happened that tick, in sub-tick order. Block / shape updates:
+**Show event marks**.
 
 `/rlab meter expect A 2 4` (wrong pulses turn red) · `/rlab meter name A clock` ·
 `/rlab group <name>` (**R + G** lists)
@@ -52,6 +59,7 @@ what happened that tick, in sub-tick order. Block / shape updates: **Show event 
 - `✖ blocked` (`stuck`) · `✖ too many` (`13th`)
 - `⚡ QC` = powered from above · `⚡ BUD` = moves on next update
 - Several shown: `#1`, `#2 · +3t`, `#3 · same tick` = firing order, from the first one shown.
+  Only pistons firing close together (each within 1 s of the one before); pushed separately = no order.
   Exact ticks with the mod on the server; otherwise lag can shift them by 1.
 
 ## Keys
@@ -60,16 +68,17 @@ what happened that tick, in sub-tick order. Block / shape updates: **Show event 
 |---|---|
 | M | meter on / off |
 | R + M | remove all |
-| Up | freeze the game; frozen: step 1 tick (`/tick`, op) |
-| Down | normal: unfreeze, full speed |
-| Left / Right | slow motion: slower / faster (`/tick rate`, op) |
-| R + Backspace / Enter | timeline 1 tick back / forward |
+| Up | freeze the game; frozen: step 1 tick (creative, op) |
+| Down | normal: unfreeze, normal speed |
+| Left / Right | slower / faster: slow motion and fast forward (creative, op) |
+| R + Backspace / Enter | timeline only: 1 tick back / forward |
 | P | hide piston previews |
 | R + G | meter groups |
 | R + C | settings (also Mod Menu) |
 
 Settings (**R + C** or Mod Menu) by type: **Timeline** (what it shows), **GUI** (where, how big, outlines,
-piston landing boxes), **Hotkeys** (click one, hold the keys, let go; **Esc** unbinds).
+piston landing boxes), **Speed** (slowest and fastest speed sliders, sound pitch), **Hotkeys** (click one,
+hold the keys, let go; **Esc** = Unbound).
 
 ## Commands
 
@@ -79,7 +88,7 @@ Needs op; `/rlab config set permissionLevel 0` lets everyone use it.
 ## Build
 
 `./gradlew build` (JDK 25; the mod runs on Java 21). Jar in `build/libs/`.
-- `./gradlew runGameTest`: 66 tests that check the mod against the real game, every command
+- `./gradlew runGameTest`: 68 tests that check the mod against the real game, every command
   and the Meter Tool, groups saved / shared / reloaded, limits and permissions, and: clocks, pistons, QC,
   comparators, hoppers, sub-tick order, random circuits and piston builds, and 18 circuits built
   from the Minecraft Wiki's own schematics (hopper clocks, Etho hopper clock, subtraction clocks,

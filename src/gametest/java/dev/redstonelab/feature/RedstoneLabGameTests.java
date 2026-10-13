@@ -334,7 +334,8 @@ public class RedstoneLabGameTests {
 			int delay = 2 * level.getBlockState(helper.absolutePos(r1)).getValue(BlockStateProperties.DELAY);
 			String realR = "Repeater" + DOT + "delay " + delay + "t" + DOT + pattern(repeater, 60);
 			int dustPower = level.getBlockState(helper.absolutePos(dust)).getValue(BlockStateProperties.POWER);
-			String realD = "Redstone Wire" + (dustPower > 0 ? DOT + "power " + dustPower : "") + DOT + pattern(wire, 60);
+			// No dust power in the text (texture packs show it on the dust).
+			String realD = "Redstone Wire" + DOT + pattern(wire, 60);
 			helper.assertTrue(!realR.contains("?"), "the loop isn't running: " + realR);
 			String a = MeterFeature.statusForTest(player, "A");
 			String b = MeterFeature.statusForTest(player, "B");
@@ -646,8 +647,9 @@ public class RedstoneLabGameTests {
 			int cSignal = level.getBestNeighborSignal(helper.absolutePos(weak));
 			int dustAtStrong = level.getBlockState(helper.absolutePos(new BlockPos(4, 1, 5))).getValue(BlockStateProperties.POWER);
 			int dustAtWeak = level.getBlockState(helper.absolutePos(new BlockPos(5, 1, 7))).getValue(BlockStateProperties.POWER);
-			helper.assertTrue(dustAtStrong == 15 && b.startsWith("Stone" + DOT + "strong 15"), "strong (dust next to it: " + dustAtStrong + "): " + all);
-			helper.assertTrue(dustAtWeak == 0 && c.startsWith("Stone" + DOT + "weak " + cSignal), "weak (dust next to it: " + dustAtWeak + "): " + all);
+			// Plain blocks: no "strong / weak" text (too much), just the block; the bars show the power.
+			helper.assertTrue(dustAtStrong == 15 && b.equals("Stone"), "strong (dust next to it: " + dustAtStrong + "): " + all);
+			helper.assertTrue(dustAtWeak == 0 && cSignal > 0 && c.equals("Stone"), "weak (dust next to it: " + dustAtWeak + "): " + all);
 			// Burnt out for real: unlit although the block under it is not powered.
 			boolean lit = level.getBlockState(helper.absolutePos(torch)).getValue(BlockStateProperties.LIT);
 			boolean input = level.hasNeighborSignal(helper.absolutePos(new BlockPos(6, 1, 3)));
@@ -1370,6 +1372,70 @@ public class RedstoneLabGameTests {
 			}
 			String real = "Hopper" + DOT + "10 Stone" + DOT + "signal " + signal + " (" + (signal + 1) + " at " + next + ")";
 			helper.assertTrue(MeterFeature.statusForTest(player, "B").startsWith(real), "hopper: " + MeterFeature.statusForTest(player, "B") + " / game: " + real);
+			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
+	/**
+	 * Firing order only links pistons that fire close together: two pistons pushed 67 ticks apart
+	 * get no "#2 · +67t", a clock's 3-tick step still does, and a chain stops at a gap over 1 s.
+	 */
+	@GameTest(maxTicks = 5)
+	public void pistonOrderOnlyLinksCloseFires(GameTestHelper helper) {
+		dev.redstonelab.core.PistonOrder.Fires a = new dev.redstonelab.core.PistonOrder.Fires();
+		dev.redstonelab.core.PistonOrder.Fires b = new dev.redstonelab.core.PistonOrder.Fires();
+		a.add(100, 1);
+		b.add(167, 2);
+		java.util.List<String> apart = dev.redstonelab.core.PistonOrder.compute(java.util.List.of(a, b), 170, true);
+		helper.assertTrue(apart.equals(java.util.List.of("", "")), "pushed 67t apart: " + apart);
+
+		a.clear();
+		b.clear();
+		for (long t = 100; t <= 112; t += 6) {
+			a.add(t, t * 2);
+			b.add(t + 3, t * 2 + 1);
+		}
+		java.util.List<String> clock = dev.redstonelab.core.PistonOrder.compute(java.util.List.of(a, b), 116, true);
+		helper.assertTrue(clock.equals(java.util.List.of("#1", "#2 \u00b7 +3t")), "clock: " + clock);
+
+		dev.redstonelab.core.PistonOrder.Fires c = new dev.redstonelab.core.PistonOrder.Fires();
+		dev.redstonelab.core.PistonOrder.Fires d = new dev.redstonelab.core.PistonOrder.Fires();
+		a.clear();
+		b.clear();
+		a.add(100, 1);
+		b.add(110, 2);
+		c.add(125, 3);
+		d.add(150, 4);
+		java.util.List<String> chain = dev.redstonelab.core.PistonOrder.compute(java.util.List.of(a, b, c, d), 151, true);
+		helper.assertTrue(chain.equals(java.util.List.of("#1", "#2 \u00b7 +10t", "#3 \u00b7 +15t", "")), "chain: " + chain);
+		helper.succeed();
+	}
+
+	/**
+	 * Same tick, listed in game order: an observer (A) strongly powers a stone (D), the stone
+	 * powers a note block (B) and a sticky piston (C). The game runs: A on, D powered at once,
+	 * B gets its update, C extends in the block event part of the tick: "A D B C" (not A B C D).
+	 */
+	@GameTest(maxTicks = 30)
+	public void orderLineUsesGameOrderInsideATick(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		BlockPos observer = new BlockPos(2, 2, 2);
+		BlockPos stone = new BlockPos(3, 2, 2);
+		BlockPos note = new BlockPos(3, 1, 2);
+		BlockPos piston = new BlockPos(4, 2, 2);
+		helper.setBlock(observer, observer(Direction.WEST));
+		helper.setBlock(stone, Blocks.STONE);
+		helper.setBlock(note, Blocks.NOTE_BLOCK);
+		helper.setBlock(piston, Blocks.STICKY_PISTON.defaultBlockState().setValue(BlockStateProperties.FACING, Direction.EAST));
+		for (BlockPos p : new BlockPos[]{observer, note, piston, stone}) {
+			MeterFeature.toggle(player, level, helper.absolutePos(p));
+		}
+		helper.runAtTickTime(5, () -> helper.setBlock(new BlockPos(1, 2, 2), Blocks.STONE));
+		helper.runAtTickTime(12, () -> {
+			String order = MeterFeature.orderForTest(player, level.getGameTime());
+			helper.assertTrue(order.equals("A D B C"), "game order inside the tick: '" + order + "'");
 			MeterFeature.clear(player);
 			helper.succeed();
 		});

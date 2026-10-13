@@ -296,11 +296,14 @@ public final class MeterFeature {
 		}
 
 		private void onRise(long time) {
-			this.rises[this.riseCount++ % this.rises.length] = time;
+			int i = this.riseCount++ % this.rises.length;
+			this.rises[i] = time;
+			this.riseSeqs[i] = nextSeq();
 		}
 
-		/** Recent rising edges (ring), for the order line. */
+		/** Recent rising edges (ring), for the order line, and their place in the game's order inside the tick. */
 		final long[] rises = new long[8];
+		final int[] riseSeqs = new int[8];
 		int riseCount;
 
 		/** One line for the HUD: "Observer · on 2t · off 4t", "Hopper · 12 items · signal 1". */
@@ -357,10 +360,7 @@ public final class MeterFeature {
 					sb.append(" \u00b7 out ").append(range(this.outLengths));
 				}
 			} else {
-				if (this.wire && this.power > 0) {
-					// Dust: the level matters (how far the signal still reaches).
-					sb.append(" \u00b7 power ").append(this.power);
-				}
+				// Dust: no "power 15" (texture packs show the level on the dust itself).
 				String info = this.blockInfo();
 				if (!info.isEmpty()) {
 					sb.append(" \u00b7 ").append(info);
@@ -379,8 +379,7 @@ public final class MeterFeature {
 
 		/**
 		 * What the block's state says that the bars don't: repeater delay and lock, signal strength
-		 * of target blocks / daylight detectors / sculk / weighted plates, a burnt-out torch, and
-		 * for plain blocks strong or weak power (strong: dust next to it turns on too).
+		 * of target blocks / daylight detectors / sculk / weighted plates, a burnt-out torch.
 		 */
 		private String blockInfo() {
 			ServerLevel level = LabServer.level(this.dimension);
@@ -408,18 +407,6 @@ public final class MeterFeature {
 						&& (level.getGameTime() - this.offUnpoweredSince >= 2
 						|| dev.redstonelab.mixin.RedstoneTorchBlockInvoker.redstonelab$toggledTooOften(level, this.pos, false));
 				return burnt ? "burnt out" : "";
-			}
-			if (this.power > 0 && state.isRedstoneConductor(level, this.pos) && !state.isSignalSource() && !state.hasBlockEntity()
-					&& !state.hasProperty(BlockStateProperties.LIT) && !state.hasProperty(BlockStateProperties.POWERED)
-					&& !state.hasProperty(BlockStateProperties.OPEN) && !(state.getBlock() instanceof PistonBaseBlock)) {
-				// Strong: powered by anything but dust (dust ignores power that came from dust).
-				boolean strong = false;
-				for (Direction d : Direction.values()) {
-					BlockPos n = this.pos.relative(d);
-					BlockState ns = level.getBlockState(n);
-					strong |= !(ns.getBlock() instanceof RedStoneWireBlock) && ns.getDirectSignal(level, n, d) > 0;
-				}
-				return (strong ? "strong " : "weak ") + this.power;
 			}
 			return "";
 		}
@@ -1372,7 +1359,7 @@ public final class MeterFeature {
 			long[] rises = new long[m.rises.length];
 			java.util.Arrays.fill(rises, Long.MIN_VALUE);
 			System.arraycopy(m.rises, 0, rises, 0, Math.min(m.riseCount, m.rises.length));
-			inputs.add(new dev.redstonelab.core.OrderLine.Input(m.label, rises));
+			inputs.add(new dev.redstonelab.core.OrderLine.Input(m.label, rises, m.riseSeqs.clone()));
 		}
 		return dev.redstonelab.core.OrderLine.compute(inputs, now);
 	}

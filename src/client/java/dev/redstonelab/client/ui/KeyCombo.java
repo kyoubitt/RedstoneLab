@@ -104,7 +104,7 @@ public record KeyCombo(List<Integer> keys) {
 	/** "R + Left", for the settings screen. */
 	public String display() {
 		if (this.keys.isEmpty()) {
-			return "(none)";
+			return "Unbound";
 		}
 		List<String> names = new ArrayList<>();
 		for (int key : this.keys) {
