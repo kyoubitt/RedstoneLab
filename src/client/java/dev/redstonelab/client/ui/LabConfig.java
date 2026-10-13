@@ -32,10 +32,8 @@ public final class LabConfig {
 	public enum Tab {
 		/** What the timeline shows. */
 		TIMELINE("Timeline"),
-		/** Where it is on screen and how big. */
-		LAYOUT("Layout"),
-		/** In the world: outlines, letters, piston previews. */
-		WORLD("World"),
+		/** How things look: the timeline's place and size, outlines in the world. */
+		GUI("GUI"),
 		HOTKEYS("Hotkeys");
 
 		public final String title;
@@ -248,16 +246,16 @@ public final class LabConfig {
 	public static final Bool SHOW_INSPECT = new Bool(Tab.TIMELINE, "showTickInspector", true,
 			"Timeline stopped: list what happened in the tick, in order");
 
-	public static final Choice POSITION = new Choice(Tab.LAYOUT, "timelinePosition", Position.TOP_LEFT, "Where on screen");
-	public static final Int OFFSET_X = new Int(Tab.LAYOUT, "timelineOffsetX", 4, 0, 2000, "Gap from the left / right edge");
-	public static final Int OFFSET_Y = new Int(Tab.LAYOUT, "timelineOffsetY", 4, 0, 2000, "Gap from the top / bottom edge");
-	public static final Dbl SCALE = new Dbl(Tab.LAYOUT, "timelineScale", 1.0, 0.5, 3.0,
+	public static final Choice POSITION = new Choice(Tab.GUI, "timelinePosition", Position.TOP_LEFT, "Where on screen");
+	public static final Int OFFSET_X = new Int(Tab.GUI, "timelineOffsetX", 4, 0, 2000, "Gap from the left / right edge");
+	public static final Int OFFSET_Y = new Int(Tab.GUI, "timelineOffsetY", 4, 0, 2000, "Gap from the top / bottom edge");
+	public static final Dbl SCALE = new Dbl(Tab.GUI, "timelineScale", 1.0, 0.5, 3.0,
 			"Size (1 = normal, same at every GUI scale)");
-	public static final Int BACKGROUND_OPACITY = new Int(Tab.LAYOUT, "backgroundOpacity", 75, 0, 100, "Dark box behind it: 0 = none, 100 = solid");
+	public static final Int BACKGROUND_OPACITY = new Int(Tab.GUI, "backgroundOpacity", 75, 0, 100, "Dark box behind it: 0 = none, 100 = solid");
 
-	public static final Bool SHOW_OUTLINES = new Bool(Tab.WORLD, "showOutlines", true,
+	public static final Bool SHOW_OUTLINES = new Bool(Tab.GUI, "showOutlines", true,
 			"Outlines, letters and piston previews in the world");
-	public static final Bool PISTON_LANDING = new Bool(Tab.WORLD, "pistonLanding", false,
+	public static final Bool PISTON_LANDING = new Bool(Tab.GUI, "pistonLanding", false,
 			"Piston previews: also outline where pushed blocks land (light blue)");
 
 	/** Not in the menu: the one-time hint on the first join was shown. */

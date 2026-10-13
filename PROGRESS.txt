@@ -94,6 +94,7 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          key line removed again (too much on screen)
   0.6.3  settings split by type: Timeline, Layout, World, Hotkeys. Slow motion: the world
          glides smoothly between its ticks instead of jumping (the player still full speed)
+  0.6.4  settings tabs: Timeline, GUI (was Layout + World), Hotkeys
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

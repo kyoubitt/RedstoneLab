@@ -175,12 +175,9 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			this.record(context, 40, "Settings: R + C. No other mods needed");
 			context.takeScreenshot("still-settings");
 			// Settings by type: every tab has its own options.
-			context.clickScreenButton("Layout");
+			context.clickScreenButton("GUI");
 			context.waitTick();
-			context.takeScreenshot("still-settings-layout");
-			context.clickScreenButton("World");
-			context.waitTick();
-			context.takeScreenshot("still-settings-world");
+			context.takeScreenshot("still-settings-gui");
 			context.clickScreenButton("Hotkeys");
 			this.record(context, 40, "Hotkeys: click one, press the keys (e.g. hold R, press Left)");
 			context.takeScreenshot("still-hotkeys");

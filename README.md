@@ -68,8 +68,8 @@ what happened that tick, in sub-tick order. Block / shape updates: **Show event 
 | R + G | meter groups |
 | R + C | settings (also Mod Menu) |
 
-Settings (**R + C** or Mod Menu) by type: **Timeline** (what it shows), **Layout** (where, how big),
-**World** (outlines, piston previews), **Hotkeys** (click one, hold the keys, let go; **Esc** unbinds).
+Settings (**R + C** or Mod Menu) by type: **Timeline** (what it shows), **GUI** (where, how big, outlines,
+piston landing boxes), **Hotkeys** (click one, hold the keys, let go; **Esc** unbinds).
 
 ## Commands
 
