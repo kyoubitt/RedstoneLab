@@ -96,13 +96,14 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          glides smoothly between its ticks instead of jumping (the player still full speed)
   0.6.4  settings tabs: Timeline, GUI (was Layout + World), Hotkeys
   0.7.0  fast forward (2x, 4x, 10x) and a Speed tab: sliders for the slowest / fastest speed,
-         sound pitch follows the speed (like G4mespeed). Speed keys need creative and op; Down
+         sound pitch follows the speed. Speed keys need creative and op; Down
          works in any mode. Slow motion in step with the server's ticks (new packet), tick steps
          slide into place, "Tick step N". Fix: outlines stayed after removing meters while frozen
          or slowed. Order line: same-tick meters in game order ("A E C D"). Piston firing order
          only links pistons within 1 s of each other (no "+67t"). R + Backspace title "[3t back]"
          (the game keeps running). No "strong 15" / dust "power 15" text. "Unbound" for empty
          hotkeys; key-recording hint no longer covers the tabs
+  0.7.1  no mention of other mods in the settings help
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

@@ -425,7 +425,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		});
 		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
 		context.waitTicks(3);
-		// Creative only (like G4mespeed): in survival the speed keys do nothing, Down still works.
+		// Creative only: in survival the speed keys do nothing, Down still works.
 		world.getServer().runOnServer(server -> player(server).setGameMode(GameType.SURVIVAL));
 		context.waitTicks(5);
 		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);

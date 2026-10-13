@@ -180,7 +180,7 @@ public final class LabKeys {
 			}
 		} else if (hotkey == LabConfig.FREEZE_GAME || hotkey == LabConfig.RUN_GAME || hotkey == LabConfig.SLOWER
 				|| hotkey == LabConfig.FASTER) {
-			// Like G4mespeed: creative only (Down, back to normal, always works).
+			// Creative only (Down, back to normal, always works).
 			if (hotkey != LabConfig.RUN_GAME && (mc.gameMode == null || mc.gameMode.getPlayerMode() != GameType.CREATIVE)) {
 				mc.player.displayClientMessage(Component.literal("Game speed: creative only"), true);
 				return;

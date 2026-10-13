@@ -14,7 +14,7 @@ import net.minecraft.util.Mth;
 import dev.redstonelab.client.ui.LabConfig;
 
 /**
- * Like G4mespeed: in slow motion (and fast forward) the world's sounds play lower (higher), to
+ * In slow motion (and fast forward) the world's sounds play lower (higher), to
  * match the game's speed. The player's own sounds, music and menus stay normal.
  */
 @Mixin(SoundEngine.class)

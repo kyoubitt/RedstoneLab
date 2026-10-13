@@ -38,7 +38,7 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
   (dust power: texture packs show it on the dust)
 - Meters follow blocks moved by pistons.
 
-**Game speed** (creative and op, like G4mespeed):
+**Game speed** (creative and op):
 - **Up** freezes the game; Up again steps 1 tick (`Tick step 1`, `2`…, hold to repeat). Each step slides into place.
 - **Left / Right**: slower / faster: 1/20 · 1/10 · 1/4 · 1/2 · normal · 2x · 4x (limits: settings → **Speed**, up to 10x).
   Only the world slows down: you move normally, pistons and mobs glide, in step with the server's ticks.

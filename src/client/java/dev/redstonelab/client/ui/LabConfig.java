@@ -311,7 +311,7 @@ public final class LabConfig {
 	public static final Steps FASTEST = new Steps(Tab.SPEED, "fastestSpeed", new float[]{20, 40, 80, 200},
 			new String[]{"Normal", "2x", "4x", "10x"}, 2, "Fast forward: the fastest the Right key goes (Normal = none)");
 	public static final Bool SOUND_PITCH = new Bool(Tab.SPEED, "soundPitch", true,
-			"Sounds of the world play lower in slow motion, higher in fast forward (like G4mespeed)");
+			"Sounds of the world play lower in slow motion, higher in fast forward");
 
 	/** Not in the menu: the one-time hint on the first join was shown. */
 	public static final Bool INTRO_SHOWN = new Bool(null, "introShown", false, "");
