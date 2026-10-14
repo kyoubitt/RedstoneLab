@@ -104,6 +104,7 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          (the game keeps running). No "strong 15" / dust "power 15" text. "Unbound" for empty
          hotkeys; key-recording hint no longer covers the tabs
   0.7.1  no mention of other mods in the settings help
+  0.7.2  mod icon: kyoubitt's own drawing
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.
