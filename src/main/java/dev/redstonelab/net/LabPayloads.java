@@ -327,8 +327,9 @@ public final class LabPayloads {
 	}
 
 	/**
-	 * Slow motion: the server finished a tick. The client moves its world (pistons, mobs) exactly
-	 * then, so animations line up with the game instead of guessing when its ticks come.
+	 * The server finished a tick (normal speed or slow motion). The client moves its world
+	 * (pistons, mobs) exactly then, so animations line up with the game instead of guessing when
+	 * its ticks come: smooth pistons.
 	 */
 	public record WorldTickS2C() implements CustomPacketPayload {
 		public static final WorldTickS2C INSTANCE = new WorldTickS2C();

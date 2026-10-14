@@ -352,11 +352,15 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		long serverBefore = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
 		java.util.List<Float> partials = new java.util.ArrayList<>();
 		for (int i = 0; i < 40; i++) {
+			int movesBefore = WORLD_TICKS.get();
 			context.waitTick();
 			if (context.computeOnClient(client -> client.level.tickRateManager().isEntityFrozen(client.player))) {
 				throw new AssertionError("the player must never be held in slow motion");
 			}
-			partials.add(context.computeOnClient(client -> client.getDeltaTracker().getGameTimeDeltaPartialTick(false)));
+			// Right after the world moved it must be sliding (waiting for the next server tick it rests at 1).
+			if (WORLD_TICKS.get() > movesBefore) {
+				partials.add(context.computeOnClient(client -> client.getDeltaTracker().getGameTimeDeltaPartialTick(false)));
+			}
 		}
 		int worldTicks = WORLD_TICKS.get();
 		long serverTicks = world.getServer().computeOnServer(server -> server.overworld().getGameTime()) - serverBefore;
@@ -372,7 +376,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			}
 			sum += f;
 		}
-		if (sum / partials.size() > 0.9f) {
+		if (!partials.isEmpty() && sum / partials.size() > 0.9f) {
 			throw new AssertionError("the slow world should slide between its ticks, not jump: " + partials);
 		}
 		context.waitTicks(10);
@@ -389,6 +393,29 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		if (normal != 20) {
 			throw new AssertionError("Down should give full speed, got " + normal);
 		}
+		// Smooth pistons: at normal speed too, the world moves once per server tick and is drawn
+		// sliding in between (held between client ticks). Off in settings = the game's own way.
+		context.waitTicks(10);
+		WORLD_TICKS.set(0);
+		long normalBefore = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
+		for (int i = 0; i < 40; i++) {
+			context.waitTick();
+		}
+		int normalWorld = WORLD_TICKS.get();
+		long normalServer = world.getServer().computeOnServer(server -> server.overworld().getGameTime()) - normalBefore;
+		if (Math.abs(normalWorld - normalServer) > 1) {
+			throw new AssertionError("smooth pistons: the world should move once per server tick: " + normalWorld + " moves, " + normalServer + " server ticks");
+		}
+		if (context.computeOnClient(client -> client.level.tickRateManager().runsNormally())) {
+			throw new AssertionError("smooth pistons: between ticks the world should wait (drawn sliding)");
+		}
+		context.runOnClient(client -> LabConfig.SMOOTH_PISTONS.value = false);
+		context.waitTicks(3);
+		if (!context.computeOnClient(client -> client.level.tickRateManager().runsNormally())) {
+			throw new AssertionError("smooth pistons off: the world should tick the game's own way");
+		}
+		context.runOnClient(client -> LabConfig.SMOOTH_PISTONS.value = true);
+		context.waitTicks(3);
 		// Fast forward: Right from normal = 2x, 4x (the default fastest), then it stops.
 		for (float want : new float[]{40, 80, 80}) {
 			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT);

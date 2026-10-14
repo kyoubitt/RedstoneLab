@@ -105,6 +105,10 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          hotkeys; key-recording hint no longer covers the tabs
   0.7.1  no mention of other mods in the settings help
   0.7.2  mod icon: kyoubitt's own drawing
+  0.8.0  smooth pistons: with the mod on the server, the client moves its world (pistons, mobs)
+         once per server tick and draws it sliding in between, at normal speed too (setting in
+         GUI). Own code; only the drawing changes, piston logic stays vanilla. All tests pass
+         with Lithium 0.21.4 installed (server and client)
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

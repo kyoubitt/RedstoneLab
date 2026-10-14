@@ -303,6 +303,8 @@ public final class LabConfig {
 
 	public static final Bool SHOW_OUTLINES = new Bool(Tab.GUI, "showOutlines", true,
 			"Outlines, letters and piston previews in the world");
+	public static final Bool SMOOTH_PISTONS = new Bool(Tab.GUI, "smoothPistons", true,
+			"Pistons and mobs move in step with the server's ticks, sliding smoothly (needs RedstoneLab on the server)");
 	public static final Bool PISTON_LANDING = new Bool(Tab.GUI, "pistonLanding", false,
 			"Piston previews: also outline where pushed blocks land (light blue)");
 

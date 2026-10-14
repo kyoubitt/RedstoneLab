@@ -54,6 +54,10 @@ at now it runs again). Stopped = list of what happened that tick, in sub-tick or
 
 ## Pistons
 
+**Smooth pistons**: with the mod on the server, pistons and mobs on your screen move in step with the
+server's ticks and slide smoothly (normal speed and slow motion; settings → GUI → **Smooth pistons**).
+Only the drawing changes: the game's piston logic stays vanilla, so it works with Lithium (tested).
+
 **Right-click a piston with an empty hand** to show what it does next. Again hides it. **P** hides all.
 - `✔ push 3/12`: numbers = move order · `breaks` = destroyed
 - `✖ blocked` (`stuck`) · `✖ too many` (`13th`)
@@ -77,7 +81,7 @@ at now it runs again). Stopped = list of what happened that tick, in sub-tick or
 | R + C | settings (also Mod Menu) |
 
 Settings (**R + C** or Mod Menu) by type: **Timeline** (what it shows), **GUI** (where, how big, outlines,
-piston landing boxes), **Speed** (slowest and fastest speed sliders, sound pitch), **Hotkeys** (click one,
+piston landing boxes, smooth pistons), **Speed** (slowest and fastest speed sliders, sound pitch), **Hotkeys** (click one,
 hold the keys, let go; **Esc** = Unbound).
 
 ## Commands
@@ -96,3 +100,4 @@ Needs op; `/rlab config set permissionLevel 0` lets everyone use it.
   a hopper item sorter), a 2x2 piston door, a 4-bit binary counter and a full adder:
   each runs at the wiki's timings and every meter matches the game every tick.
 - `xvfb-run ./gradlew runClientGameTest`: real client, real keys and clicks.
+- Both also pass with Lithium (0.21.4) installed.
