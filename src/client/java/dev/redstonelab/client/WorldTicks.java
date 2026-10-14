@@ -1,9 +1,10 @@
 package dev.redstonelab.client;
 
 /**
- * Slow motion with RedstoneLab on the server: the server says when it ticked, and the client
- * moves its world (pistons, mobs, items) exactly then, one step per server tick. Without it the
- * client keeps its own count (see the TickRateManager mixin).
+ * RedstoneLab on the server says when it ticked. Every tick, the client's tick clock is nudged to
+ * stay in step with it (smooth pistons). In slow motion the client also moves its world (pistons,
+ * mobs, items) exactly then, one step per server tick. Without it the client keeps its own count
+ * (see the TickRateManager mixin).
  */
 public final class WorldTicks {
 	/** Server ticks announced but not run here yet (a few at most, if packets bunch up). */
@@ -18,11 +19,23 @@ public final class WorldTicks {
 	public static void onServerTick() {
 		pending = Math.min(pending + 1, 4);
 		lastSignal = System.nanoTime();
+		net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+		// Normal speed only (slow motion and steps have their own timing, see the TickRateManager mixin).
+		if (dev.redstonelab.client.ui.LabConfig.SMOOTH_PISTONS.value && mc.level != null
+				&& mc.level.tickRateManager().tickrate() == 20 && !mc.level.tickRateManager().isFrozen()
+				&& mc.getDeltaTracker() instanceof TickClock clock) {
+			clock.redstonelab$alignToServerTick();
+		}
 	}
 
 	/** The server is announcing its ticks (the slowest speed, 1 tick a second, still counts). */
 	public static boolean synced() {
 		return System.nanoTime() - lastSignal < 2_000_000_000L;
+	}
+
+	/** The game froze or unfroze: signals from before don't count (no extra step). */
+	public static void clearPending() {
+		pending = 0;
 	}
 
 	/** Runs one announced tick, if there is one. */

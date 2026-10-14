@@ -17,7 +17,7 @@ import dev.redstonelab.RedstoneLab;
  * (checked with {@code ServerPlayNetworking.canSend}), so vanilla clients never see them.
  */
 public final class LabPayloads {
-	public static final int PROTOCOL = 13;
+	public static final int PROTOCOL = 14;
 
 	/** Client capability: can render the HUD (meter timeline). */
 	public static final int CAP_HUD = 1;

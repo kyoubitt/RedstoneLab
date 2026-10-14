@@ -303,6 +303,9 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		if (!world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
 			throw new AssertionError("Up should freeze the game");
 		}
+		// Frozen a while (longer than the server's tick signals count as recent): the client's world waits.
+		context.waitTicks(50);
+		WORLD_TICKS.set(0);
 		long before = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
 		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
 		context.waitTicks(2);
@@ -315,6 +318,10 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		long after = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
 		if (after - before != 1 || !world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
 			throw new AssertionError("Up on a frozen game should step 1 tick and stay frozen, stepped " + (after - before));
+		}
+		// The client's world steps once too, when the server's step tick is done (its moves are here).
+		if (WORLD_TICKS.get() != 1) {
+			throw new AssertionError("one step: the world on screen should move once, moved " + WORLD_TICKS.get());
 		}
 		context.waitTicks(5);
 		context.takeScreenshot("still-game-frozen");
@@ -393,8 +400,8 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		if (normal != 20) {
 			throw new AssertionError("Down should give full speed, got " + normal);
 		}
-		// Smooth pistons: at normal speed too, the world moves once per server tick and is drawn
-		// sliding in between (held between client ticks). Off in settings = the game's own way.
+		// Smooth pistons: at normal speed the world ticks every client tick like the game, once per
+		// server tick, and the client's tick clock is steered to stay in step with the server.
 		context.waitTicks(10);
 		WORLD_TICKS.set(0);
 		long normalBefore = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
@@ -406,16 +413,38 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		if (Math.abs(normalWorld - normalServer) > 1) {
 			throw new AssertionError("smooth pistons: the world should move once per server tick: " + normalWorld + " moves, " + normalServer + " server ticks");
 		}
-		if (context.computeOnClient(client -> client.level.tickRateManager().runsNormally())) {
-			throw new AssertionError("smooth pistons: between ticks the world should wait (drawn sliding)");
-		}
-		context.runOnClient(client -> LabConfig.SMOOTH_PISTONS.value = false);
-		context.waitTicks(3);
 		if (!context.computeOnClient(client -> client.level.tickRateManager().runsNormally())) {
-			throw new AssertionError("smooth pistons off: the world should tick the game's own way");
+			throw new AssertionError("smooth pistons: at normal speed the world should tick like the game");
 		}
-		context.runOnClient(client -> LabConfig.SMOOTH_PISTONS.value = true);
-		context.waitTicks(3);
+		// The clock steering: a client tick due right after the server's tick is pushed later, one
+		// due long after is pulled earlier (both towards half a tick after the server's).
+		String steer = context.computeOnClient(client -> {
+			try {
+				Object timer = client.getDeltaTracker();
+				java.lang.reflect.Field residual = timer.getClass().getDeclaredField("deltaTickResidual");
+				java.lang.reflect.Field lastMs = timer.getClass().getDeclaredField("lastMs");
+				java.lang.reflect.Field frame = timer.getClass().getDeclaredField("redstonelab$ticksThisFrame");
+				residual.setAccessible(true);
+				lastMs.setAccessible(true);
+				frame.setAccessible(true);
+				float keep = residual.getFloat(timer);
+				frame.setInt(timer, 0);
+				lastMs.setLong(timer, net.minecraft.util.Util.getMillis());
+				residual.setFloat(timer, 0.9f);
+				((dev.redstonelab.client.TickClock) timer).redstonelab$alignToServerTick();
+				float soon = residual.getFloat(timer);
+				residual.setFloat(timer, 0.1f);
+				((dev.redstonelab.client.TickClock) timer).redstonelab$alignToServerTick();
+				float late = residual.getFloat(timer);
+				residual.setFloat(timer, keep);
+				return soon < 0.9f && late > 0.1f ? "" : "soon " + soon + ", late " + late;
+			} catch (ReflectiveOperationException e) {
+				throw new RuntimeException(e);
+			}
+		});
+		if (!steer.isEmpty()) {
+			throw new AssertionError("tick clock steering goes the wrong way: " + steer);
+		}
 		// Fast forward: Right from normal = 2x, 4x (the default fastest), then it stops.
 		for (float want : new float[]{40, 80, 80}) {
 			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT);

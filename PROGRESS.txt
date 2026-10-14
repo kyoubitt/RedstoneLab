@@ -10,13 +10,13 @@ CODE
   feature/    MeterFeature (meters, timeline data, tick list), PistonView + PushPreview (piston
               previews), PistorderFeature (previews for players without the client mod), PistonFires
   display/    MarkerService, FakeDisplays, LabBossBar: what players without the client mod see
-  net/        payloads + handshake (protocol 13); command/, config/, server/, util/
+  net/        payloads + handshake (protocol 14); command/, config/, server/, util/
   client/     ClientNetworking, ClientState, ClientPistons (previews client-side, any server)
   client/ui/  LabConfig (config/redstonelab.json), LabConfigScreen, KeyCombo + LabKeys (combos),
               TimelineHud, WorldMarkers (vanilla gizmos)
 
 TESTS
-  ./gradlew runGameTest                         66 server tests against the real game
+  ./gradlew runGameTest                         68 server tests against the real game
   xvfb-run ./gradlew runClientGameTest          real client: keys, clicks, screenshots
   Accuracy checks that run every time:
   * 8 random circuits, every meter vs the real block every tick (~6000 checks)
@@ -109,6 +109,11 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          once per server tick and draws it sliding in between, at normal speed too (setting in
          GUI). Own code; only the drawing changes, piston logic stays vanilla. All tests pass
          with Lithium 0.21.4 installed (server and client)
+  0.8.1  smooth pistons no longer jittery: at normal speed the world ticks every client tick like
+         the game; the server's tick signal only steers the client's tick clock (DeltaTracker) to
+         half a tick after the server's, a tenth of the error per tick. Tick steps: a frozen
+         client steps on the server's signal (after the step's piston moves arrived), so the
+         move slides instead of waiting and popping. Protocol 14 (older servers: vanilla steps)
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.
