@@ -1145,6 +1145,9 @@ public class RedstoneLabGameTests {
 		if (s.is(Blocks.DROPPER) || s.is(Blocks.DISPENSER)) {
 			return s.getValue(BlockStateProperties.TRIGGERED);
 		}
+		if (level.getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.CommandBlockEntity command) {
+			return command.isPowered();
+		}
 		if (s.is(Blocks.HOPPER)) {
 			return !s.getValue(BlockStateProperties.ENABLED);
 		}

@@ -34,8 +34,6 @@ public final class LabConfig {
 		TIMELINE("Timeline"),
 		/** How things look: the timeline's place and size, outlines in the world. */
 		GUI("GUI"),
-		/** How slow and how fast the game speed keys go. */
-		SPEED("Speed"),
 		HOTKEYS("Hotkeys");
 
 		public final String title;
@@ -205,52 +203,6 @@ public final class LabConfig {
 		}
 	}
 
-	/** One of a few fixed values, picked with a slider (saved as the value). */
-	public static final class Steps extends Option {
-		public final float[] values;
-		public final String[] labels;
-		public final int def;
-		public int index;
-
-		Steps(Tab tab, String name, float[] values, String[] labels, int def, String help) {
-			super(tab, name, help);
-			this.values = values;
-			this.labels = labels;
-			this.def = this.index = def;
-		}
-
-		public float value() {
-			return this.values[this.index];
-		}
-
-		public String label() {
-			return this.labels[this.index];
-		}
-
-		JsonElement write() {
-			return new JsonPrimitive(this.value());
-		}
-
-		void read(JsonElement json) {
-			float v = json.getAsFloat();
-			int best = 0;
-			for (int i = 1; i < this.values.length; i++) {
-				if (Math.abs(this.values[i] - v) < Math.abs(this.values[best] - v)) {
-					best = i;
-				}
-			}
-			this.index = best;
-		}
-
-		public void reset() {
-			this.index = this.def;
-		}
-
-		public boolean isDefault() {
-			return this.index == this.def;
-		}
-	}
-
 	public static final class Hotkey extends Option {
 		public final KeyCombo def;
 		public KeyCombo value;
@@ -303,17 +255,8 @@ public final class LabConfig {
 
 	public static final Bool SHOW_OUTLINES = new Bool(Tab.GUI, "showOutlines", true,
 			"Outlines, letters and piston previews in the world");
-	public static final Bool SMOOTH_PISTONS = new Bool(Tab.GUI, "smoothPistons", true,
-			"Keeps your client's ticks in step with the server's, so pistons and mobs move evenly (needs RedstoneLab on the server)");
 	public static final Bool PISTON_LANDING = new Bool(Tab.GUI, "pistonLanding", false,
 			"Piston previews: also outline where pushed blocks land (light blue)");
-
-	public static final Steps SLOWEST = new Steps(Tab.SPEED, "slowestSpeed", new float[]{10, 5, 2, 1},
-			new String[]{"1/2", "1/4", "1/10", "1/20"}, 3, "Slow motion: the slowest the Left key goes");
-	public static final Steps FASTEST = new Steps(Tab.SPEED, "fastestSpeed", new float[]{20, 40, 80, 200},
-			new String[]{"Normal", "2x", "4x", "10x"}, 2, "Fast forward: the fastest the Right key goes (Normal = none)");
-	public static final Bool SOUND_PITCH = new Bool(Tab.SPEED, "soundPitch", true,
-			"Sounds of the world play lower in slow motion, higher in fast forward");
 
 	/** Not in the menu: the one-time hint on the first join was shown. */
 	public static final Bool INTRO_SHOWN = new Bool(null, "introShown", false, "");
@@ -324,12 +267,6 @@ public final class LabConfig {
 	public static final Hotkey CLEAR_METERS = new Hotkey("clearMeters", "R,M", false, "Remove all meters");
 	public static final Hotkey REWIND = new Hotkey("rewind", "R,BACKSPACE", true, "Timeline 1 tick back (it stops there). Hold to repeat");
 	public static final Hotkey FORWARD = new Hotkey("forward", "R,ENTER", true, "Timeline 1 tick forward. Back at now it runs again");
-	public static final Hotkey FREEZE_GAME = new Hotkey("gameFreeze", "UP", true,
-			"Freeze the game (creative, op). Frozen: step 1 tick, hold to repeat");
-	public static final Hotkey RUN_GAME = new Hotkey("gameRun", "DOWN", false, "Back to normal: unfreeze, normal speed");
-	public static final Hotkey SLOWER = new Hotkey("gameSlower", "LEFT", false,
-			"Slower: 1/2, 1/4, 1/10, 1/20 speed (creative, op; limit in the Speed tab)");
-	public static final Hotkey FASTER = new Hotkey("gameFaster", "RIGHT", false, "Faster: back to normal, then 2x, 4x, 10x (limit in the Speed tab)");
 	public static final Hotkey CLEAR_PISTONS = new Hotkey("clearPistons", "P", false, "Hide piston previews");
 	public static final Hotkey GROUPS = new Hotkey("meterGroups", "R,G", false, "Meter groups (click one to switch)");
 	public static final Hotkey OPEN_SETTINGS = new Hotkey("openSettings", "R,C", false, "This menu");

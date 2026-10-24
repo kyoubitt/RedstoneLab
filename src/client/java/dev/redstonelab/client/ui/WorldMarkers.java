@@ -32,8 +32,8 @@ public final class WorldMarkers {
 	private static boolean drawnBefore;
 
 	/**
-	 * The game shows this tick's list only while the world runs normally; frozen or in slow
-	 * motion it would keep showing old outlines (even removed meters). While we draw, it always
+	 * The game shows this tick's list only while the world runs normally; frozen (/tick freeze)
+	 * it would keep showing old outlines (even removed meters). While we draw, it always
 	 * shows the newest list (see the Minecraft mixin).
 	 */
 	public static boolean needsRefresh() {

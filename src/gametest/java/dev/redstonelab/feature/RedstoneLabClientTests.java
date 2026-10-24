@@ -41,16 +41,6 @@ import dev.redstonelab.client.ui.LabKeys;
  */
 public class RedstoneLabClientTests implements FabricClientGameTest {
 	private final List<String> captions = new ArrayList<>();
-	/** Client ticks in which the world on screen moved (counted while the tick runs). */
-	private static final java.util.concurrent.atomic.AtomicInteger WORLD_TICKS = new java.util.concurrent.atomic.AtomicInteger();
-
-	static {
-		net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_WORLD_TICK.register(level -> {
-			if (level.tickRateManager().runsNormally()) {
-				WORLD_TICKS.incrementAndGet();
-			}
-		});
-	}
 	/** Where the player spawned; the build is in front of it. */
 	private static BlockPos base;
 
@@ -178,11 +168,8 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			context.clickScreenButton("GUI");
 			context.waitTick();
 			context.takeScreenshot("still-settings-gui");
-			context.clickScreenButton("Speed");
-			context.waitTick();
-			context.takeScreenshot("still-settings-speed");
 			context.clickScreenButton("Hotkeys");
-			this.record(context, 40, "Hotkeys: click one, press the keys (e.g. hold R, press Left)");
+			this.record(context, 40, "Hotkeys: click one, press the keys (e.g. hold R, press Backspace)");
 			context.takeScreenshot("still-hotkeys");
 			// Click a hotkey, press Esc: it gets unbound (like vanilla controls) and the menu stays open.
 			context.clickScreenButton("R + M");
@@ -199,7 +186,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			});
 			context.setScreen(() -> null);
 			context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = true);
-			this.freezeAndStep(context, world);
+			this.rewindKeys(context, world);
 			this.pistonGuideShot(context, world);
 			this.firingOrder(context, world);
 			this.clientPreviewsMatchServer(context, world);
@@ -241,9 +228,9 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		}
 		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_M);
 		context.waitTicks(5);
-		// Frozen game: the outlines must still go away with the meters (they used to stay drawn).
+		// Frozen game (/tick freeze): the outlines must still go away with the meters (they used to stay drawn).
 		context.runOnClient(client -> ClientPistons.clear());
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
+		world.getServer().runOnServer(server -> server.tickRateManager().setFrozen(true));
 		context.waitTicks(5);
 		if (context.computeOnClient(client -> client.getPerTickGizmos().isEmpty())) {
 			throw new AssertionError("frozen with a meter: its outline should be drawn");
@@ -259,7 +246,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			throw new AssertionError("frozen, meters removed: the outlines should be gone, still drawn: "
 					+ context.computeOnClient(client -> client.getPerTickGizmos().size()));
 		}
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
+		world.getServer().runOnServer(server -> server.tickRateManager().setFrozen(false));
 		context.waitTicks(5);
 	}
 
@@ -290,217 +277,31 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 	}
 
 	/**
-	 * Up freezes the real game (/tick), Up again steps exactly 1 tick, Down runs it again. The
-	 * first Up is pressed while Ctrl (sprint) is held: other held keys must not block hotkeys.
+	 * The timeline rewind keys: R + Backspace stops the timeline one tick back, R + Enter goes forward
+	 * and back at now it runs again. A held Ctrl (sprint) must not block hotkeys.
 	 */
-	private void freezeAndStep(ClientGameTestContext context, TestSingleplayerContext world) {
+	private void rewindKeys(ClientGameTestContext context, TestSingleplayerContext world) {
 		context.runOnClient(client -> LabKeys.setPaused(false));
 		context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL);
 		context.waitTicks(1);
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
+		context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE);
+		context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
 		context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL);
-		context.waitTicks(5);
-		if (!world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
-			throw new AssertionError("Up should freeze the game");
-		}
-		// Frozen a while (longer than the server's tick signals count as recent): the client's world waits.
-		context.waitTicks(50);
-		WORLD_TICKS.set(0);
-		long before = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
-		context.waitTicks(2);
-		// The step slides into place (the game itself would draw it at the end at once: 1.0).
-		float stepPartial = context.computeOnClient(client -> client.getDeltaTracker().getGameTimeDeltaPartialTick(false));
-		if (stepPartial >= 1) {
-			throw new AssertionError("a tick step should slide into place, not pop: " + stepPartial);
-		}
 		context.waitTicks(3);
-		long after = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
-		if (after - before != 1 || !world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
-			throw new AssertionError("Up on a frozen game should step 1 tick and stay frozen, stepped " + (after - before));
+		if (!context.computeOnClient(client -> LabKeys.paused)) {
+			throw new AssertionError("R + Backspace (Ctrl held) should stop the timeline");
 		}
-		// The client's world steps once too, when the server's step tick is done (its moves are here).
-		if (WORLD_TICKS.get() != 1) {
-			throw new AssertionError("one step: the world on screen should move once, moved " + WORLD_TICKS.get());
-		}
-		context.waitTicks(5);
-		context.takeScreenshot("still-game-frozen");
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
-		context.waitTicks(5);
 		if (world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
-			throw new AssertionError("Down should run the game");
+			throw new AssertionError("stopping the timeline must not freeze the game");
 		}
-		// Slow motion: Left twice = 1/4 speed (5 tps), Right = 1/2 (10 tps), Down = full speed.
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
+		context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
+		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER);
+		context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
 		context.waitTicks(3);
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
-		context.waitTicks(3);
-		float slow = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate());
-		if (slow != 5) {
-			throw new AssertionError("Left twice should give 5 tps, got " + slow);
+		if (context.computeOnClient(client -> LabKeys.paused)) {
+			throw new AssertionError("R + Enter back at now should run the timeline again");
 		}
-		// The player isn't slowed: the client still ticks every 50 ms. The world on screen
-		// (pistons, mobs, items) moves every 4th client tick, like the game.
-		float clientMillis = context.computeOnClient(client -> {
-			try {
-				java.lang.reflect.Method m = net.minecraft.client.Minecraft.class.getDeclaredMethod("getTickTargetMillis", float.class);
-				m.setAccessible(true);
-				return (Float) m.invoke(client, 50f);
-			} catch (ReflectiveOperationException e) {
-				throw new RuntimeException(e);
-			}
-		});
-		if (clientMillis != 50) {
-			throw new AssertionError("slow motion should not slow the client (the player): tick " + clientMillis + " ms");
-		}
-		// World ticks are counted while the client tick runs (between ticks the world waits).
-		// With RedstoneLab on the server the world moves exactly when the server ticks.
-		WORLD_TICKS.set(0);
-		long serverBefore = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
-		java.util.List<Float> partials = new java.util.ArrayList<>();
-		for (int i = 0; i < 40; i++) {
-			int movesBefore = WORLD_TICKS.get();
-			context.waitTick();
-			if (context.computeOnClient(client -> client.level.tickRateManager().isEntityFrozen(client.player))) {
-				throw new AssertionError("the player must never be held in slow motion");
-			}
-			// Right after the world moved it must be sliding (waiting for the next server tick it rests at 1).
-			if (WORLD_TICKS.get() > movesBefore) {
-				partials.add(context.computeOnClient(client -> client.getDeltaTracker().getGameTimeDeltaPartialTick(false)));
-			}
-		}
-		int worldTicks = WORLD_TICKS.get();
-		long serverTicks = world.getServer().computeOnServer(server -> server.overworld().getGameTime()) - serverBefore;
-		if (Math.abs(worldTicks - serverTicks) > 1) {
-			throw new AssertionError("the world on screen should move once per server tick: " + worldTicks + " moves, " + serverTicks + " server ticks");
-		}
-		// Between its ticks the world slides (part way from one tick to the next), it isn't held
-		// at the end of the tick (1.0, how the game draws a frozen world).
-		float sum = 0;
-		for (float f : partials) {
-			if (f < 0 || f > 1) {
-				throw new AssertionError("world timing out of range: " + partials);
-			}
-			sum += f;
-		}
-		if (!partials.isEmpty() && sum / partials.size() > 0.9f) {
-			throw new AssertionError("the slow world should slide between its ticks, not jump: " + partials);
-		}
-		context.waitTicks(10);
-		context.takeScreenshot("still-slow-motion");
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT);
-		context.waitTicks(3);
-		float faster = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate());
-		if (faster != 10) {
-			throw new AssertionError("Right should give 10 tps, got " + faster);
-		}
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
-		context.waitTicks(3);
-		float normal = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate());
-		if (normal != 20) {
-			throw new AssertionError("Down should give full speed, got " + normal);
-		}
-		// Smooth pistons: at normal speed the world ticks every client tick like the game, once per
-		// server tick, and the client's tick clock is steered to stay in step with the server.
-		context.waitTicks(10);
-		WORLD_TICKS.set(0);
-		long normalBefore = world.getServer().computeOnServer(server -> server.overworld().getGameTime());
-		for (int i = 0; i < 40; i++) {
-			context.waitTick();
-		}
-		int normalWorld = WORLD_TICKS.get();
-		long normalServer = world.getServer().computeOnServer(server -> server.overworld().getGameTime()) - normalBefore;
-		if (Math.abs(normalWorld - normalServer) > 1) {
-			throw new AssertionError("smooth pistons: the world should move once per server tick: " + normalWorld + " moves, " + normalServer + " server ticks");
-		}
-		if (!context.computeOnClient(client -> client.level.tickRateManager().runsNormally())) {
-			throw new AssertionError("smooth pistons: at normal speed the world should tick like the game");
-		}
-		// The clock steering: a client tick due right after the server's tick is pushed later, one
-		// due long after is pulled earlier (both towards half a tick after the server's).
-		String steer = context.computeOnClient(client -> {
-			try {
-				Object timer = client.getDeltaTracker();
-				java.lang.reflect.Field residual = timer.getClass().getDeclaredField("deltaTickResidual");
-				java.lang.reflect.Field lastMs = timer.getClass().getDeclaredField("lastMs");
-				java.lang.reflect.Field frame = timer.getClass().getDeclaredField("redstonelab$ticksThisFrame");
-				residual.setAccessible(true);
-				lastMs.setAccessible(true);
-				frame.setAccessible(true);
-				float keep = residual.getFloat(timer);
-				frame.setInt(timer, 0);
-				lastMs.setLong(timer, net.minecraft.util.Util.getMillis());
-				residual.setFloat(timer, 0.9f);
-				((dev.redstonelab.client.TickClock) timer).redstonelab$alignToServerTick();
-				float soon = residual.getFloat(timer);
-				residual.setFloat(timer, 0.1f);
-				((dev.redstonelab.client.TickClock) timer).redstonelab$alignToServerTick();
-				float late = residual.getFloat(timer);
-				residual.setFloat(timer, keep);
-				return soon < 0.9f && late > 0.1f ? "" : "soon " + soon + ", late " + late;
-			} catch (ReflectiveOperationException e) {
-				throw new RuntimeException(e);
-			}
-		});
-		if (!steer.isEmpty()) {
-			throw new AssertionError("tick clock steering goes the wrong way: " + steer);
-		}
-		// Fast forward: Right from normal = 2x, 4x (the default fastest), then it stops.
-		for (float want : new float[]{40, 80, 80}) {
-			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT);
-			context.waitTicks(3);
-			float got = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate());
-			if (got != want) {
-				throw new AssertionError("Right from normal: expected " + want + " tps, got " + got);
-			}
-		}
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
-		context.waitTicks(3);
-		if (world.getServer().computeOnServer(server -> server.tickRateManager().tickrate()) != 20) {
-			throw new AssertionError("Down should bring fast forward back to normal");
-		}
-		// The Speed tab's limits: fastest Normal = no fast forward, slowest 1/2 = Left stops at 10 tps.
-		context.runOnClient(client -> {
-			LabConfig.FASTEST.index = 0;
-			LabConfig.SLOWEST.index = 0;
-		});
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT);
-		context.waitTicks(3);
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
-		context.waitTicks(3);
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
-		context.waitTicks(3);
-		float limited = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate());
-		if (limited != 10) {
-			throw new AssertionError("with fastest Normal and slowest 1/2: Right, Left, Left should end at 10 tps, got " + limited);
-		}
-		context.runOnClient(client -> {
-			LabConfig.FASTEST.reset();
-			LabConfig.SLOWEST.reset();
-			LabConfig.save();
-		});
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
-		context.waitTicks(3);
-		// Creative only: in survival the speed keys do nothing, Down still works.
-		world.getServer().runOnServer(server -> player(server).setGameMode(GameType.SURVIVAL));
-		context.waitTicks(5);
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT);
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_UP);
-		context.waitTicks(3);
-		boolean untouched = world.getServer().computeOnServer(server -> server.tickRateManager().tickrate() == 20
-				&& !server.tickRateManager().isFrozen());
-		if (!untouched) {
-			throw new AssertionError("in survival the game speed keys should do nothing");
-		}
-		world.getServer().runOnServer(server -> server.tickRateManager().setTickRate(10));
-		context.waitTicks(3);
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN);
-		context.waitTicks(3);
-		if (world.getServer().computeOnServer(server -> server.tickRateManager().tickrate()) != 20) {
-			throw new AssertionError("Down should bring back full speed in any game mode");
-		}
-		world.getServer().runOnServer(server -> player(server).setGameMode(GameType.CREATIVE));
-		context.waitTicks(5);
 	}
 
 	/** Three still pistons for the guide: pushes 4 (slime), blocked (obsidian), too many. */

@@ -112,7 +112,7 @@ public class FeatureTests {
 		run(player, "rlab piston landing false");
 		List<String> help = run(player, "rlab help");
 		String all = String.join("\n", help);
-		helper.assertTrue(all.contains("M on a block") && all.contains("empty hand") && all.contains("slow motion"), "help: " + all);
+		helper.assertTrue(all.contains("M on a block") && all.contains("empty hand") && all.contains("R + C settings"), "help: " + all);
 		helper.succeed();
 	}
 

@@ -38,13 +38,6 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
   (dust power: texture packs show it on the dust)
 - Meters follow blocks moved by pistons.
 
-**Game speed** (creative and op):
-- **Up** freezes the game; Up again steps 1 tick (`Tick step 1`, `2`…, hold to repeat). Each step slides into place.
-- **Left / Right**: slower / faster: 1/20 · 1/10 · 1/4 · 1/2 · normal · 2x · 4x (limits: settings → **Speed**, up to 10x).
-  Only the world slows down: you move normally, pistons and mobs glide, in step with the server's ticks.
-  Sounds of the world play lower / higher to match (settings → Speed → **Sound pitch**).
-- **Down**: normal again (works in any game mode).
-
 **R + Backspace / Enter**: only the timeline goes 1 tick back / forward; the game keeps running (title `[3t back]`,
 at now it runs again). Stopped = list of what happened that tick, in sub-tick order. Block / shape updates:
 **Show event marks**.
@@ -53,10 +46,6 @@ at now it runs again). Stopped = list of what happened that tick, in sub-tick or
 `/rlab group <name>` (**R + G** lists)
 
 ## Pistons
-
-**Smooth pistons**: with the mod on the server, pistons and mobs on your screen move in step with the
-server's ticks and slide smoothly (normal speed and slow motion; settings → GUI → **Smooth pistons**).
-Only the drawing changes: the game's piston logic stays vanilla, so it works with Lithium (tested).
 
 **Right-click a piston with an empty hand** to show what it does next. Again hides it. **P** hides all.
 - `✔ push 3/12`: numbers = move order · `breaks` = destroyed
@@ -72,16 +61,13 @@ Only the drawing changes: the game's piston logic stays vanilla, so it works wit
 |---|---|
 | M | meter on / off |
 | R + M | remove all |
-| Up | freeze the game; frozen: step 1 tick (creative, op) |
-| Down | normal: unfreeze, normal speed |
-| Left / Right | slower / faster: slow motion and fast forward (creative, op) |
 | R + Backspace / Enter | timeline only: 1 tick back / forward |
 | P | hide piston previews |
 | R + G | meter groups |
 | R + C | settings (also Mod Menu) |
 
 Settings (**R + C** or Mod Menu) by type: **Timeline** (what it shows), **GUI** (where, how big, outlines,
-piston landing boxes, smooth pistons), **Speed** (slowest and fastest speed sliders, sound pitch), **Hotkeys** (click one,
+piston landing boxes), **Hotkeys** (click one,
 hold the keys, let go; **Esc** = Unbound).
 
 ## Commands
@@ -92,7 +78,7 @@ Needs op; `/rlab config set permissionLevel 0` lets everyone use it.
 ## Build
 
 `./gradlew build` (JDK 25; the mod runs on Java 21). Jar in `build/libs/`.
-- `./gradlew runGameTest`: 68 tests that check the mod against the real game, every command
+- `./gradlew runGameTest`: 69 tests that check the mod against the real game, every command
   and the Meter Tool, groups saved / shared / reloaded, limits and permissions, and: clocks, pistons, QC,
   comparators, hoppers, sub-tick order, random circuits and piston builds, and 18 circuits built
   from the Minecraft Wiki's own schematics (hopper clocks, Etho hopper clock, subtraction clocks,

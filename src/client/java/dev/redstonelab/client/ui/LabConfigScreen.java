@@ -7,7 +7,6 @@ import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
@@ -18,7 +17,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 /**
- * The settings menu (R + C, or Mod Menu). Tabs by type: Timeline, GUI, Speed, Hotkeys. Every change is
+ * The settings menu (R + C, or Mod Menu). Tabs by type: Timeline, GUI, Hotkeys. Every change is
  * saved right away. Hotkeys: click one, press the keys (e.g. hold R, press Enter), let go; Esc unbinds.
  */
 public class LabConfigScreen extends Screen {
@@ -76,8 +75,7 @@ public class LabConfigScreen extends Screen {
 				this.rebuildWidgets();
 			}).bounds(controlX + controlW + 4, y, 46, 20).build();
 			reset.active = !option.isDefault();
-			AbstractWidget control = option instanceof LabConfig.Steps steps
-					? this.slider(steps, controlX, y, controlW, reset) : this.control(option, controlX, y, controlW);
+			AbstractWidget control = this.control(option, controlX, y, controlW);
 			control.setTooltip(Tooltip.create(Component.literal(option.help)));
 			this.addRenderableWidget(control);
 			this.addRenderableWidget(reset);
@@ -137,25 +135,6 @@ public class LabConfigScreen extends Screen {
 			});
 		}
 		return box;
-	}
-
-	/** A slider that snaps to the option's steps; saves as it moves (no rebuild while dragging). */
-	private AbstractWidget slider(LabConfig.Steps steps, int x, int y, int w, Button reset) {
-		int last = steps.values.length - 1;
-		return new AbstractSliderButton(x, y, w, 20, Component.literal(steps.label()), (double) steps.index / last) {
-			@Override
-			protected void updateMessage() {
-				this.setMessage(Component.literal(steps.label()));
-			}
-
-			@Override
-			protected void applyValue() {
-				steps.index = (int) Math.round(this.value * last);
-				this.value = (double) steps.index / last;
-				reset.active = !steps.isDefault();
-				LabConfig.save();
-			}
-		};
 	}
 
 	/** "showTimeline" -> "Show timeline". */

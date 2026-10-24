@@ -330,4 +330,57 @@ public class ComplexCircuitTests {
 			helper.succeed();
 		});
 	}
+
+	/**
+	 * Pulse lengths the way a pulse-length monitor counts them: a pulse is the run of ticks a block
+	 * is active (piston extended, dropper triggered, hopper locked, lamp lit, dust powered, command
+	 * block powered). Each block gets pulses of 3, 5 and 7 ticks; every meter's on / off per tick
+	 * and its pulse lengths must be exactly what the block did.
+	 */
+	@GameTest(maxTicks = 70)
+	public void pulseLengthsForEveryActiveRule(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		floor(helper);
+		BlockPos[] blocks = new BlockPos[6];
+		for (int i = 0; i < blocks.length; i++) {
+			blocks[i] = new BlockPos(1 + i, 1, 4);
+		}
+		helper.setBlock(blocks[0], facing(Blocks.PISTON, Direction.UP));
+		helper.setBlock(blocks[1], facing(Blocks.DROPPER, Direction.UP));
+		helper.setBlock(blocks[2], Blocks.HOPPER);
+		helper.setBlock(blocks[3], Blocks.REDSTONE_LAMP);
+		helper.setBlock(blocks[4], Blocks.REDSTONE_WIRE);
+		helper.setBlock(blocks[5], Blocks.COMMAND_BLOCK);
+		meter(helper, player, blocks);
+		TestScript script = new TestScript();
+		int t = 5;
+		for (int length : new int[]{3, 5, 7}) {
+			int on = t;
+			int off = t + length;
+			script.at(on, () -> {
+				for (BlockPos b : blocks) {
+					helper.setBlock(b.north(), Blocks.REDSTONE_BLOCK);
+				}
+			});
+			script.at(off, () -> {
+				for (BlockPos b : blocks) {
+					helper.setBlock(b.north(), Blocks.AIR);
+				}
+			});
+			t = off + 9;
+		}
+		CircuitTruth truth = new CircuitTruth(level, player);
+		script.every(truth::sample);
+		script.run(helper, 2, 62, () -> {
+			String diff = truth.compare(false);
+			helper.assertTrue(diff.isEmpty(), "pulse lengths: " + diff);
+			String piston = MeterFeature.pulsesForTest(player, "A");
+			helper.assertTrue(piston.startsWith("on "), "piston pulses: '" + piston + "'");
+			String command = MeterFeature.pulsesForTest(player, "F");
+			helper.assertTrue(command.startsWith("on 3-7t"), "command block pulses: '" + command + "'");
+			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
 }

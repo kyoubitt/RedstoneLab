@@ -89,16 +89,6 @@ public final class LabServer {
 	private static void tick(MinecraftServer s) {
 		MeterFeature.tick(s);
 		PistorderFeature.tick(s);
-		// Tell modded clients each tick, so their pistons and mobs move in step with the game
-		// (normal speed, slow motion and single steps; in fast forward a client can't tick as often).
-		net.minecraft.server.ServerTickRateManager rate = s.tickRateManager();
-		if (rate.runsNormally() && !rate.isSprinting() && (rate.tickrate() <= 20 || rate.isFrozen())) {
-			for (net.minecraft.server.level.ServerPlayer player : s.getPlayerList().getPlayers()) {
-				if (Sessions.get(player).modded) {
-					net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, dev.redstonelab.net.LabPayloads.WorldTickS2C.INSTANCE);
-				}
-			}
-		}
 		if (s.getTickCount() % 20 == 0) {
 			MarkerService.tick(s.getPlayerList().getPlayers());
 		}

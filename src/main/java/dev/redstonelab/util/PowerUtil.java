@@ -137,6 +137,9 @@ public final class PowerUtil {
 			// Hoppers: on = locked by redstone.
 			active = !state.getValue(BlockStateProperties.ENABLED);
 			powered = level.hasNeighborSignal(pos);
+		} else if (level.getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.CommandBlockEntity command) {
+			// Command blocks: on = powered (they have no blockstate for it).
+			active = powered = command.isPowered();
 		} else if (state.hasBlockEntity() && level.getBlockEntity(pos) instanceof Container) {
 			// Chests, barrels...: on = a comparator reading it gives a signal.
 			active = power > 0;

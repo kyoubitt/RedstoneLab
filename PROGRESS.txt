@@ -10,13 +10,13 @@ CODE
   feature/    MeterFeature (meters, timeline data, tick list), PistonView + PushPreview (piston
               previews), PistorderFeature (previews for players without the client mod), PistonFires
   display/    MarkerService, FakeDisplays, LabBossBar: what players without the client mod see
-  net/        payloads + handshake (protocol 14); command/, config/, server/, util/
+  net/        payloads + handshake (protocol 15); command/, config/, server/, util/
   client/     ClientNetworking, ClientState, ClientPistons (previews client-side, any server)
   client/ui/  LabConfig (config/redstonelab.json), LabConfigScreen, KeyCombo + LabKeys (combos),
               TimelineHud, WorldMarkers (vanilla gizmos)
 
 TESTS
-  ./gradlew runGameTest                         68 server tests against the real game
+  ./gradlew runGameTest                         69 server tests against the real game
   xvfb-run ./gradlew runClientGameTest          real client: keys, clicks, screenshots
   Accuracy checks that run every time:
   * 8 random circuits, every meter vs the real block every tick (~6000 checks)
@@ -40,7 +40,7 @@ TESTS
     Note: the wiki's "simple 4gt piston clock" runs 6gt as built here in 1.21.11.
   * hopper item sorter (wiki, 2 filters tiled: diamonds, iron; 41 + 4 sticks, "3 at 46")
     and a 2x2 sticky piston door (doorway really opens / closes, previews, meters)
-  * client: slow motion keys (Left x2 = 5 tps, Right = 10, Down = 20)
+  * client: timeline rewind keys (R + Backspace / Enter)
   * FeatureTests: every /rlab command through the real command tree (meter add / remove /
     name / expect / clear, tool, piston landing, help, config set + bad value, group switch /
     delete / share), Meter Tool clicks, groups saved and reloaded on join, meter limit,
@@ -114,6 +114,12 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          half a tick after the server's, a tenth of the error per tick. Tick steps: a frozen
          client steps on the server's signal (after the step's piston moves arrived), so the
          move slides instead of waiting and popping. Protocol 14 (older servers: vanilla steps)
+
+  0.9.0  back to meters and piston previews: game speed keys (freeze, step, slow motion, fast
+         forward), smooth pistons, Speed tab and sound pitch removed, with the client tick-clock
+         mixins and the WorldTick packet (protocol 15). Pulse rules checked against a pulse-length
+         monitor script: command blocks now count as active when powered; new test covers
+         piston, dropper, hopper, lamp, dust and command block pulse lengths
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

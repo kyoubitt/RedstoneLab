@@ -17,7 +17,7 @@ import dev.redstonelab.RedstoneLab;
  * (checked with {@code ServerPlayNetworking.canSend}), so vanilla clients never see them.
  */
 public final class LabPayloads {
-	public static final int PROTOCOL = 14;
+	public static final int PROTOCOL = 15;
 
 	/** Client capability: can render the HUD (meter timeline). */
 	public static final int CAP_HUD = 1;
@@ -42,7 +42,6 @@ public final class LabPayloads {
 		PayloadTypeRegistry.playS2C().register(ScopeSampleS2C.TYPE, ScopeSampleS2C.CODEC);
 		PayloadTypeRegistry.playC2S().register(PistonWatchC2S.TYPE, PistonWatchC2S.CODEC);
 		PayloadTypeRegistry.playS2C().register(PistonFireS2C.TYPE, PistonFireS2C.CODEC);
-		PayloadTypeRegistry.playS2C().register(WorldTickS2C.TYPE, WorldTickS2C.CODEC);
 	}
 
 	private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> payloadType(String path) {
@@ -319,22 +318,6 @@ public final class LabPayloads {
 			buf.writeVarLong(this.time);
 			buf.writeVarLong(this.seq);
 		}
-
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
-		}
-	}
-
-	/**
-	 * The server finished a tick (normal speed or slow motion). The client moves its world
-	 * (pistons, mobs) exactly then, so animations line up with the game instead of guessing when
-	 * its ticks come: smooth pistons.
-	 */
-	public record WorldTickS2C() implements CustomPacketPayload {
-		public static final WorldTickS2C INSTANCE = new WorldTickS2C();
-		public static final Type<WorldTickS2C> TYPE = payloadType("world_tick");
-		public static final StreamCodec<FriendlyByteBuf, WorldTickS2C> CODEC = StreamCodec.unit(INSTANCE);
 
 		@Override
 		public Type<? extends CustomPacketPayload> type() {

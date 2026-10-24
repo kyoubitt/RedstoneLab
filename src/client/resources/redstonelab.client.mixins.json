@@ -3,12 +3,9 @@
 	"package": "dev.redstonelab.client.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"DeltaTrackerTimerMixin",
 		"KeyboardHandlerMixin",
 		"MinecraftTickMixin",
-		"PistonBaseBlockClientMixin",
-		"SoundEngineMixin",
-		"TickRateManagerClientMixin"
+		"PistonBaseBlockClientMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

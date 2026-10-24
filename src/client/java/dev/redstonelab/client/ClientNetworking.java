@@ -24,7 +24,6 @@ public final class ClientNetworking {
 				dev.redstonelab.client.ui.LabConfig.save();
 				client.execute(() -> client.gui.getChat().addMessage(net.minecraft.network.chat.Component.literal(
 						"RedstoneLab: M = meter · right-click a piston = preview · "
-								+ "Up = freeze · Left / Right = slow motion · "
 								+ dev.redstonelab.client.ui.LabConfig.OPEN_SETTINGS.value.display() + " = settings")
 						.withStyle(net.minecraft.ChatFormatting.GOLD)));
 			}
@@ -35,7 +34,6 @@ public final class ClientNetworking {
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			ClientState.reset();
-			WorldTicks.reset();
 		});
 
 		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.HelloS2C.TYPE, (payload, context) -> {
@@ -58,7 +56,6 @@ public final class ClientNetworking {
 		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.PistonFireS2C.TYPE,
 				(payload, context) -> ClientPistons.onServerExtend(payload.pos(), payload.time(), payload.seq()));
 		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.ScopeConfigS2C.TYPE, (payload, context) -> ClientState.applyScopeConfig(payload));
-		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.WorldTickS2C.TYPE, (payload, context) -> WorldTicks.onServerTick());
 		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.ScopeSampleS2C.TYPE, (payload, context) -> {
 			if (!dev.redstonelab.client.ui.LabKeys.paused) {
 				ClientState.addSample(payload);

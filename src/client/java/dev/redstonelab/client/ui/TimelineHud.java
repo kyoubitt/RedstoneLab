@@ -64,10 +64,9 @@ public final class TimelineHud {
 		boolean paused = LabKeys.paused;
 		int scroll = paused ? LabKeys.scroll : 0;
 		String name = "default".equals(ClientState.group) ? "Meters" : "Meters: " + ClientState.group;
-		String speed = LabKeys.speedLabel();
 		// Stopped = only the timeline (R + Backspace), the game keeps running.
 		String title = paused ? name + (scroll > 0 ? " [" + scroll + "t back]" : " [stopped]")
-				: LabKeys.gameFrozen() ? name + " [game frozen]" : speed.isEmpty() ? name : name + " [" + speed + "]";
+				: name;
 
 		String key = ClientState.layoutVersion + "," + visible + "," + marks + showTitle + showInfo + showLegend;
 		if (!key.equals(this.layoutKey)) {
@@ -137,8 +136,8 @@ public final class TimelineHud {
 		// Smooth scrolling: between two samples everything slides left by up to one column.
 		float shift = 0;
 		if (!paused) {
-			// One tick is 50 ms at full speed, longer in slow motion.
-			float sinceSample = (System.nanoTime() - ClientState.lastSampleNanos) / (1_000_000_000f / Math.max(1f, LabKeys.tickRate()));
+			// One tick is 50 ms (longer if someone slowed the game with /tick rate).
+			float sinceSample = (System.nanoTime() - ClientState.lastSampleNanos) / (1_000_000_000f / Math.max(1f, Minecraft.getInstance().level == null ? 20 : Minecraft.getInstance().level.tickRateManager().tickrate()));
 			shift = Math.max(0, Math.min(1, sinceSample)) * PX;
 		}
 
