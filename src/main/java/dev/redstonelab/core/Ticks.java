@@ -1,5 +1,7 @@
 package dev.redstonelab.core;
 
+import java.util.List;
+
 /**
  * Number formatting for tick values.
  */
@@ -8,7 +10,7 @@ public final class Ticks {
 	}
 
 	/** "6t" when it's always the same, "2-3t" when it varies (shortest-longest). */
-	public static String lengths(java.util.List<Long> values) {
+	public static String lengths(List<Long> values) {
 		if (values.isEmpty()) {
 			return "";
 		}

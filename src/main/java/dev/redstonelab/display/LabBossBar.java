@@ -7,11 +7,7 @@ import net.minecraft.network.protocol.game.ClientboundBossEventPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.BossEvent;
 
-/**
- * A boss bar that exists only as packets for one player (vanilla fallback for the
- * oscilloscope / pulse meter summary). Nothing is registered on the server, so nothing can
- * be left behind.
- */
+/** A boss bar that only exists as packets for one player (fallback for vanilla clients). */
 public final class LabBossBar extends BossEvent {
 	private boolean shown;
 	private Component lastName = Component.empty();

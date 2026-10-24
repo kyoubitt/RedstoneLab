@@ -26,10 +26,7 @@ import dev.redstonelab.net.LabPayloads;
 import dev.redstonelab.net.LabPayloads.MarkerData;
 import dev.redstonelab.util.Fmt;
 
-/**
- * What a piston will do next (shared by the server and the client): push order on the blocks,
- * ✔ / ✖ and why, QC / BUD. Pistorder-style.
- */
+/** What a piston will do next (server and client): push order, check / cross and why, QC / BUD. */
 public final class PistonView {
 	private static final int PUSH = 0xFF55FF55;
 	private static final int DESTROY = 0xFFFF5555;
@@ -78,10 +75,7 @@ public final class PistonView {
 				&& level.getBlockState(pos.relative(state.getValue(BlockStateProperties.FACING))).is(Blocks.MOVING_PISTON);
 	}
 
-	/**
-	 * Adds the markers for the piston and returns the action bar text. Everything about the
-	 * piston itself is one label behind it, so it never covers the numbered blocks in front.
-	 */
+	/** Adds the piston's markers and returns the action bar text. The piston has one label behind it so it never covers the numbers. */
 	public static Component build(Level level, View p, List<MarkerData> markers, boolean landing) {
 		Component move = buildMove(level, p, markers, landing);
 		StringBuilder label = new StringBuilder(p.headLabel);
@@ -108,9 +102,8 @@ public final class PistonView {
 	}
 
 	/**
-	 * Unusual power, checked like vanilla: "QC" (only powered through the block above it),
-	 * "BUD" (power doesn't match its state, so the next block update moves it), "stuck"
-	 * (powered but it can't push). Null when nothing is unusual.
+	 * Unusual power: "QC" (powered only through the block above), "BUD" (power doesn't match its state, the next
+	 * update moves it), "stuck" (powered but can't push). Null if nothing is unusual.
 	 */
 	public static @Nullable String powerInfo(Level level, BlockPos pos) {
 		BlockState state = level.getBlockState(pos);
@@ -144,9 +137,8 @@ public final class PistonView {
 	}
 
 	/**
-	 * {@link Level#hasSignal}, but also right on the client: the server never sends a
-	 * comparator's output strength, so there it is read from the comparator being lit (which is
-	 * exactly "output above 0").
+	 * Like Level#hasSignal, but right on the client too: the server never sends comparator output, so it is read
+	 * from the comparator being lit (output above 0).
 	 */
 	private static boolean hasSignal(Level level, BlockPos pos, Direction dir) {
 		return level.isClientSide() ? clientSignal(level, pos, dir) : level.hasSignal(pos, dir);

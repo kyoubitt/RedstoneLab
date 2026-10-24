@@ -13,11 +13,7 @@ import net.minecraft.world.phys.Vec3;
 import dev.redstonelab.client.ClientState;
 import dev.redstonelab.net.LabPayloads;
 
-/**
- * Meter outlines and letters, piston previews: drawn with the game's own debug shapes
- * ("gizmos"), seen through walls. Added once per client tick to the game's per-tick list, which
- * it keeps drawing every frame until the next tick.
- */
+/** Meter outlines, letters and piston previews, drawn as the game's debug shapes (seen through walls) once per client tick. */
 public final class WorldMarkers {
 	private static final double MAX_DISTANCE = 96;
 	private static final int MAX_MARKERS = 400;
@@ -32,9 +28,8 @@ public final class WorldMarkers {
 	private static boolean drawnBefore;
 
 	/**
-	 * The game shows this tick's list only while the world runs normally; frozen (/tick freeze)
-	 * it would keep showing old outlines (even removed meters). While we draw, it always
-	 * shows the newest list (see the Minecraft mixin).
+	 * The game only drains its per-tick list while the world runs normally; while frozen (/tick freeze) it would keep
+	 * old outlines, even of removed meters. See the Minecraft mixin.
 	 */
 	public static boolean needsRefresh() {
 		return drawn || drawnBefore;

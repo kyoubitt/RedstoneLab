@@ -1,13 +1,18 @@
 package dev.redstonelab.feature;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.block.Blocks;
 
 import dev.redstonelab.core.PulseMeter;
 import dev.redstonelab.core.Reading;
@@ -44,7 +49,7 @@ final class CircuitTruth {
 		for (String label : MeterFeature.labels(this.player)) {
 			BlockPos pos = MeterFeature.posForTest(this.player, label);
 			// A piston that is retracting (or being pushed) is a moving block: not out.
-			Boolean on = this.level.getBlockState(pos).is(net.minecraft.world.level.block.Blocks.MOVING_PISTON) ? Boolean.FALSE
+			Boolean on = this.level.getBlockState(pos).is(Blocks.MOVING_PISTON) ? Boolean.FALSE
 					: RedstoneLabGameTests.gameSaysOn(this.level, pos);
 			this.states.computeIfAbsent(label, k -> new ArrayList<>()).add(on);
 			this.labelTimes.computeIfAbsent(label, k -> new ArrayList<>()).add(this.level.getGameTime());
@@ -132,7 +137,7 @@ final class CircuitTruth {
 			return "";
 		}
 		long maxAge = Math.max(100, 2 * period(anchor));
-		java.util.TreeMap<Long, List<String>> groups = new java.util.TreeMap<>();
+		TreeMap<Long, List<String>> groups = new TreeMap<>();
 		List<String> own = new ArrayList<>();
 		int total = 0;
 		for (String label : labels) {
@@ -140,7 +145,7 @@ final class CircuitTruth {
 			if (rises.isEmpty() || !this.recent(label, now) && now - rises.get(rises.size() - 1) > maxAge) {
 				continue;
 			}
-			java.util.Set<Long> delays = new java.util.HashSet<>();
+			Set<Long> delays = new HashSet<>();
 			List<Long> kept = anchor.subList(Math.max(0, anchor.size() - 8), anchor.size());
 			for (long r : rises.subList(Math.max(0, rises.size() - 8), rises.size())) {
 				long start = Long.MIN_VALUE;
@@ -239,7 +244,7 @@ final class CircuitTruth {
 		for (int i = 0; i < parts.length; i++) {
 			if (!parts[i].matches("\\d+t")) {
 				String[] letters = parts[i].split(" ");
-				java.util.Arrays.sort(letters);
+				Arrays.sort(letters);
 				parts[i] = String.join(" ", letters);
 			}
 		}

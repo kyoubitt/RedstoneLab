@@ -12,10 +12,7 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 
 import dev.redstonelab.RedstoneLab;
 
-/**
- * All custom payloads. They are only ever sent to clients that registered the channel
- * (checked with {@code ServerPlayNetworking.canSend}), so vanilla clients never see them.
- */
+/** All custom payloads. Only sent to clients that registered the channel (vanilla clients never see them). */
 public final class LabPayloads {
 	public static final int PROTOCOL = 15;
 
@@ -195,10 +192,9 @@ public final class LabPayloads {
 	}
 
 	/**
-	 * One sample per meter for one game tick: power level at the end of the tick, state bits
-	 * (1 = active, 2 = powered at the end of the tick; 4 = turned on, 8 = got powered
-	 * during it, so 0-tick pulses show), the {@link dev.redstonelab.core.MeterEvent} flags, and
-	 * {@code order}: what happened in this tick in order, as (sequence << 8) | (tick phase << 5) | event.
+	 * One sample per meter for one game tick: end power, state bits (1 active, 2 powered at the end, 4 turned on,
+	 * 8 got powered during the tick, so 0-tick pulses show), MeterEvent flags, and {@code order}: what happened
+	 * in the tick as (sequence << 8) | (tick phase << 5) | event.
 	 */
 	public record ScopeSampleS2C(long gameTime, byte[] end, byte[] bits, int[] events, int[][] order) implements CustomPacketPayload {
 		public static final Type<ScopeSampleS2C> TYPE = payloadType("scope_sample");

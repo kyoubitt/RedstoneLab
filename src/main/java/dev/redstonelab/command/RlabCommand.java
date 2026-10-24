@@ -2,13 +2,6 @@ package dev.redstonelab.command;
 
 import java.util.Map;
 
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.suggestion.SuggestionProvider;
-
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
@@ -20,12 +13,20 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.BoolArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+
 import dev.redstonelab.config.ServerConfig;
 import dev.redstonelab.feature.MeterFeature;
 import dev.redstonelab.feature.PistorderFeature;
 import dev.redstonelab.server.LabServer;
 import dev.redstonelab.util.Msg;
-
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
@@ -118,8 +119,8 @@ public final class RlabCommand {
 							return 1;
 						}))
 						.then(literal("landing")
-								.then(argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool()).executes(ctx -> {
-									boolean on = com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "on");
+								.then(argument("on", BoolArgumentType.bool()).executes(ctx -> {
+									boolean on = BoolArgumentType.getBool(ctx, "on");
 									PistorderFeature.setOption(player(ctx), "landing", on);
 									Msg.ok(ctx.getSource(), "Landing boxes: " + (on ? "shown" : "hidden"));
 									return 1;
@@ -181,7 +182,7 @@ public final class RlabCommand {
 
 	// ------------------------------------------------------------------ server settings
 
-	private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> config() {
+	private static LiteralArgumentBuilder<CommandSourceStack> config() {
 		return literal("config")
 				.executes(ctx -> printConfig(ctx.getSource()))
 				.then(literal("set").requires(s -> Commands.LEVEL_GAMEMASTERS.check(s.permissions()))

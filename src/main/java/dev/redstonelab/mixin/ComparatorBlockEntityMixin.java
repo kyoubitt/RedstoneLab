@@ -11,10 +11,7 @@ import net.minecraft.world.level.block.entity.ComparatorBlockEntity;
 import dev.redstonelab.capture.Capture;
 import dev.redstonelab.capture.PowerWatch;
 
-/**
- * Comparator output lives in the block entity, not the block state, so setBlock alone does
- * not see it change.
- */
+/** Comparator output lives in the block entity, not the block state, so setBlock alone doesn't see it change. */
 @Mixin(ComparatorBlockEntity.class)
 public abstract class ComparatorBlockEntityMixin {
 	@Inject(method = "setOutputSignal", at = @At("RETURN"), require = 0)

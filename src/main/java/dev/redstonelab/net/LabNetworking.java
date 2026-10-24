@@ -1,5 +1,7 @@
 package dev.redstonelab.net;
 
+import java.util.Set;
+
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -7,14 +9,12 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 import dev.redstonelab.RedstoneLab;
 import dev.redstonelab.display.MarkerService;
+import dev.redstonelab.feature.PistorderFeature;
 import dev.redstonelab.server.LabServer;
 import dev.redstonelab.server.PlayerSession;
 import dev.redstonelab.server.Sessions;
 
-/**
- * Server side networking. Every send goes through {@link #send}, which never sends to
- * a client that did not register the channel (i.e. vanilla clients).
- */
+/** Server networking. Every send goes through {@link #send}, which skips clients without the channel (vanilla). */
 public final class LabNetworking {
 	private LabNetworking() {
 	}
@@ -32,20 +32,17 @@ public final class LabNetworking {
 			}
 			if (session.modded) {
 				// The client sends its own piston settings (those that differ from the defaults) next.
-				dev.redstonelab.feature.PistorderFeature.resetOptions(player);
+				PistorderFeature.resetOptions(player);
 			}
 			send(player, new LabPayloads.HelloS2C(LabPayloads.PROTOCOL, RedstoneLab.version(), LabServer.canUse(player)));
 			// Switch already visible markers from display entities to client rendering (or back).
 			MarkerService.refreshMode(player);
 		});
 		ServerPlayNetworking.registerGlobalReceiver(LabPayloads.PistonWatchC2S.TYPE, (payload, context) ->
-				Sessions.get(context.player()).watchedPistons = java.util.Set.copyOf(payload.pistons()));
+				Sessions.get(context.player()).watchedPistons = Set.copyOf(payload.pistons()));
 	}
 
-	/**
-	 * Sends a payload only if the client registered the channel and completed a compatible
-	 * handshake (the handshake answer itself is exempt). Returns true if sent.
-	 */
+	/** Sends a payload only to a client that has the channel and finished a compatible handshake. True if sent. */
 	public static boolean send(ServerPlayer player, CustomPacketPayload payload) {
 		boolean handshake = payload instanceof LabPayloads.HelloS2C;
 		if ((handshake || Sessions.get(player).modded) && ServerPlayNetworking.canSend(player, payload.type())) {

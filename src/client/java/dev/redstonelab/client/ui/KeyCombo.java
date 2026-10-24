@@ -8,10 +8,7 @@ import java.util.Map;
 
 import org.lwjgl.glfw.GLFW;
 
-/**
- * Keys pressed together, in order ("R,LEFT" = hold R, then press Left). The last key fires it.
- * Saved as key names joined with commas.
- */
+/** Keys pressed together ("R,LEFT" = hold R, press Left). The last key fires it. */
 public record KeyCombo(List<Integer> keys) {
 	public static final KeyCombo NONE = new KeyCombo(List.of());
 

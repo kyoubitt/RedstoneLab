@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.google.gson.Gson;
@@ -21,10 +22,7 @@ import net.fabricmc.loader.api.FabricLoader;
 
 import dev.redstonelab.RedstoneLab;
 
-/**
- * Client settings, saved to {@code config/redstonelab.json}. No library needed: every option
- * knows its tab, name, help text and default, and the settings screen is built from them.
- */
+/** Client settings in config/redstonelab.json. Each option knows its tab, name, help and default; the screen is built from them. */
 public final class LabConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final List<Option> ALL = new ArrayList<>();
@@ -183,7 +181,7 @@ public final class LabConfig {
 		}
 
 		JsonElement write() {
-			return new JsonPrimitive(this.value.name().toLowerCase(java.util.Locale.ROOT));
+			return new JsonPrimitive(this.value.name().toLowerCase(Locale.ROOT));
 		}
 
 		void read(JsonElement json) {
@@ -241,8 +239,10 @@ public final class LabConfig {
 	public static final Int TIMELINE_TICKS = new Int(Tab.TIMELINE, "timelineTicks", 80, 20, 200, "Ticks shown");
 	public static final Bool SHOW_INFO = new Bool(Tab.TIMELINE, "showInfo", true, "Text next to each bar, and the order line");
 	public static final Bool SHOW_PULSE_LENGTHS = new Bool(Tab.TIMELINE, "showPulseLengths", true, "Tick counts inside the bars");
+	public static final Bool SUB_TICK = new Bool(Tab.TIMELINE, "showSubTick", true,
+			"Marks under each bar for what happened inside the tick, in the order it happened");
 	public static final Bool EVENT_MARKS = new Bool(Tab.TIMELINE, "showEventMarks", false,
-			"Marks for what happened each tick, and block / shape updates in the tick list");
+			"Also mark block updates and shape updates (a lot of them)");
 	public static final Bool SHOW_INSPECT = new Bool(Tab.TIMELINE, "showTickInspector", true,
 			"Timeline stopped: list what happened in the tick, in order");
 

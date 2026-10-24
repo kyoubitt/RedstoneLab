@@ -2,6 +2,7 @@ package dev.redstonelab.feature;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,14 +25,13 @@ import net.minecraft.world.phys.BlockHitResult;
 import dev.redstonelab.display.MarkerService;
 import dev.redstonelab.net.LabPayloads.MarkerData;
 import dev.redstonelab.server.LabServer;
+import dev.redstonelab.server.Sessions;
 import dev.redstonelab.util.Msg;
 
 /**
- * Piston preview, like Pistorder: right-click a piston with an empty hand and it shows what it
- * will do next: "✔ push 3/12" with the move order on the blocks, or ✖ and why (the block in the
- * way, or too many), plus QC / BUD when its power is unusual. Click again to hide it; several
- * pistons can be shown; sneaking does nothing; the P key hides them all. Works for vanilla
- * clients too (display entities).
+ * Piston preview: right-click a piston with an empty hand to show what it does next ("push 3/12" with the move
+ * order on the blocks, or why not), QC / BUD for unusual power. Click again to hide; P hides all. Works for
+ * vanilla clients through display entities.
  */
 public final class PistorderFeature {
 	public static final String CHANNEL = "pistorder";
@@ -74,10 +74,7 @@ public final class PistorderFeature {
 	private PistorderFeature() {
 	}
 
-	/**
-	 * Like Pistorder: right-click a piston with an empty hand to show what it will do, click it
-	 * again to hide it. Nothing happens while sneaking.
-	 */
+	/** Right-click a piston with an empty hand to show it, again to hide it. Sneaking does nothing. */
 	public static InteractionResult onUseBlock(Player player, Level level, InteractionHand hand, BlockHitResult hit) {
 		if (hand != InteractionHand.MAIN_HAND || !player.getMainHandItem().isEmpty() || player.isShiftKeyDown()
 				|| !(player instanceof ServerPlayer serverPlayer) || !(level instanceof ServerLevel serverLevel)) {
@@ -87,7 +84,7 @@ public final class PistorderFeature {
 		if (!(level.getBlockState(pos).getBlock() instanceof PistonBaseBlock) || !LabServer.canUse(serverPlayer)) {
 			return InteractionResult.PASS;
 		}
-		if (dev.redstonelab.server.Sessions.get(serverPlayer).modded) {
+		if (Sessions.get(serverPlayer).modded) {
 			// Players with the client mod see the preview client-side (works on any server).
 			return InteractionResult.PASS;
 		}
@@ -160,7 +157,7 @@ public final class PistorderFeature {
 		}
 		List<MarkerData> markers = new ArrayList<>();
 		PistonView.applyOrder(state.pistons.values(), level.getGameTime(), true);
-		for (java.util.Iterator<PistonView.View> it = state.pistons.values().iterator(); it.hasNext(); ) {
+		for (Iterator<PistonView.View> it = state.pistons.values().iterator(); it.hasNext(); ) {
 			PistonView.View p = it.next();
 			if (level.hasChunkAt(p.pos) && !PistonView.isMoving(level, p.pos)) {
 				if (!(level.getBlockState(p.pos).getBlock() instanceof PistonBaseBlock)) {

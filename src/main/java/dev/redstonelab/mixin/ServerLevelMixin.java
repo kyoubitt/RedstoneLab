@@ -16,10 +16,7 @@ import dev.redstonelab.capture.PowerWatch;
 import dev.redstonelab.core.MeterEvent;
 import dev.redstonelab.core.TickPhase;
 
-/**
- * Scheduled ticks (repeaters, torches, observers...) and block events (pistons firing)
- * running at a block with a meter on it, and which part of the tick is running.
- */
+/** Scheduled ticks and block events at a metered block, and which part of the tick is running. */
 @Mixin(ServerLevel.class)
 public abstract class ServerLevelMixin {
 	// ------------------------------------------------------------------ tick phases

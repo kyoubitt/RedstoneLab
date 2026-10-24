@@ -8,23 +8,25 @@ import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
 
 import net.fabricmc.loader.api.FabricLoader;
 
 import dev.redstonelab.RedstoneLab;
 
 /**
- * Server-side settings, stored in {@code config/redstonelab-server.json}.
- * Editable in game with {@code /rlab config set <key> <value>}.
- *
- * <p>Every public non-static field is a setting.</p>
+ * Server settings in config/redstonelab-server.json. Every public non-static field is one setting;
+ * change them in game with /rlab config set <key> <value>.
  */
 public final class ServerConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
@@ -56,8 +58,8 @@ public final class ServerConfig {
 		if (Files.exists(path)) {
 			try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
 				// Start from the defaults so settings missing from an older file keep their default value.
-				com.google.gson.JsonObject merged = GSON.toJsonTree(new ServerConfig()).getAsJsonObject();
-				com.google.gson.JsonElement file = com.google.gson.JsonParser.parseReader(reader);
+				JsonObject merged = GSON.toJsonTree(new ServerConfig()).getAsJsonObject();
+				JsonElement file = JsonParser.parseReader(reader);
 				if (file != null && file.isJsonObject()) {
 					file.getAsJsonObject().entrySet().forEach(e -> merged.add(e.getKey(), e.getValue()));
 				}
@@ -113,14 +115,10 @@ public final class ServerConfig {
 	}
 
 	public static String[] keys() {
-		return java.util.Arrays.stream(settingFields()).map(Field::getName).toArray(String[]::new);
+		return Arrays.stream(settingFields()).map(Field::getName).toArray(String[]::new);
 	}
 
-	/**
-	 * Sets a value from a command string.
-	 *
-	 * @return null on success, or an error message
-	 */
+	/** Sets a value from a command string. Returns null on success, else the error message. */
 	public String set(String key, String value) {
 		for (Field f : settingFields()) {
 			if (!f.getName().equalsIgnoreCase(key)) {
@@ -154,7 +152,7 @@ public final class ServerConfig {
 	}
 
 	private static Field[] settingFields() {
-		return java.util.Arrays.stream(ServerConfig.class.getDeclaredFields())
+		return Arrays.stream(ServerConfig.class.getDeclaredFields())
 				.filter(f -> Modifier.isPublic(f.getModifiers()) && !Modifier.isStatic(f.getModifiers()))
 				.toArray(Field[]::new);
 	}

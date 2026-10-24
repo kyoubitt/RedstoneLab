@@ -8,19 +8,15 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * The "Order" line of the timeline: "A C → 2t → B D → 2t → E F". Every meter's turn-ons are
- * measured from the first meter's turn-on just before them, so the line stays the same while a
- * clock keeps running. Meters whose delay keeps changing (they run at a different speed than the
- * first meter) are listed separately ("· own timing: E F") instead of jumping around.
+ * The "Order" line: "A C -> 2t -> B D". Each meter's turn-ons are measured from the first meter's turn-on
+ * just before them, so the line stays put while a clock runs. Meters whose delay keeps changing
+ * are listed apart ("own timing").
  */
 public final class OrderLine {
 	/** Meters that didn't turn on for this long (or 2 periods of the first meter, if longer) are left out. */
 	public static final long MAX_AGE = 100;
 
-	/**
-	 * One meter: its letter, its recent turn-on times (any order, unused slots = Long.MIN_VALUE)
-	 * and for each, its place in the game's order inside that tick (higher = later).
-	 */
+	/** One meter: letter, recent turn-on times (unused = Long.MIN_VALUE) and each one's place in the game's order inside its tick. */
 	public record Input(String label, long[] rises, int[] seqs) {
 		public Input(String label, long[] rises) {
 			this(label, rises, new int[rises.length]);
@@ -87,10 +83,7 @@ public final class OrderLine {
 	private OrderLine() {
 	}
 
-	/**
-	 * The line, or "" when fewer than two meters turned on lately. The start is the first meter
-	 * that turned on lately (a lever flicked once long ago doesn't count).
-	 */
+	/** The line, or "" when fewer than two meters turned on lately. The start is the first meter that did. */
 	public static String compute(List<Input> meters, long now) {
 		Input anchor = null;
 		for (Input m : meters) {

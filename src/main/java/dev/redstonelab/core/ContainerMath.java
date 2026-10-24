@@ -1,9 +1,6 @@
 package dev.redstonelab.core;
 
-/**
- * Comparator levels of containers, like vanilla: with all slots filled up to {@code fullness}
- * (0-1), the signal is {@code floor(fullness * 14) + 1}, or 0 when empty.
- */
+/** Comparator level of a container like vanilla: floor(fullness * 14) + 1, or 0 when empty. */
 public final class ContainerMath {
 	private ContainerMath() {
 	}

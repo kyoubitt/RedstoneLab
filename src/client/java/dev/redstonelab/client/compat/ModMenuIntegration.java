@@ -5,10 +5,7 @@ import com.terraformersmc.modmenu.api.ModMenuApi;
 
 import dev.redstonelab.client.ui.LabConfigScreen;
 
-/**
- * Mod Menu "Configure" button. Only loaded by Mod Menu (soft dependency, compile-only).
- * Opens the built-in settings screen.
- */
+/** Mod Menu "Configure" button (soft dependency): opens the settings screen. */
 public class ModMenuIntegration implements ModMenuApi {
 	@Override
 	public ConfigScreenFactory<?> getModConfigScreenFactory() {

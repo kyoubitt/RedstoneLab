@@ -1,6 +1,9 @@
 package dev.redstonelab.server;
 
+import java.util.Set;
 import java.util.UUID;
+
+import net.minecraft.core.BlockPos;
 
 import dev.redstonelab.net.LabPayloads;
 
@@ -14,7 +17,7 @@ public final class PlayerSession {
 	public int capabilities;
 	public String clientVersion = "";
 	/** Pistons this (modded) client shows previews of; their extensions are sent to it. */
-	public java.util.Set<net.minecraft.core.BlockPos> watchedPistons = java.util.Set.of();
+	public Set<BlockPos> watchedPistons = Set.of();
 
 	public PlayerSession(UUID uuid) {
 		this.uuid = uuid;

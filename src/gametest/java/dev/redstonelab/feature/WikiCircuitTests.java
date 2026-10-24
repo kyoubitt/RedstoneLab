@@ -1,11 +1,17 @@
 package dev.redstonelab.feature;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
@@ -14,6 +20,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
+
+import dev.redstonelab.core.Reading;
 
 /**
  * Circuits from the Minecraft Wiki (Redstone circuits / Clock, Memory), built from the wiki's
@@ -467,7 +475,7 @@ public class WikiCircuitTests {
 					"it should fly 4+ blocks with the meter on its observer: moved " + shift.toShortString() + ", " + level.getBlockState(a));
 			// The two halves move one after the other: a half can be a block behind.
 			String[] labels = {"A", "B", "C", "D"};
-			net.minecraft.world.level.block.Block[] kinds = {Blocks.OBSERVER, Blocks.OBSERVER, Blocks.STICKY_PISTON, Blocks.STICKY_PISTON};
+			Block[] kinds = {Blocks.OBSERVER, Blocks.OBSERVER, Blocks.STICKY_PISTON, Blocks.STICKY_PISTON};
 			for (int i = 1; i < 4; i++) {
 				BlockPos p = MeterFeature.posForTest(player, labels[i]);
 				BlockPos want = starts[i].offset(shift);
@@ -553,7 +561,7 @@ public class WikiCircuitTests {
 			helper.setBlock(new BlockPos(7, lineY, z), Blocks.HOPPER.defaultBlockState().setValue(BlockStateProperties.FACING_HOPPER, Direction.SOUTH));
 		}
 		helper.setBlock(new BlockPos(7, lineY, 9), Blocks.CHEST);
-		net.minecraft.world.item.Item[] sorted = {Items.DIAMOND, Items.IRON_INGOT};
+		Item[] sorted = {Items.DIAMOND, Items.IRON_INGOT};
 		int[] slices = {4, 6};
 		for (int i = 0; i < 2; i++) {
 			int z = slices[i];
@@ -584,12 +592,12 @@ public class WikiCircuitTests {
 				new BlockPos(7, 4, 6), new BlockPos(7, lineY, 9));
 		TestScript script = new TestScript();
 		// Feed the line: 12 diamonds, 8 iron and 20 cobblestone, one item every 8t.
-		net.minecraft.world.item.Item[] feed = new net.minecraft.world.item.Item[40];
+		Item[] feed = new Item[40];
 		for (int k = 0; k < 40; k++) {
 			feed[k] = k % 10 < 3 ? Items.DIAMOND : k % 10 < 5 ? Items.IRON_INGOT : Items.COBBLESTONE;
 		}
 		for (int k = 0; k < 40; k++) {
-			net.minecraft.world.item.Item item = feed[k];
+			Item item = feed[k];
 			script.at(20 + k * 8, () -> ((Container) level.getBlockEntity(helper.absolutePos(new BlockPos(7, lineY, 2)))).setItem(0, new ItemStack(item)));
 		}
 		String[] filterText = new String[1];
@@ -629,7 +637,7 @@ public class WikiCircuitTests {
 		}
 	}
 
-	private static int count(ServerLevel level, BlockPos pos, net.minecraft.world.item.Item item) {
+	private static int count(ServerLevel level, BlockPos pos, Item item) {
 		Container c = (Container) level.getBlockEntity(pos);
 		int n = 0;
 		for (int i = 0; i < c.getContainerSize(); i++) {
@@ -676,7 +684,7 @@ public class WikiCircuitTests {
 				helper.setBlock(inR, Blocks.AIR);
 			});
 		}
-		java.util.List<String> wrongDoor = new java.util.ArrayList<>();
+		List<String> wrongDoor = new ArrayList<>();
 		for (int t = 30; t < 360; t += 40) {
 			int tick = t;
 			// 30t after each change the door must be fully open (input on) or closed.
@@ -763,7 +771,7 @@ public class WikiCircuitTests {
 				all.append(labels[i]).append(": ").append(MeterFeature.pulsesForTest(player, labels[i])).append(" | ");
 			}
 			for (int i = 0; i < 5; i++) {
-				java.util.regex.Matcher m = java.util.regex.Pattern.compile("on (\\d+)t \u00b7 off (\\d+)t").matcher(MeterFeature.pulsesForTest(player, labels[i]));
+				Matcher m = Pattern.compile("on (\\d+)t \u00b7 off (\\d+)t").matcher(MeterFeature.pulsesForTest(player, labels[i]));
 				helper.assertTrue(m.matches() && Integer.parseInt(m.group(1)) + Integer.parseInt(m.group(2)) == period[i],
 						labels[i] + " should repeat every " + period[i] + "t: " + all);
 			}
@@ -820,7 +828,7 @@ public class WikiCircuitTests {
 		BlockPos sum = new BlockPos(12, 1, 4);
 		BlockPos carry = new BlockPos(7, 1, 11);
 		TestScript script = new TestScript();
-		java.util.List<String> wrong = new java.util.ArrayList<>();
+		List<String> wrong = new ArrayList<>();
 		for (int n = 0; n < 8; n++) {
 			int bits = n;
 			int t = 20 + n * 30;
@@ -841,8 +849,8 @@ public class WikiCircuitTests {
 				boolean wantC = ones >= 2;
 				boolean gotS = helper.getBlockState(sum).getValue(BlockStateProperties.POWER) > 0;
 				boolean gotC = helper.getBlockState(carry).getValue(BlockStateProperties.POWER) > 0;
-				boolean meterS = dev.redstonelab.core.Reading.active(MeterFeature.readingForTest(player, "A"));
-				boolean meterC = dev.redstonelab.core.Reading.active(MeterFeature.readingForTest(player, "B"));
+				boolean meterS = Reading.active(MeterFeature.readingForTest(player, "A"));
+				boolean meterC = Reading.active(MeterFeature.readingForTest(player, "B"));
 				if (gotS != wantS || gotC != wantC || meterS != gotS || meterC != gotC) {
 					wrong.add("A" + (bits & 1) + " B" + ((bits >> 1) & 1) + " C" + (bits >> 2) + ": sum " + gotS + " (want " + wantS + ", meter "
 							+ meterS + "), carry " + gotC + " (want " + wantC + ", meter " + meterC + ")");

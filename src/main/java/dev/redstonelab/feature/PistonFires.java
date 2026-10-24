@@ -8,10 +8,7 @@ import dev.redstonelab.net.LabNetworking;
 import dev.redstonelab.net.LabPayloads;
 import dev.redstonelab.server.Sessions;
 
-/**
- * Pistons starting to extend, in the exact order the game runs them, for the firing order of
- * shown pistons: to modded clients that show the piston, and to the server-side previews.
- */
+/** Pistons starting to extend, in the order the game runs them. Sent to modded clients and used by server previews. */
 public final class PistonFires {
 	/** Goes up by one per extension, so it also orders extensions inside one tick. */
 	private static long seq;

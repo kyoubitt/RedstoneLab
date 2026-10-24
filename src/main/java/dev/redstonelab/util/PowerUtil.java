@@ -1,5 +1,7 @@
 package dev.redstonelab.util;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.Container;
@@ -11,13 +13,15 @@ import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.ComparatorBlock;
 import net.minecraft.world.level.block.DiodeBlock;
 import net.minecraft.world.level.block.DispenserBlock;
-import net.minecraft.world.level.block.RedstoneTorchBlock;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.piston.PistonBaseBlock;
+import net.minecraft.world.level.block.HopperBlock;
 import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.world.level.block.RedstoneTorchBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.CommandBlockEntity;
 import net.minecraft.world.level.block.entity.ComparatorBlockEntity;
+import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 import dev.redstonelab.core.Reading;
 import dev.redstonelab.mixin.DiodeBlockInvoker;
@@ -25,17 +29,8 @@ import dev.redstonelab.mixin.PistonBaseBlockInvoker;
 import dev.redstonelab.mixin.RedstoneTorchBlockInvoker;
 
 /**
- * "Power level" of a block as shown by RedstoneLab:
- * <ul>
- *     <li>redstone dust: its POWER property</li>
- *     <li>comparator: its block entity output signal</li>
- *     <li>other signal sources (repeater, torch, lever, button, observer, ...): the strongest
- *     signal they emit in any direction</li>
- *     <li>containers: what a comparator reads from them (vanilla's own output)</li>
- *     <li>pistons: the signal the piston itself reacts to, including QC (power next to the
- *     block above it), exactly like the game checks it</li>
- *     <li>everything else: the strongest signal the block receives</li>
- * </ul>
+ * Power level of a block: dust POWER; comparator output; other sources the strongest signal they emit; containers
+ * what a comparator reads; pistons the signal they react to (with QC); anything else the strongest signal received.
  */
 public final class PowerUtil {
 	private static final Direction[] DIRECTIONS = Direction.values();
@@ -89,7 +84,7 @@ public final class PowerUtil {
 	}
 
 	/** The items a block holds; a double chest is both halves, like comparators and hoppers see it. */
-	public static @org.jetbrains.annotations.Nullable Container container(Level level, BlockPos pos) {
+	public static @Nullable Container container(Level level, BlockPos pos) {
 		BlockState state = level.getBlockState(pos);
 		if (state.getBlock() instanceof ChestBlock chest) {
 			return ChestBlock.getContainer(chest, state, level, pos, true);
@@ -104,8 +99,8 @@ public final class PowerUtil {
 	}
 
 	/**
-	 * Power level plus active / powered, like Redstone Multimeter. Powered uses the block's own
-	 * check where it has one (repeater input, torch, piston incl. QC, dispenser incl. QC).
+	 * Power level plus active / powered. Powered uses the block's own check where it has one (repeater input,
+	 * torch, piston and dispenser including QC).
 	 */
 	public static int read(Level level, BlockPos pos, BlockState state) {
 		if (state.is(Blocks.MOVING_PISTON)) {
@@ -133,11 +128,11 @@ public final class PowerUtil {
 			// Dispensers, droppers, crafters: on = triggered (powered; it fires when it turns on).
 			active = state.getValue(BlockStateProperties.TRIGGERED);
 			powered = level.hasNeighborSignal(pos) || (block instanceof DispenserBlock && level.hasNeighborSignal(pos.above()));
-		} else if (block instanceof net.minecraft.world.level.block.HopperBlock) {
+		} else if (block instanceof HopperBlock) {
 			// Hoppers: on = locked by redstone.
 			active = !state.getValue(BlockStateProperties.ENABLED);
 			powered = level.hasNeighborSignal(pos);
-		} else if (level.getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.CommandBlockEntity command) {
+		} else if (level.getBlockEntity(pos) instanceof CommandBlockEntity command) {
 			// Command blocks: on = powered (they have no blockstate for it).
 			active = powered = command.isPowered();
 		} else if (state.hasBlockEntity() && level.getBlockEntity(pos) instanceof Container) {

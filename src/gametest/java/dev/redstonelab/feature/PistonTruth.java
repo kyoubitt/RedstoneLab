@@ -3,9 +3,11 @@ package dev.redstonelab.feature;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -89,7 +91,7 @@ final class PistonTruth {
 		Map<String, List<BlockPos>> firedIn = new TreeMap<>();
 		Map<String, Boolean> checkable = new HashMap<>();
 		Map<BlockPos, String> groupOf = new LinkedHashMap<>();
-		java.util.Set<String> stickyKeys = new java.util.HashSet<>();
+		Set<String> stickyKeys = new HashSet<>();
 		long sources = fresh.stream().filter(PistonMovingBlockEntity::isSourcePiston).count();
 		for (PistonMovingBlockEntity be : fresh) {
 			String key = be.getDirection() + (be.isExtending() ? " push" : " pull");
@@ -167,7 +169,7 @@ final class PistonTruth {
 				continue;
 			}
 			this.shownChecked++;
-			Direction move = Direction.valueOf(key.substring(0, key.indexOf(' ')).toUpperCase(java.util.Locale.ROOT));
+			Direction move = Direction.valueOf(key.substring(0, key.indexOf(' ')).toUpperCase(Locale.ROOT));
 			move = p.extending() ? move : move.getOpposite();
 			Map<BlockPos, BlockState> exp = new TreeMap<>();
 			for (BlockPos b : p.push()) {

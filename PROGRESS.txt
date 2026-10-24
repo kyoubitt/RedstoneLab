@@ -16,7 +16,7 @@ CODE
               TimelineHud, WorldMarkers (vanilla gizmos)
 
 TESTS
-  ./gradlew runGameTest                         69 server tests against the real game
+  ./gradlew runGameTest                         70 server tests against the real game
   xvfb-run ./gradlew runClientGameTest          real client: keys, clicks, screenshots
   Accuracy checks that run every time:
   * 8 random circuits, every meter vs the real block every tick (~6000 checks)
@@ -120,6 +120,10 @@ RELEASES (change mod_version on main -> GitHub builds the jar)
          mixins and the WorldTick packet (protocol 15). Pulse rules checked against a pulse-length
          monitor script: command blocks now count as active when powered; new test covers
          piston, dropper, hopper, lamp, dust and command block pulse lengths
+  0.9.1  sub-tick marks under every timeline bar, in the order the game ran them (setting: Sub-tick
+         marks; block / shape updates need Also mark block updates). Code cleanup: short comments,
+         imports instead of inline class names, Meter / MeterState / ContainerInfo split out of
+         MeterFeature. New test: powered and extend phases inside one tick
 
 KNOWN LIMITS
   * On a fast clock a sticky piston is never still while out, so its pull is never previewed.

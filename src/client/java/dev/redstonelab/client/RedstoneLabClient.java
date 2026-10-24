@@ -12,11 +12,7 @@ import dev.redstonelab.client.ui.LabConfig;
 import dev.redstonelab.client.ui.TimelineHud;
 import dev.redstonelab.client.ui.WorldMarkers;
 
-/**
- * Client entrypoint. Needs nothing but Fabric API: settings screen, key combos, the timeline and
- * the in-world outlines are all built in. Players without the client mod still get meters (boss
- * bars) and piston previews from a server that has it.
- */
+/** Client entrypoint. Needs only Fabric API: settings, key combos, timeline and outlines are built in. */
 public class RedstoneLabClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {

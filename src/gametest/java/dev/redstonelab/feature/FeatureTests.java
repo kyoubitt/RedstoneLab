@@ -14,6 +14,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.LevelBasedPermissionSet;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -129,7 +130,7 @@ public class FeatureTests {
 			MeterFeature.onUseBlock(player, level, InteractionHand.MAIN_HAND, new BlockHitResult(Vec3.atCenterOf(abs), Direction.UP, abs, false));
 		}
 		helper.assertTrue(MeterFeature.count(player) == 2, "tool adds meters: " + MeterFeature.count(player));
-		helper.assertTrue(helper.getBlockState(new BlockPos(4, 1, 2)).getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.DELAY) == 1,
+		helper.assertTrue(helper.getBlockState(new BlockPos(4, 1, 2)).getValue(BlockStateProperties.DELAY) == 1,
 				"the click must not change the repeater");
 		player.setShiftKeyDown(true);
 		BlockPos abs = helper.absolutePos(new BlockPos(2, 1, 2));

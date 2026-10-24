@@ -1,7 +1,13 @@
 package dev.redstonelab.feature;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -10,17 +16,36 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.CommandBlockEntity;
+import net.minecraft.world.level.block.entity.ComparatorBlockEntity;
+import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.piston.PistonStructureResolver;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.ChestType;
+import net.minecraft.world.level.block.state.properties.ComparatorMode;
+import net.minecraft.world.phys.BlockHitResult;
 
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 
+import dev.redstonelab.RedstoneLab;
+import dev.redstonelab.config.ServerConfig;
 import dev.redstonelab.core.ContainerMath;
+import dev.redstonelab.core.MeterEvent;
+import dev.redstonelab.core.PistonOrder;
+import dev.redstonelab.core.Reading;
+import dev.redstonelab.core.Ticks;
+import dev.redstonelab.util.PowerUtil;
 
 /**
  * Automated in-game tests: each one builds a small redstone setup in a test world, lets the game
@@ -83,8 +108,8 @@ public class RedstoneLabGameTests {
 
 	/** "on 2t · off 4t" from a recorded powered / unpowered history. */
 	private static String pattern(boolean[] powered) {
-		java.util.List<Integer> on = new java.util.ArrayList<>();
-		java.util.List<Integer> off = new java.util.ArrayList<>();
+		List<Integer> on = new ArrayList<>();
+		List<Integer> off = new ArrayList<>();
 		int start = -1;
 		for (int t = 21; t < powered.length; t++) {
 			if (powered[t] != powered[t - 1]) {
@@ -98,15 +123,15 @@ public class RedstoneLabGameTests {
 	}
 
 	/** Same exact-number format as the meter, from the values in time order (last 8, like the meter). */
-	private static String range(java.util.List<Integer> values) {
+	private static String range(List<Integer> values) {
 		if (values.isEmpty()) {
 			return "?";
 		}
-		java.util.List<Long> last = new java.util.ArrayList<>();
+		List<Long> last = new ArrayList<>();
 		for (int v : values.subList(Math.max(0, values.size() - 8), values.size())) {
 			last.add((long) v);
 		}
-		return dev.redstonelab.core.Ticks.lengths(last);
+		return Ticks.lengths(last);
 	}
 
 
@@ -249,10 +274,10 @@ public class RedstoneLabGameTests {
 		helper.runAtTickTime(3, () -> {
 			String info = PistonView.powerInfo(level, helper.absolutePos(piston));
 			helper.assertTrue("BUD".equals(info), "expected BUD, got " + info);
-			int power = dev.redstonelab.util.PowerUtil.powerAt(level, helper.absolutePos(piston));
+			int power = PowerUtil.powerAt(level, helper.absolutePos(piston));
 			helper.assertTrue(power == 15, "a QC-powered piston's meter should read 15, got " + power);
-			int reading = dev.redstonelab.util.PowerUtil.read(level, helper.absolutePos(piston), level.getBlockState(helper.absolutePos(piston)));
-			helper.assertTrue(dev.redstonelab.core.Reading.powered(reading) && !dev.redstonelab.core.Reading.active(reading),
+			int reading = PowerUtil.read(level, helper.absolutePos(piston), level.getBlockState(helper.absolutePos(piston)));
+			helper.assertTrue(Reading.powered(reading) && !Reading.active(reading),
 					"QC piston: powered but not extended");
 			// Any block update next to it makes it fire.
 			helper.setBlock(new BlockPos(1, 1, 0), Blocks.STONE);
@@ -277,7 +302,7 @@ public class RedstoneLabGameTests {
 	}
 
 	/** Records a truth value every tick from {@code from} to {@code to}. */
-	private static boolean[] record(GameTestHelper helper, int from, int to, java.util.function.BooleanSupplier truth) {
+	private static boolean[] record(GameTestHelper helper, int from, int to, BooleanSupplier truth) {
 		boolean[] values = new boolean[to];
 		for (int t = from; t < to; t++) {
 			int tick = t;
@@ -288,8 +313,8 @@ public class RedstoneLabGameTests {
 
 	/** On / off lengths from a history, starting after the first change at or after {@code from}. */
 	private static String pattern(boolean[] values, int from) {
-		java.util.List<Integer> on = new java.util.ArrayList<>();
-		java.util.List<Integer> off = new java.util.ArrayList<>();
+		List<Integer> on = new ArrayList<>();
+		List<Integer> off = new ArrayList<>();
 		int start = -1;
 		for (int t = from + 1; t < values.length; t++) {
 			if (values[t] != values[t - 1]) {
@@ -369,8 +394,8 @@ public class RedstoneLabGameTests {
 			return s.is(Blocks.PISTON) && s.getValue(BlockStateProperties.EXTENDED);
 		});
 		helper.runAtTickTime(130, () -> {
-			java.util.List<Integer> every = new java.util.ArrayList<>();
-			java.util.List<Integer> outFor = new java.util.ArrayList<>();
+			List<Integer> every = new ArrayList<>();
+			List<Integer> outFor = new ArrayList<>();
 			int lastRise = -1;
 			for (int t = 41; t < out.length; t++) {
 				if (out[t] && !out[t - 1]) {
@@ -424,7 +449,7 @@ public class RedstoneLabGameTests {
 	@GameTest(maxTicks = 20)
 	public void randomPistonSetups(GameTestHelper helper) {
 		ServerLevel level = helper.getLevel();
-		java.util.Random random = new java.util.Random(12345);
+		Random random = new Random(12345);
 		BlockState[] palette = {
 				Blocks.STONE.defaultBlockState(), Blocks.SLIME_BLOCK.defaultBlockState(), Blocks.HONEY_BLOCK.defaultBlockState(),
 				Blocks.OBSIDIAN.defaultBlockState(), Blocks.WHITE_GLAZED_TERRACOTTA.defaultBlockState(), Blocks.GLASS.defaultBlockState(),
@@ -487,7 +512,7 @@ public class RedstoneLabGameTests {
 	@GameTest(maxTicks = 2200)
 	public void pistonPreviewsOnClocks(GameTestHelper helper) {
 		ServerLevel level = helper.getLevel();
-		java.util.Random random = new java.util.Random(777);
+		Random random = new Random(777);
 		PistonTruth truth = new PistonTruth(helper.absolutePos(new BlockPos(0, 1, 0)), helper.absolutePos(new BlockPos(7, 7, 7)));
 		int rounds = 60;
 		int length = 34;
@@ -507,9 +532,9 @@ public class RedstoneLabGameTests {
 			}
 		}
 		helper.runAtTickTime(2 + rounds * length + 1, () -> {
-			dev.redstonelab.RedstoneLab.LOGGER.info("pistonPreviewsOnClocks: {}", truth.summary());
-			truth.problems.forEach(p -> dev.redstonelab.RedstoneLab.LOGGER.info("  wrong: {}", p));
-			truth.shownProblems.forEach(p -> dev.redstonelab.RedstoneLab.LOGGER.info("  on screen: {}", p));
+			RedstoneLab.LOGGER.info("pistonPreviewsOnClocks: {}", truth.summary());
+			truth.problems.forEach(p -> RedstoneLab.LOGGER.info("  wrong: {}", p));
+			truth.shownProblems.forEach(p -> RedstoneLab.LOGGER.info("  on screen: {}", p));
 			helper.assertTrue(truth.checked > 200, "too few piston moves checked: " + truth.summary());
 			helper.assertTrue(truth.wrong == 0, truth.summary() + ". First: " + truth.problems);
 			helper.succeed();
@@ -529,7 +554,7 @@ public class RedstoneLabGameTests {
 		for (BlockPos p : pistons) {
 			PistorderFeature.toggle(player, level, p);
 		}
-		java.util.List<BlockPos> extended = new java.util.ArrayList<>();
+		List<BlockPos> extended = new ArrayList<>();
 		helper.runAtTickTime(70, () -> {
 			String[] got = new String[4];
 			for (int i = 0; i < 4; i++) {
@@ -571,9 +596,9 @@ public class RedstoneLabGameTests {
 		// Fires the dropper (a block tick 2 game ticks later).
 		helper.runAtTickTime(3, () -> helper.setBlock(new BlockPos(5, 1, 1), Blocks.REDSTONE_BLOCK));
 		helper.runAtTickTime(30, () -> {
-			java.util.List<String> a = MeterFeature.eventsForTest(player, "A");
-			java.util.List<String> b = MeterFeature.eventsForTest(player, "B");
-			java.util.List<String> c = MeterFeature.eventsForTest(player, "C");
+			List<String> a = MeterFeature.eventsForTest(player, "A");
+			List<String> b = MeterFeature.eventsForTest(player, "B");
+			List<String> c = MeterFeature.eventsForTest(player, "C");
 			String all = "dropper " + a + " hopper " + b + " chest " + c;
 			helper.assertTrue(a.contains("ITEM_OUT@BLOCK_TICKS"), "dropper out: " + all);
 			helper.assertTrue(b.contains("ITEM_IN@BLOCK_TICKS"), "hopper in: " + all);
@@ -620,10 +645,10 @@ public class RedstoneLabGameTests {
 		// E: light weighted plate with 3 different items on it (power = number of item entities).
 		BlockPos plate = new BlockPos(6, 1, 6);
 		helper.setBlock(plate, Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE);
-		net.minecraft.world.item.Item[] kinds = {Items.STONE, Items.DIRT, Items.SAND};
-		for (net.minecraft.world.item.Item kind : kinds) {
+		Item[] kinds = {Items.STONE, Items.DIRT, Items.SAND};
+		for (Item kind : kinds) {
 			BlockPos at = helper.absolutePos(plate);
-			level.addFreshEntity(new net.minecraft.world.entity.item.ItemEntity(level, at.getX() + 0.5, at.getY() + 0.1, at.getZ() + 0.5, new ItemStack(kind), 0, 0, 0));
+			level.addFreshEntity(new ItemEntity(level, at.getX() + 0.5, at.getY() + 0.1, at.getZ() + 0.5, new ItemStack(kind), 0, 0, 0));
 		}
 		for (BlockPos p : new BlockPos[]{repeater, strong, weak, torch, plate}) {
 			MeterFeature.toggle(player, level, helper.absolutePos(p));
@@ -631,7 +656,7 @@ public class RedstoneLabGameTests {
 		// A lever on the stone's side powers it (a redstone block next to it wouldn't).
 		BlockPos lever = new BlockPos(5, 1, 3);
 		helper.setBlock(lever, Blocks.LEVER.defaultBlockState().setValue(BlockStateProperties.ATTACH_FACE,
-				net.minecraft.world.level.block.state.properties.AttachFace.WALL).setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.WEST));
+				AttachFace.WALL).setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.WEST));
 		for (int i = 0; i < 10; i++) {
 			helper.runAtTickTime(4 + i * 6, () -> helper.pullLever(lever));
 			helper.runAtTickTime(7 + i * 6, () -> helper.pullLever(lever));
@@ -675,8 +700,8 @@ public class RedstoneLabGameTests {
 		floor(helper, 7, 7);
 		BlockState chest = Blocks.CHEST.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.NORTH);
 		// A: left half of a double chest; the items are all in the right half.
-		helper.setBlock(new BlockPos(1, 1, 1), chest.setValue(BlockStateProperties.CHEST_TYPE, net.minecraft.world.level.block.state.properties.ChestType.LEFT));
-		helper.setBlock(new BlockPos(2, 1, 1), chest.setValue(BlockStateProperties.CHEST_TYPE, net.minecraft.world.level.block.state.properties.ChestType.RIGHT));
+		helper.setBlock(new BlockPos(1, 1, 1), chest.setValue(BlockStateProperties.CHEST_TYPE, ChestType.LEFT));
+		helper.setBlock(new BlockPos(2, 1, 1), chest.setValue(BlockStateProperties.CHEST_TYPE, ChestType.RIGHT));
 		Container right = (Container) level.getBlockEntity(helper.absolutePos(new BlockPos(2, 1, 1)));
 		for (int i = 0; i < 9; i++) {
 			right.setItem(i, new ItemStack(Items.STONE, 64));
@@ -720,9 +745,9 @@ public class RedstoneLabGameTests {
 				all.append(labels[i]).append(": ").append(MeterFeature.statusForTest(player, labels[i])).append(" | ");
 			}
 			for (int i = 0; i < blocks.length; i++) {
-				int real = ((net.minecraft.world.level.block.entity.ComparatorBlockEntity) level.getBlockEntity(helper.absolutePos(blocks[i].south()))).getOutputSignal();
+				int real = ((ComparatorBlockEntity) level.getBlockEntity(helper.absolutePos(blocks[i].south()))).getOutputSignal();
 				String status = MeterFeature.statusForTest(player, labels[i]);
-				int meter = dev.redstonelab.core.Reading.level(MeterFeature.readingForTest(player, labels[i]));
+				int meter = Reading.level(MeterFeature.readingForTest(player, labels[i]));
 				// Containers: the bar is the signal. Composter: only the text (its bar is the power it gets).
 				helper.assertTrue(i == 2 || meter == real, labels[i] + ": meter signal " + meter + ", comparator " + real + " | " + all);
 				helper.assertTrue(status.contains("signal " + real), labels[i] + " text: " + all);
@@ -733,19 +758,19 @@ public class RedstoneLabGameTests {
 			helper.assertTrue(b.contains("signal 0") && b.endsWith("blocked") && !b.contains(" at "), "blocked chest: " + b);
 			helper.assertTrue(MeterFeature.statusForTest(player, "C").contains("signal 3"), "composter: " + all);
 			helper.assertTrue(!MeterFeature.statusForTest(player, "D").contains(" at "), "mixed stack sizes: " + all);
-			java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\((\\d+) at (\\d+)\\)").matcher(MeterFeature.statusForTest(player, "E"));
+			Matcher m = Pattern.compile("\\((\\d+) at (\\d+)\\)").matcher(MeterFeature.statusForTest(player, "E"));
 			helper.assertTrue(m.find(), "barrel: " + all);
 			at[0] = Integer.parseInt(m.group(1));
 			at[1] = Integer.parseInt(m.group(2));
 			fill(barrel, at[1] - 1);
 		});
 		helper.runAtTickTime(20, () -> {
-			int real = ((net.minecraft.world.level.block.entity.ComparatorBlockEntity) level.getBlockEntity(helper.absolutePos(blocks[4].south()))).getOutputSignal();
+			int real = ((ComparatorBlockEntity) level.getBlockEntity(helper.absolutePos(blocks[4].south()))).getOutputSignal();
 			helper.assertTrue(real == at[0] - 1, (at[1] - 1) + " items should still give " + (at[0] - 1) + ", comparator " + real);
 			fill(barrel, at[1]);
 		});
 		helper.runAtTickTime(30, () -> {
-			int real = ((net.minecraft.world.level.block.entity.ComparatorBlockEntity) level.getBlockEntity(helper.absolutePos(blocks[4].south()))).getOutputSignal();
+			int real = ((ComparatorBlockEntity) level.getBlockEntity(helper.absolutePos(blocks[4].south()))).getOutputSignal();
 			helper.assertTrue(real == at[0], at[1] + " items should give " + at[0] + ", comparator " + real);
 			MeterFeature.clear(player);
 			helper.succeed();
@@ -877,10 +902,10 @@ public class RedstoneLabGameTests {
 	}
 
 	/** Right-clicks a block as the player would. */
-	private static net.minecraft.world.InteractionResult click(GameTestHelper helper, ServerPlayer player, BlockPos pos) {
+	private static InteractionResult click(GameTestHelper helper, ServerPlayer player, BlockPos pos) {
 		BlockPos abs = helper.absolutePos(pos);
-		return PistorderFeature.onUseBlock(player, helper.getLevel(), net.minecraft.world.InteractionHand.MAIN_HAND,
-				new net.minecraft.world.phys.BlockHitResult(abs.getCenter(), Direction.UP, abs, false));
+		return PistorderFeature.onUseBlock(player, helper.getLevel(), InteractionHand.MAIN_HAND,
+				new BlockHitResult(abs.getCenter(), Direction.UP, abs, false));
 	}
 
 	/**
@@ -891,19 +916,19 @@ public class RedstoneLabGameTests {
 	public void pistonPreviewByClicking(GameTestHelper helper) {
 		ServerPlayer player = helper.makeMockServerPlayerInLevel();
 		// Test players are not ops: let everyone use RedstoneLab.
-		dev.redstonelab.config.ServerConfig.get().permissionLevel = 0;
+		ServerConfig.get().permissionLevel = 0;
 		BlockPos piston = new BlockPos(1, 1, 2);
 		BlockPos abs = helper.absolutePos(piston);
 		helper.setBlock(piston, piston(false, Direction.EAST));
 		for (int x = 2; x <= 4; x++) {
 			helper.setBlock(new BlockPos(x, 1, 2), Blocks.STONE);
 		}
-		player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new ItemStack(Items.STONE, 64));
-		helper.assertTrue(click(helper, player, piston) == net.minecraft.world.InteractionResult.PASS
+		player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE, 64));
+		helper.assertTrue(click(helper, player, piston) == InteractionResult.PASS
 				&& !PistorderFeature.shownForTest(player, abs), "with a block in hand the click must place it, not show the preview");
-		player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+		player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
 		player.setShiftKeyDown(true);
-		helper.assertTrue(click(helper, player, piston) == net.minecraft.world.InteractionResult.PASS
+		helper.assertTrue(click(helper, player, piston) == InteractionResult.PASS
 				&& !PistorderFeature.shownForTest(player, abs), "sneaking does nothing");
 		player.setShiftKeyDown(false);
 		click(helper, player, piston);
@@ -926,7 +951,7 @@ public class RedstoneLabGameTests {
 		// A comparator's FACING points at its back input.
 		helper.setBlock(comparator, Blocks.COMPARATOR.defaultBlockState()
 				.setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.WEST)
-				.setValue(BlockStateProperties.MODE_COMPARATOR, net.minecraft.world.level.block.state.properties.ComparatorMode.SUBTRACT));
+				.setValue(BlockStateProperties.MODE_COMPARATOR, ComparatorMode.SUBTRACT));
 		helper.setBlock(new BlockPos(1, 1, 2), Blocks.REDSTONE_BLOCK);
 		// Side input: dust two steps from a redstone block.
 		helper.setBlock(new BlockPos(2, 1, 1), Blocks.REDSTONE_WIRE);
@@ -935,7 +960,7 @@ public class RedstoneLabGameTests {
 		MeterFeature.toggle(player, level, helper.absolutePos(comparator));
 		helper.runAtTickTime(10, () -> {
 			int side = level.getBlockState(helper.absolutePos(new BlockPos(2, 1, 1))).getValue(BlockStateProperties.POWER);
-			int out = ((net.minecraft.world.level.block.entity.ComparatorBlockEntity) level.getBlockEntity(helper.absolutePos(comparator))).getOutputSignal();
+			int out = ((ComparatorBlockEntity) level.getBlockEntity(helper.absolutePos(comparator))).getOutputSignal();
 			helper.assertTrue(out == Math.max(0, 15 - side), "game sanity: out " + out + " side " + side);
 			String meter = MeterFeature.statusForTest(player, "A");
 			String real = "Comparator" + DOT + "subtract" + DOT + "back 15" + DOT + "side " + side + DOT + "out " + out;
@@ -991,7 +1016,7 @@ public class RedstoneLabGameTests {
 
 	// ------------------------------------------------------------------ powered vs active, tick phases, moving meters
 
-	private static long delay(ServerPlayer player, dev.redstonelab.core.MeterEvent from, dev.redstonelab.core.MeterEvent to) {
+	private static long delay(ServerPlayer player, MeterEvent from, MeterEvent to) {
 		return MeterFeature.eventTimeForTest(player, "A", to) - MeterFeature.eventTimeForTest(player, "A", from);
 	}
 
@@ -1006,11 +1031,11 @@ public class RedstoneLabGameTests {
 		MeterFeature.toggle(player, level, helper.absolutePos(repeater));
 		helper.runAtTickTime(4, () -> helper.setBlock(new BlockPos(1, 1, 2), Blocks.REDSTONE_BLOCK));
 		helper.runAtTickTime(20, () -> {
-			long d = delay(player, dev.redstonelab.core.MeterEvent.POWERED, dev.redstonelab.core.MeterEvent.TURNED_ON);
+			long d = delay(player, MeterEvent.POWERED, MeterEvent.TURNED_ON);
 			helper.assertTrue(d == 2, "powered 2 ticks before on, got " + d);
 			int r = MeterFeature.readingForTest(player, "A");
-			helper.assertTrue(dev.redstonelab.core.Reading.active(r) && dev.redstonelab.core.Reading.powered(r), "on and powered at the end");
-			java.util.List<String> events = MeterFeature.eventsForTest(player, "A");
+			helper.assertTrue(Reading.active(r) && Reading.powered(r), "on and powered at the end");
+			List<String> events = MeterFeature.eventsForTest(player, "A");
 			helper.assertTrue(events.contains("TURNED_ON@BLOCK_TICKS"), "repeater turns on in the block tick phase: " + events);
 			helper.assertTrue(events.indexOf("POWERED@PLAYERS") >= 0 && events.indexOf("POWERED@PLAYERS") < events.indexOf("TURNED_ON@BLOCK_TICKS"),
 					"powered first, then on: " + events);
@@ -1034,14 +1059,14 @@ public class RedstoneLabGameTests {
 		MeterFeature.toggle(player, level, helper.absolutePos(lamp));
 		helper.runAtTickTime(3, () -> helper.setBlock(input, Blocks.REDSTONE_BLOCK));
 		helper.runAtTickTime(10, () -> {
-			int on = MeterFeature.seqForTest(player, "A", dev.redstonelab.core.MeterEvent.TURNED_ON);
-			int lampPowered = MeterFeature.seqForTest(player, "B", dev.redstonelab.core.MeterEvent.POWERED);
+			int on = MeterFeature.seqForTest(player, "A", MeterEvent.TURNED_ON);
+			int lampPowered = MeterFeature.seqForTest(player, "B", MeterEvent.POWERED);
 			helper.assertTrue(on >= 0 && lampPowered > on, "repeater on (" + on + ") before lamp powered (" + lampPowered + ")");
 			helper.setBlock(input, Blocks.AIR);
 		});
 		helper.runAtTickTime(20, () -> {
-			int off = MeterFeature.seqForTest(player, "A", dev.redstonelab.core.MeterEvent.TURNED_OFF);
-			int lampUnpowered = MeterFeature.seqForTest(player, "B", dev.redstonelab.core.MeterEvent.UNPOWERED);
+			int off = MeterFeature.seqForTest(player, "A", MeterEvent.TURNED_OFF);
+			int lampUnpowered = MeterFeature.seqForTest(player, "B", MeterEvent.UNPOWERED);
 			helper.assertTrue(off >= 0 && lampUnpowered > off, "repeater off (" + off + ") before lamp unpowered (" + lampUnpowered + ")");
 			MeterFeature.clear(player);
 			helper.succeed();
@@ -1060,11 +1085,11 @@ public class RedstoneLabGameTests {
 		helper.runAtTickTime(4, () -> helper.setBlock(source, Blocks.REDSTONE_BLOCK));
 		helper.runAtTickTime(8, () -> helper.setBlock(source, Blocks.AIR));
 		helper.runAtTickTime(20, () -> {
-			long on = delay(player, dev.redstonelab.core.MeterEvent.POWERED, dev.redstonelab.core.MeterEvent.TURNED_ON);
-			long off = delay(player, dev.redstonelab.core.MeterEvent.UNPOWERED, dev.redstonelab.core.MeterEvent.TURNED_OFF);
+			long on = delay(player, MeterEvent.POWERED, MeterEvent.TURNED_ON);
+			long off = delay(player, MeterEvent.UNPOWERED, MeterEvent.TURNED_OFF);
 			helper.assertTrue(on == 0, "a lamp lights up the moment it is powered, got " + on);
 			helper.assertTrue(off == 4, "a lamp stays lit 4 ticks after losing power, got " + off);
-			java.util.List<String> events = MeterFeature.eventsForTest(player, "A");
+			List<String> events = MeterFeature.eventsForTest(player, "A");
 			helper.assertTrue(events.contains("TURNED_OFF@BLOCK_TICKS"), "lamp turns off in the block tick phase: " + events);
 			MeterFeature.clear(player);
 			helper.succeed();
@@ -1109,14 +1134,14 @@ public class RedstoneLabGameTests {
 		floor(helper, 4, 4);
 		BlockPos lever = new BlockPos(2, 1, 2);
 		helper.setBlock(lever, Blocks.LEVER.defaultBlockState().setValue(BlockStateProperties.ATTACH_FACE,
-				net.minecraft.world.level.block.state.properties.AttachFace.FLOOR));
+				AttachFace.FLOOR));
 		MeterFeature.toggle(player, level, helper.absolutePos(lever));
 		helper.runAtTickTime(3, () -> helper.useBlock(lever, player));
 		helper.runAtTickTime(6, () -> {
-			java.util.List<String> events = MeterFeature.eventsForTest(player, "A");
+			List<String> events = MeterFeature.eventsForTest(player, "A");
 			int clicked = events.indexOf("CLICKED@PLAYERS");
 			helper.assertTrue(clicked >= 0 && events.indexOf("TURNED_ON@PLAYERS") > clicked, "clicked, then on: " + events);
-			helper.assertTrue(dev.redstonelab.core.Reading.active(MeterFeature.readingForTest(player, "A")), "lever on");
+			helper.assertTrue(Reading.active(MeterFeature.readingForTest(player, "A")), "lever on");
 			MeterFeature.clear(player);
 			helper.succeed();
 		});
@@ -1133,19 +1158,19 @@ public class RedstoneLabGameTests {
 		if (s.is(Blocks.REPEATER) || s.is(Blocks.OBSERVER) || s.is(Blocks.LEVER)) {
 			return s.getValue(BlockStateProperties.POWERED);
 		}
-		if (s.is(Blocks.COMPARATOR) && level.getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.ComparatorBlockEntity c) {
+		if (s.is(Blocks.COMPARATOR) && level.getBlockEntity(pos) instanceof ComparatorBlockEntity c) {
 			return c.getOutputSignal() > 0;
 		}
 		if (s.is(Blocks.REDSTONE_TORCH) || s.is(Blocks.REDSTONE_WALL_TORCH) || s.is(Blocks.REDSTONE_LAMP)) {
 			return s.getValue(BlockStateProperties.LIT);
 		}
-		if (s.getBlock() instanceof net.minecraft.world.level.block.piston.PistonBaseBlock) {
+		if (s.getBlock() instanceof PistonBaseBlock) {
 			return s.getValue(BlockStateProperties.EXTENDED);
 		}
 		if (s.is(Blocks.DROPPER) || s.is(Blocks.DISPENSER)) {
 			return s.getValue(BlockStateProperties.TRIGGERED);
 		}
-		if (level.getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.CommandBlockEntity command) {
+		if (level.getBlockEntity(pos) instanceof CommandBlockEntity command) {
 			return command.isPowered();
 		}
 		if (s.is(Blocks.HOPPER)) {
@@ -1163,7 +1188,7 @@ public class RedstoneLabGameTests {
 	public void randomCircuitsMatchGame(GameTestHelper helper) {
 		ServerLevel level = helper.getLevel();
 		ServerPlayer player = helper.makeMockServerPlayerInLevel();
-		java.util.Random random = new java.util.Random(4242);
+		Random random = new Random(4242);
 		Direction[] horizontal = {Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST};
 		int[] checks = new int[1];
 		int[] mismatches = new int[1];
@@ -1171,7 +1196,7 @@ public class RedstoneLabGameTests {
 		int[] signalChecks = new int[1];
 		int[] signalWrong = new int[1];
 		String[] firstSignal = {""};
-		java.util.List<BlockPos> levers = new java.util.ArrayList<>();
+		List<BlockPos> levers = new ArrayList<>();
 		for (int round = 0; round < 8; round++) {
 			int start = 2 + round * 50;
 			int r = round;
@@ -1203,8 +1228,8 @@ public class RedstoneLabGameTests {
 						} else if (pick < 48) {
 							s = Blocks.COMPARATOR.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, h)
 									.setValue(BlockStateProperties.MODE_COMPARATOR, random.nextBoolean()
-											? net.minecraft.world.level.block.state.properties.ComparatorMode.COMPARE
-											: net.minecraft.world.level.block.state.properties.ComparatorMode.SUBTRACT);
+											? ComparatorMode.COMPARE
+											: ComparatorMode.SUBTRACT);
 						} else if (pick < 56) {
 							s = Blocks.REDSTONE_TORCH.defaultBlockState();
 						} else if (pick < 63) {
@@ -1215,7 +1240,7 @@ public class RedstoneLabGameTests {
 							s = piston(random.nextBoolean(), Direction.values()[random.nextInt(6)]);
 						} else if (pick < 88) {
 							s = Blocks.LEVER.defaultBlockState().setValue(BlockStateProperties.ATTACH_FACE,
-									net.minecraft.world.level.block.state.properties.AttachFace.FLOOR)
+									AttachFace.FLOOR)
 									.setValue(BlockStateProperties.HORIZONTAL_FACING, h);
 							levers.add(pos);
 						} else if (pick < 90) {
@@ -1269,7 +1294,7 @@ public class RedstoneLabGameTests {
 							continue;
 						}
 						checks[0]++;
-						boolean ours = dev.redstonelab.core.Reading.active(MeterFeature.readingForTest(player, label));
+						boolean ours = Reading.active(MeterFeature.readingForTest(player, label));
 						if (ours != truth) {
 							mismatches[0]++;
 							if (first[0].isEmpty()) {
@@ -1315,7 +1340,7 @@ public class RedstoneLabGameTests {
 		helper.assertTrue(MeterFeature.statusForTest(player, "A").startsWith("clock" + DOT + "Redstone Lamp"),
 				"name kept with the group: " + MeterFeature.statusForTest(player, "A"));
 		MeterFeature.removeOne(player, null);
-		helper.assertTrue(MeterFeature.count(player) == 1 && MeterFeature.labels(player).equals(java.util.List.of("A")),
+		helper.assertTrue(MeterFeature.count(player) == 1 && MeterFeature.labels(player).equals(List.of("A")),
 				"remove newest should leave A: " + MeterFeature.labels(player));
 		MeterFeature.removeOne(player, helper.absolutePos(a));
 		helper.assertTrue(MeterFeature.count(player) == 0, "remove by position");
@@ -1365,7 +1390,7 @@ public class RedstoneLabGameTests {
 			// The game's own formula, by brute force: the fewest stone that gives the next signal.
 			int next = -1;
 			for (int k = 10; k <= 5 * 64 && next < 0; k++) {
-				net.minecraft.world.SimpleContainer probe = new net.minecraft.world.SimpleContainer(5);
+				SimpleContainer probe = new SimpleContainer(5);
 				for (int slot = 0, left = k; left > 0; slot++, left -= 64) {
 					probe.setItem(slot, new ItemStack(Items.STONE, Math.min(64, left)));
 				}
@@ -1386,12 +1411,12 @@ public class RedstoneLabGameTests {
 	 */
 	@GameTest(maxTicks = 5)
 	public void pistonOrderOnlyLinksCloseFires(GameTestHelper helper) {
-		dev.redstonelab.core.PistonOrder.Fires a = new dev.redstonelab.core.PistonOrder.Fires();
-		dev.redstonelab.core.PistonOrder.Fires b = new dev.redstonelab.core.PistonOrder.Fires();
+		PistonOrder.Fires a = new PistonOrder.Fires();
+		PistonOrder.Fires b = new PistonOrder.Fires();
 		a.add(100, 1);
 		b.add(167, 2);
-		java.util.List<String> apart = dev.redstonelab.core.PistonOrder.compute(java.util.List.of(a, b), 170, true);
-		helper.assertTrue(apart.equals(java.util.List.of("", "")), "pushed 67t apart: " + apart);
+		List<String> apart = PistonOrder.compute(List.of(a, b), 170, true);
+		helper.assertTrue(apart.equals(List.of("", "")), "pushed 67t apart: " + apart);
 
 		a.clear();
 		b.clear();
@@ -1399,19 +1424,19 @@ public class RedstoneLabGameTests {
 			a.add(t, t * 2);
 			b.add(t + 3, t * 2 + 1);
 		}
-		java.util.List<String> clock = dev.redstonelab.core.PistonOrder.compute(java.util.List.of(a, b), 116, true);
-		helper.assertTrue(clock.equals(java.util.List.of("#1", "#2 \u00b7 +3t")), "clock: " + clock);
+		List<String> clock = PistonOrder.compute(List.of(a, b), 116, true);
+		helper.assertTrue(clock.equals(List.of("#1", "#2 \u00b7 +3t")), "clock: " + clock);
 
-		dev.redstonelab.core.PistonOrder.Fires c = new dev.redstonelab.core.PistonOrder.Fires();
-		dev.redstonelab.core.PistonOrder.Fires d = new dev.redstonelab.core.PistonOrder.Fires();
+		PistonOrder.Fires c = new PistonOrder.Fires();
+		PistonOrder.Fires d = new PistonOrder.Fires();
 		a.clear();
 		b.clear();
 		a.add(100, 1);
 		b.add(110, 2);
 		c.add(125, 3);
 		d.add(150, 4);
-		java.util.List<String> chain = dev.redstonelab.core.PistonOrder.compute(java.util.List.of(a, b, c, d), 151, true);
-		helper.assertTrue(chain.equals(java.util.List.of("#1", "#2 \u00b7 +10t", "#3 \u00b7 +15t", "")), "chain: " + chain);
+		List<String> chain = PistonOrder.compute(List.of(a, b, c, d), 151, true);
+		helper.assertTrue(chain.equals(List.of("#1", "#2 \u00b7 +10t", "#3 \u00b7 +15t", "")), "chain: " + chain);
 		helper.succeed();
 	}
 
@@ -1439,6 +1464,41 @@ public class RedstoneLabGameTests {
 		helper.runAtTickTime(12, () -> {
 			String order = MeterFeature.orderForTest(player, level.getGameTime());
 			helper.assertTrue(order.equals("A D B C"), "game order inside the tick: '" + order + "'");
+			MeterFeature.clear(player);
+			helper.succeed();
+		});
+	}
+
+	/**
+	 * A repeater turning on powers a piston in the same tick: the repeater is on in the block tick
+	 * part, the piston gets power right after it (block tick part too) and only extends later, in
+	 * the block event part. The marks and the tick list rely on this order.
+	 */
+	@GameTest(maxTicks = 30)
+	public void phasesInsideOneTick(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		floor(helper, 4, 4);
+		BlockPos repeater = new BlockPos(2, 1, 2);
+		BlockPos piston = new BlockPos(3, 1, 2);
+		helper.setBlock(repeater, Blocks.REPEATER.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.WEST));
+		helper.setBlock(piston, Blocks.PISTON.defaultBlockState().setValue(BlockStateProperties.FACING, Direction.UP));
+		MeterFeature.toggle(player, level, helper.absolutePos(repeater));
+		MeterFeature.toggle(player, level, helper.absolutePos(piston));
+		helper.runAtTickTime(4, () -> helper.setBlock(new BlockPos(1, 1, 2), Blocks.REDSTONE_BLOCK));
+		helper.runAtTickTime(20, () -> {
+			List<String> events = MeterFeature.eventsForTest(player, "B");
+			int powered = events.indexOf("POWERED@BLOCK_TICKS");
+			int extended = events.indexOf("TURNED_ON@BLOCK_EVENTS");
+			helper.assertTrue(powered >= 0 && extended > powered, "piston: powered in the block ticks, then extends in the block events: " + events);
+			long t1 = MeterFeature.eventTimeForTest(player, "A", MeterEvent.TURNED_ON);
+			long t2 = MeterFeature.eventTimeForTest(player, "B", MeterEvent.POWERED);
+			long t3 = MeterFeature.eventTimeForTest(player, "B", MeterEvent.TURNED_ON);
+			helper.assertTrue(t1 == t2 && t2 == t3, "all in the same tick: " + t1 + " " + t2 + " " + t3);
+			int on = MeterFeature.seqForTest(player, "A", MeterEvent.TURNED_ON);
+			int pow = MeterFeature.seqForTest(player, "B", MeterEvent.POWERED);
+			int ext = MeterFeature.seqForTest(player, "B", MeterEvent.TURNED_ON);
+			helper.assertTrue(on < pow && pow < ext, "order in the tick: " + on + " " + pow + " " + ext);
 			MeterFeature.clear(player);
 			helper.succeed();
 		});

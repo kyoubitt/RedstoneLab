@@ -24,10 +24,8 @@ import dev.redstonelab.net.LabPayloads;
 import dev.redstonelab.net.LabPayloads.MarkerData;
 
 /**
- * Piston previews on the client, like Pistorder: right-click a piston with an empty hand to show
- * what it will do, again to hide it; sneaking does nothing; P hides all; a new world hides all.
- * Several shown pistons get their firing order ("#2 · +3t"). Works on any server, with or
- * without RedstoneLab (with it, the ticks of the firing order come from the server).
+ * Piston previews on the client: right-click a piston with an empty hand to show it, again to hide; P hides all.
+ * Several shown pistons get a firing order. Works on any server; with RedstoneLab the ticks come from it.
  */
 public final class ClientPistons {
 	public static final String CHANNEL = "pistons-client";
@@ -89,9 +87,8 @@ public final class ClientPistons {
 	}
 
 	/**
-	 * A piston started extending, seen on this client (the server sends every piston move in the
-	 * order the game ran them). Only used when the server doesn't have RedstoneLab: then the
-	 * order inside a tick is still exact, the ticks between are measured here.
+	 * A piston started extending. Only used when the server lacks RedstoneLab: the order inside a tick is still
+	 * exact, the ticks between are measured here.
 	 */
 	public static void onClientExtend(BlockPos pos) {
 		PistonView.View view = SHOWN.get(pos);

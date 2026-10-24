@@ -1,9 +1,6 @@
 package dev.redstonelab.core;
 
-/**
- * Pulse widths (on time) and gaps (off time) of a signal. On = power above 0. A rise and fall
- * in the same game tick is a 0-tick pulse.
- */
+/** Pulse widths (on) and gaps (off) of a signal. On = power above 0. Rising and falling in one tick is a 0-tick pulse. */
 public final class PulseMeter {
 	/** An off time longer than this (and 3x every recent length) is a pause, not part of the clock. */
 	public static final long IDLE_RESET = 100;
@@ -24,11 +21,7 @@ public final class PulseMeter {
 		this.gaps = new RunStats(window);
 	}
 
-	/**
-	 * Feed a new power level.
-	 *
-	 * @return +1 for a rising edge, -1 for a falling edge, 0 otherwise
-	 */
+	/** Feeds a power level. Returns +1 for a rising edge, -1 for a falling edge, else 0. */
 	public int update(long gameTime, int power) {
 		boolean nowOn = power > 0;
 		if (!this.initialized) {

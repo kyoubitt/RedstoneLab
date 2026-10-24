@@ -4,9 +4,11 @@ import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
@@ -126,7 +128,7 @@ public final class LabServer {
 		server = null;
 	}
 
-	public static @Nullable ServerLevel level(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> key) {
+	public static @Nullable ServerLevel level(ResourceKey<Level> key) {
 		return server == null ? null : server.getLevel(key);
 	}
 }

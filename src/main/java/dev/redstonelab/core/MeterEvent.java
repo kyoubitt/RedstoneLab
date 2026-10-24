@@ -4,9 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Things that can happen to a watched block in one tick, shown as coloured marks on its
- * timeline row (like Redstone Multimeter). Several can happen in the same tick, so they are
- * stored as a bit set per tick.
+ * Things that can happen to a watched block in one tick. Shown as marks under the timeline bar.
+ * Kept as a bit set per tick, since several can happen at once.
  */
 public enum MeterEvent {
 	/** Became active (lamp lit, piston extended, repeater output on...). */

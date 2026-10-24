@@ -12,10 +12,7 @@ import dev.redstonelab.config.ServerConfig;
 import dev.redstonelab.net.LabPayloads;
 import dev.redstonelab.server.LabServer;
 
-/**
- * Common entrypoint (dedicated server and integrated server). Meters and piston previews
- * run on the server, so players without the mod can use them too.
- */
+/** Common entrypoint. Meters and piston previews run on the server, so players without the mod can use them too. */
 public class RedstoneLab implements ModInitializer {
 	public static final String MOD_ID = "redstonelab";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);

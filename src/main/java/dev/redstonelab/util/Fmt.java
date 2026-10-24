@@ -2,6 +2,7 @@ package dev.redstonelab.util;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
@@ -31,7 +32,7 @@ public final class Fmt {
 		return sb.toString();
 	}
 
-	public static String pretty(net.minecraft.world.item.Item item) {
+	public static String pretty(Item item) {
 		return pretty(BuiltInRegistries.ITEM.getKey(item).getPath());
 	}
 

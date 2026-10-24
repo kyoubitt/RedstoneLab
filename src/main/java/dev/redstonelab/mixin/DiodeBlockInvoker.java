@@ -9,10 +9,7 @@ import net.minecraft.world.level.SignalGetter;
 import net.minecraft.world.level.block.DiodeBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
-/**
- * Reads a comparator's (or repeater's) back and side inputs the same way the game does, for
- * comparator meters.
- */
+/** Reads a comparator's or repeater's back and side inputs like the game does. */
 @Mixin(DiodeBlock.class)
 public interface DiodeBlockInvoker {
 	@Invoker("getInputSignal")

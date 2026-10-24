@@ -6,11 +6,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Firing order of the shown pistons: "#1", "#2 · +3t", "#3 · same tick". Like the meters' order
- * line, every piston's extensions are measured from the first shown piston's extension just
- * before them, so the numbers stay put while a clock keeps running. Pistons that extend in the
- * same tick are ordered by when the game ran them inside that tick. A piston more than 1 s after
- * the one before isn't part of the same firing (pushed separately).
+ * Firing order of the shown pistons: "#1", "#2 - +3t", "#3 - same tick". Measured from the first shown
+ * piston, like the meters' order line. Same-tick pistons are ordered by when the game ran them.
+ * A piston more than 1 s after the one before was pushed separately and is not part of the firing.
  */
 public final class PistonOrder {
 	/** Pistons that didn't extend for this long (or 2 of their periods, if longer) are left out. */
@@ -93,13 +91,11 @@ public final class PistonOrder {
 	}
 
 	/**
-	 * One label per piston, in the same order as {@code pistons} (the first one shown is the
-	 * start): "#1", "#2 · +3t" (3 ticks after the one before), "#3 · same tick" (same tick, run
-	 * after the one before), "own timing" (its delay keeps changing) or "" (not extending
-	 * lately). All "" when fewer than two pistons extended lately.
+	 * One label per piston, in the order of {@code pistons}: "#1", "#2 - +3t", "#3 - same tick", "own timing",
+	 * or "" (not extending lately). All "" when fewer than two extended lately.
 	 *
-	 * @param exact the times are the server's; otherwise (measured on the client) a delay that
-	 *              differs now and then is network jitter, so the most common one is used
+	 * @param exact times are the server's; measured on the client, a delay that differs now and then is
+	 *              network jitter, so the most common one is used
 	 */
 	public static List<String> compute(List<Fires> pistons, long now, boolean exact) {
 		List<String> labels = new ArrayList<>();

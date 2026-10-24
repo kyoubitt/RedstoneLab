@@ -29,6 +29,9 @@ A ▮▮ 4 ▮▮ 4   clock · Observer · on 2t · off 4t
 B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 ```
 - **bar** = on, number = ticks · **thin line** = powered, not on yet · **white line** = 0-tick
+- **marks under the bar** = what happened inside each tick, left to right in the order the game ran it
+  (turned on, scheduled tick, block event, item in...). Stop the timeline (R + Backspace) for the legend
+  and the full list with the part of the tick. **Also mark block updates**: settings → Timeline.
 - **Order**: who turns on first, from A (or the first meter still running). `A → 2t → B D` = B and D 2t after A,
   in the same tick: B first (same-tick meters are listed in the order the game ran them).
 - `6t` always the same · `2-3t` varies between 2t and 3t
@@ -39,8 +42,7 @@ B ▮▮ 4 ▮▮ 4   Repeater · on 2t · off 4t
 - Meters follow blocks moved by pistons.
 
 **R + Backspace / Enter**: only the timeline goes 1 tick back / forward; the game keeps running (title `[3t back]`,
-at now it runs again). Stopped = list of what happened that tick, in sub-tick order. Block / shape updates:
-**Show event marks**.
+at now it runs again). Stopped = list of what happened that tick, in order.
 
 `/rlab meter expect A 2 4` (wrong pulses turn red) · `/rlab meter name A clock` ·
 `/rlab group <name>` (**R + G** lists)
@@ -78,7 +80,7 @@ Needs op; `/rlab config set permissionLevel 0` lets everyone use it.
 ## Build
 
 `./gradlew build` (JDK 25; the mod runs on Java 21). Jar in `build/libs/`.
-- `./gradlew runGameTest`: 69 tests that check the mod against the real game, every command
+- `./gradlew runGameTest`: 70 tests that check the mod against the real game, every command
   and the Meter Tool, groups saved / shared / reloaded, limits and permissions, and: clocks, pistons, QC,
   comparators, hoppers, sub-tick order, random circuits and piston builds, and 18 circuits built
   from the Minecraft Wiki's own schematics (hopper clocks, Etho hopper clock, subtraction clocks,

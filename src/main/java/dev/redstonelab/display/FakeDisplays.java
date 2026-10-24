@@ -10,6 +10,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.FloatTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
@@ -28,12 +29,8 @@ import net.minecraft.world.phys.Vec3;
 import dev.redstonelab.RedstoneLab;
 
 /**
- * Builds packet-only text_display / block_display entities for vanilla clients.
- *
- * <p>The entities are created from the same NBT format {@code /summon} uses (public,
- * stable format), but never added to the level: only the spawn + data packets are sent to
- * one player. Nothing is saved to disk, other players never see them, and logging out or
- * stopping the server cannot leave anything behind.</p>
+ * Packet-only text_display / block_display entities for vanilla clients. Built from /summon NBT but never
+ * added to the level: only spawn and data packets go to one player, nothing is saved.
  */
 public final class FakeDisplays {
 	public static final String TAG = "redstonelab_marker";
@@ -75,7 +72,7 @@ public final class FakeDisplays {
 		CompoundTag tag = new CompoundTag();
 		tag.putString("id", id);
 		ListTag tags = new ListTag();
-		tags.add(net.minecraft.nbt.StringTag.valueOf(TAG));
+		tags.add(StringTag.valueOf(TAG));
 		tag.put("Tags", tags);
 		CompoundTag brightness = new CompoundTag();
 		brightness.putInt("sky", 15);

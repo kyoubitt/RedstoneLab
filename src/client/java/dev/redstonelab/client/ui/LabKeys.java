@@ -1,7 +1,9 @@
 package dev.redstonelab.client.ui;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -13,15 +15,11 @@ import net.minecraft.world.phys.HitResult;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
-
 import dev.redstonelab.client.ClientNetworking;
 import dev.redstonelab.client.ClientPistons;
 import dev.redstonelab.client.ClientState;
 
-/**
- * Key combos ("R + Enter": hold R, press Enter) and what they do. Fed from the keyboard mixin; a
- * combo that fires swallows its last key, so the game doesn't also react to it.
- */
+/** Key combos and what they do. A combo that fires swallows its last key so the game doesn't react to it too. */
 public final class LabKeys {
 	/** Keys held right now, in the order they went down. */
 	private static final List<Integer> HELD = new ArrayList<>();
@@ -52,12 +50,12 @@ public final class LabKeys {
 			return false;
 		}
 		// Keys that start a combo (R in "R + M"). Other held keys (walking, sprinting) don't matter.
-		java.util.Set<Integer> modifiers = new java.util.HashSet<>();
+		Set<Integer> modifiers = new HashSet<>();
 		for (LabConfig.Hotkey hotkey : LabConfig.hotkeys()) {
 			List<Integer> keys = hotkey.value.keys();
 			modifiers.addAll(keys.subList(0, Math.max(0, keys.size() - 1)));
 		}
-		java.util.Set<Integer> held = new java.util.HashSet<>();
+		Set<Integer> held = new HashSet<>();
 		for (int k : HELD) {
 			if (k == key || modifiers.contains(k)) {
 				held.add(k);
@@ -65,7 +63,7 @@ public final class LabKeys {
 		}
 		for (LabConfig.Hotkey hotkey : LabConfig.hotkeys()) {
 			List<Integer> keys = hotkey.value.keys();
-			if (keys.isEmpty() || keys.get(keys.size() - 1) != key || !held.equals(new java.util.HashSet<>(keys))) {
+			if (keys.isEmpty() || keys.get(keys.size() - 1) != key || !held.equals(new HashSet<>(keys))) {
 				continue;
 			}
 			if (action == GLFW.GLFW_REPEAT && !hotkey.repeats) {

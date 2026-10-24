@@ -1,20 +1,26 @@
 package dev.redstonelab.feature;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.ComparatorMode;
 
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
+
+import dev.redstonelab.core.Reading;
 
 /**
  * Real circuits people build, with meters on their parts. Every tick each meter's on / off is
@@ -32,7 +38,7 @@ public class ComplexCircuitTests {
 		}
 	}
 
-	private static BlockState facing(net.minecraft.world.level.block.Block block, Direction d) {
+	private static BlockState facing(Block block, Direction d) {
 		return block.defaultBlockState().setValue(block.defaultBlockState().hasProperty(BlockStateProperties.FACING)
 				? BlockStateProperties.FACING : BlockStateProperties.HORIZONTAL_FACING, d);
 	}
@@ -91,8 +97,8 @@ public class ComplexCircuitTests {
 					+ " D " + truth.rises("D") + " now " + level.getGameTime());
 			check(helper, truth, "dropper pair");
 			String a0 = MeterFeature.statusForTest(player, "A");
-			helper.assertTrue(dev.redstonelab.core.Reading.active(MeterFeature.readingForTest(player, "A"))
-					&& !dev.redstonelab.core.Reading.powered(MeterFeature.readingForTest(player, "A")), "A is a BUD: triggered, not powered. " + a0);
+			helper.assertTrue(Reading.active(MeterFeature.readingForTest(player, "A"))
+					&& !Reading.powered(MeterFeature.readingForTest(player, "A")), "A is a BUD: triggered, not powered. " + a0);
 			String b = MeterFeature.statusForTest(player, "B");
 			helper.assertTrue(b.contains("fires every 20t"), "B: " + b);
 			String c = MeterFeature.statusForTest(player, "C");
@@ -205,8 +211,8 @@ public class ComplexCircuitTests {
 		script.at(5, () -> helper.setBlock(torch, Blocks.REDSTONE_WALL_TORCH.defaultBlockState()
 				.setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST)));
 		// Burnt out = off and unpowered for 3+ ticks (between normal flips it's off for 2).
-		java.util.List<Boolean> offUnpowered = new java.util.ArrayList<>();
-		java.util.List<Boolean> meterBurnt = new java.util.ArrayList<>();
+		List<Boolean> offUnpowered = new ArrayList<>();
+		List<Boolean> meterBurnt = new ArrayList<>();
 		script.every(() -> {
 			BlockState s = level.getBlockState(helper.absolutePos(torch));
 			boolean powered = level.hasSignal(helper.absolutePos(block), Direction.WEST);
@@ -323,7 +329,7 @@ public class ComplexCircuitTests {
 			helper.assertTrue(a.contains("53 Stone") && a.contains("fires every 20t"), "dropper: " + a);
 			helper.assertTrue(b.equals("Hopper" + DOT + "empty" + DOT + "in / out every 20t"), "hopper 1: " + b);
 			helper.assertTrue(c.equals("Hopper" + DOT + "empty" + DOT + "in / out every 20t"), "hopper 2: " + c);
-			int signal = net.minecraft.world.inventory.AbstractContainerMenu.getRedstoneSignalFromContainer(
+			int signal = AbstractContainerMenu.getRedstoneSignalFromContainer(
 					(Container) level.getBlockEntity(helper.absolutePos(chest)));
 			helper.assertTrue(d.startsWith("Chest" + DOT + "11 Stone" + DOT + "signal " + signal) && d.contains("in every 20t"), "chest: " + d);
 			MeterFeature.clear(player);

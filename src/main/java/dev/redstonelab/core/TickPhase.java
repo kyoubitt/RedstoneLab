@@ -1,10 +1,6 @@
 package dev.redstonelab.core;
 
-/**
- * The part of the game tick that is running, in the order the game runs them. Set by the
- * server mixins, read when a meter records an event (for the "what happened in this tick"
- * list).
- */
+/** The part of the game tick that is running, in the order the game runs them. Set by the server mixins. */
 public enum TickPhase {
 	/** Anything outside a world tick: players clicking, commands, other dimensions. */
 	PLAYERS("players & commands"),

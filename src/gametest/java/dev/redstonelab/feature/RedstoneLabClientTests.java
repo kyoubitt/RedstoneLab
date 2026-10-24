@@ -5,15 +5,20 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 
-import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
-import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import org.lwjgl.glfw.GLFW;
 
+import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
@@ -23,15 +28,27 @@ import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.phys.BlockHitResult;
 
-import dev.redstonelab.client.ClientState;
+import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
+import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
+import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.loader.api.FabricLoader;
+
+import dev.redstonelab.RedstoneLab;
 import dev.redstonelab.client.ClientPistons;
+import dev.redstonelab.client.ClientState;
 import dev.redstonelab.client.ui.LabConfig;
 import dev.redstonelab.client.ui.LabConfigScreen;
 import dev.redstonelab.client.ui.LabKeys;
+import dev.redstonelab.net.LabPayloads;
 
 /**
  * Opens a real client, builds a clock, repeater, lamp, piston and a dropper -> hopper -> chest
@@ -82,11 +99,11 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 
 			// Real keys: hold R, press Backspace = 1 tick back (freezes the timeline), Enter = forward.
 			int metersBefore = context.computeOnClient(client -> ClientState.SCOPE.size());
-			context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
-			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE);
-			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE);
-			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER);
-			context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
+			context.getInput().holdKey(GLFW.GLFW_KEY_R);
+			context.getInput().pressKey(GLFW.GLFW_KEY_BACKSPACE);
+			context.getInput().pressKey(GLFW.GLFW_KEY_BACKSPACE);
+			context.getInput().pressKey(GLFW.GLFW_KEY_ENTER);
+			context.getInput().releaseKey(GLFW.GLFW_KEY_R);
 			context.waitTicks(5);
 			boolean frozen = context.computeOnClient(client -> LabKeys.paused && LabKeys.scroll == 1);
 			if (!frozen) {
@@ -109,7 +126,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = false);
 			world.getServer().runOnServer(server -> {
 				ServerPlayer player = player(server);
-				player.teleportTo(player.level(), base.getX() + 0.5, base.getY() + 2.5, base.getZ() - 1.5, java.util.Set.of(), 0f, 25f, false);
+				player.teleportTo(player.level(), base.getX() + 0.5, base.getY() + 2.5, base.getZ() - 1.5, Set.of(), 0f, 25f, false);
 			});
 			context.waitTicks(10);
 			this.record(context, 60, "In the world: every meter has its letter");
@@ -118,17 +135,17 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			// Pistons, like Pistorder: right-click one with an empty hand (a real mouse click).
 			world.getServer().runOnServer(server -> {
 				ServerPlayer player = player(server);
-				player.teleportTo(player.level(), base.getX() + 5.5, base.getY(), base.getZ() + 2, java.util.Set.of(), 0f, 0f, false);
-				player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, base.offset(4, 0, 4).getCenter());
+				player.teleportTo(player.level(), base.getX() + 5.5, base.getY(), base.getZ() + 2, Set.of(), 0f, 0f, false);
+				player.lookAt(EntityAnchorArgument.Anchor.EYES, base.offset(4, 0, 4).getCenter());
 			});
 			context.waitTicks(10);
 			// Click only once the client really looks at it (the turn arrives from the server).
-			for (int i = 0; i < 40 && !context.computeOnClient(client -> client.hitResult instanceof net.minecraft.world.phys.BlockHitResult hit
+			for (int i = 0; i < 40 && !context.computeOnClient(client -> client.hitResult instanceof BlockHitResult hit
 					&& hit.getBlockPos().equals(base.offset(4, 0, 4))); i++) {
 				context.waitTick();
 			}
 			boolean before = context.computeOnClient(client -> ClientPistons.isShown(base.offset(4, 0, 4)));
-			context.getInput().pressMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+			context.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_RIGHT);
 			context.waitTicks(4);
 			boolean shown = context.computeOnClient(client -> ClientPistons.isShown(base.offset(4, 0, 4)));
 			if (before) {
@@ -136,7 +153,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			}
 			if (!shown) {
 				throw new AssertionError("right-clicking the piston with an empty hand did not show its preview, looking at "
-						+ context.computeOnClient(client -> client.hitResult instanceof net.minecraft.world.phys.BlockHitResult hit
+						+ context.computeOnClient(client -> client.hitResult instanceof BlockHitResult hit
 								? client.level.getBlockState(hit.getBlockPos()) + " at " + hit.getBlockPos().toShortString() : String.valueOf(client.hitResult))
 						+ ", piston at " + base.offset(4, 0, 4).toShortString());
 			}
@@ -147,7 +164,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			}
 			context.takeScreenshot("still-piston");
 			// P hides all piston previews.
-			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_P);
+			context.getInput().pressKey(GLFW.GLFW_KEY_P);
 			context.waitTick();
 			if (context.computeOnClient(client -> ClientPistons.isShown(base.offset(4, 0, 4)) || client.screen != null)) {
 				throw new AssertionError("P should hide the piston previews (and not open a screen)");
@@ -173,7 +190,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			context.takeScreenshot("still-hotkeys");
 			// Click a hotkey, press Esc: it gets unbound (like vanilla controls) and the menu stays open.
 			context.clickScreenButton("R + M");
-			context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE);
+			context.getInput().pressKey(GLFW.GLFW_KEY_ESCAPE);
 			context.waitTick();
 			boolean unbound = context.computeOnClient(client -> LabConfig.CLEAR_METERS.value.keys().isEmpty()
 					&& client.screen instanceof LabConfigScreen);
@@ -210,23 +227,23 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			player.level().setBlockAndUpdate(spot[0].above(), Blocks.AIR.defaultBlockState());
 			player.level().setBlockAndUpdate(spot[0].above(2), Blocks.AIR.defaultBlockState());
 			// Standing on it, looking straight down.
-			player.teleportTo(player.level(), spot[0].getX() + 0.5, spot[0].getY() + 1, spot[0].getZ() + 0.5, java.util.Set.of(), 0f, 90f, false);
+			player.teleportTo(player.level(), spot[0].getX() + 0.5, spot[0].getY() + 1, spot[0].getZ() + 0.5, Set.of(), 0f, 90f, false);
 		});
 		context.waitTicks(10);
 		int before = context.computeOnClient(client -> ClientState.SCOPE.size());
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_M);
+		context.getInput().pressKey(GLFW.GLFW_KEY_M);
 		context.waitTicks(10);
 		boolean added = context.computeOnClient(client -> ClientState.SCOPE.stream().anyMatch(ch -> ch.pos.equals(spot[0])));
 		if (!added) {
 			throw new AssertionError("M should put a meter on the block below, meters at "
 					+ context.computeOnClient(client -> ClientState.SCOPE.stream().map(ch -> ch.pos.toShortString()).toList()) + ", looked at " + spot[0]);
 		}
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_M);
+		context.getInput().pressKey(GLFW.GLFW_KEY_M);
 		context.waitTicks(10);
 		if (context.computeOnClient(client -> ClientState.SCOPE.size()) != before) {
 			throw new AssertionError("M again should remove it");
 		}
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_M);
+		context.getInput().pressKey(GLFW.GLFW_KEY_M);
 		context.waitTicks(5);
 		// Frozen game (/tick freeze): the outlines must still go away with the meters (they used to stay drawn).
 		context.runOnClient(client -> ClientPistons.clear());
@@ -235,9 +252,9 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		if (context.computeOnClient(client -> client.getPerTickGizmos().isEmpty())) {
 			throw new AssertionError("frozen with a meter: its outline should be drawn");
 		}
-		context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_M);
-		context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
+		context.getInput().holdKey(GLFW.GLFW_KEY_R);
+		context.getInput().pressKey(GLFW.GLFW_KEY_M);
+		context.getInput().releaseKey(GLFW.GLFW_KEY_R);
 		context.waitTicks(10);
 		if (context.computeOnClient(client -> ClientState.SCOPE.size()) != 0) {
 			throw new AssertionError("R + M should remove all meters, left " + context.computeOnClient(client -> ClientState.SCOPE.size()));
@@ -261,7 +278,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			if (LabConfig.TIMELINE_TICKS.value != 123) {
 				throw new AssertionError("saved setting not loaded back: " + LabConfig.TIMELINE_TICKS.value);
 			}
-			Path file = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("redstonelab.json");
+			Path file = FabricLoader.getInstance().getConfigDir().resolve("redstonelab.json");
 			try {
 				Files.writeString(file, "{ this is not json");
 			} catch (IOException e) {
@@ -282,12 +299,12 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 	 */
 	private void rewindKeys(ClientGameTestContext context, TestSingleplayerContext world) {
 		context.runOnClient(client -> LabKeys.setPaused(false));
-		context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL);
+		context.getInput().holdKey(GLFW.GLFW_KEY_LEFT_CONTROL);
 		context.waitTicks(1);
-		context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE);
-		context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
-		context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL);
+		context.getInput().holdKey(GLFW.GLFW_KEY_R);
+		context.getInput().pressKey(GLFW.GLFW_KEY_BACKSPACE);
+		context.getInput().releaseKey(GLFW.GLFW_KEY_R);
+		context.getInput().releaseKey(GLFW.GLFW_KEY_LEFT_CONTROL);
 		context.waitTicks(3);
 		if (!context.computeOnClient(client -> LabKeys.paused)) {
 			throw new AssertionError("R + Backspace (Ctrl held) should stop the timeline");
@@ -295,9 +312,9 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		if (world.getServer().computeOnServer(server -> server.tickRateManager().isFrozen())) {
 			throw new AssertionError("stopping the timeline must not freeze the game");
 		}
-		context.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
-		context.getInput().pressKey(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER);
-		context.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_R);
+		context.getInput().holdKey(GLFW.GLFW_KEY_R);
+		context.getInput().pressKey(GLFW.GLFW_KEY_ENTER);
+		context.getInput().releaseKey(GLFW.GLFW_KEY_R);
 		context.waitTicks(3);
 		if (context.computeOnClient(client -> LabKeys.paused)) {
 			throw new AssertionError("R + Enter back at now should run the timeline again");
@@ -312,8 +329,8 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			ServerLevel level = player.level();
 			// One block up, so the slime doesn't grab the ground.
 			BlockPos o = base.offset(12, 1, -14);
-			java.util.function.BiConsumer<BlockPos, net.minecraft.world.level.block.state.BlockState> set = (p, st) -> level.setBlock(p, st, 2 | 16);
-			net.minecraft.world.level.block.state.BlockState east = Blocks.STICKY_PISTON.defaultBlockState().setValue(BlockStateProperties.FACING, Direction.EAST);
+			BiConsumer<BlockPos, BlockState> set = (p, st) -> level.setBlock(p, st, 2 | 16);
+			BlockState east = Blocks.STICKY_PISTON.defaultBlockState().setValue(BlockStateProperties.FACING, Direction.EAST);
 			// 1: slime with stone stuck to it.
 			shown[0] = o;
 			set.accept(o, east);
@@ -332,8 +349,8 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			for (int i = 1; i <= 13; i++) {
 				set.accept(shown[2].east(i), (i % 2 == 0 ? Blocks.STONE : Blocks.OAK_PLANKS).defaultBlockState());
 			}
-			player.teleportTo(level, o.getX() - 5.5, o.getY() + 6, o.getZ() + 4.5, java.util.Set.of(), 0f, 0f, false);
-			player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, o.offset(6, 0, 4).getCenter());
+			player.teleportTo(level, o.getX() - 5.5, o.getY() + 6, o.getZ() + 4.5, Set.of(), 0f, 0f, false);
+			player.lookAt(EntityAnchorArgument.Anchor.EYES, o.offset(6, 0, 4).getCenter());
 		});
 		context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = false);
 		context.waitTicks(10);
@@ -359,8 +376,8 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			ServerPlayer player = player(server);
 			pistons[0] = FiringOrderBuild.build(player.level(), base.offset(-14, 0, -12));
 			BlockPos look = base.offset(-12, 1, -11);
-			player.teleportTo(player.level(), look.getX() + 4.5, look.getY() + 3, look.getZ() + 5.5, java.util.Set.of(), 0f, 0f, false);
-			player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, look.getCenter());
+			player.teleportTo(player.level(), look.getX() + 4.5, look.getY() + 3, look.getZ() + 5.5, Set.of(), 0f, 0f, false);
+			player.lookAt(EntityAnchorArgument.Anchor.EYES, look.getCenter());
 		});
 		context.runOnClient(client -> LabConfig.SHOW_TIMELINE.value = false);
 		context.waitTicks(10);
@@ -421,7 +438,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 			ServerLevel level = player(server).level();
 			boxMin = base.offset(-12, -1, 8);
 			boxMax = base.offset(12, 6, 24);
-			java.util.Random random = new java.util.Random(99);
+			Random random = new Random(99);
 			for (int i = 0; i < 6; i++) {
 				BlockPos piston = base.offset(-8 + (i % 3) * 8, 1, 12 + (i / 3) * 8);
 				if (i < 5) {
@@ -436,7 +453,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 				level.setBlock(piston.below().west(), Blocks.STONE.defaultBlockState(), 2 | 16);
 				level.setBlock(piston.west(), Blocks.COMPARATOR.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.WEST), 3);
 			}
-			player(server).teleportTo(level, base.getX() + 0.5, base.getY() + 7, base.getZ() + 4, java.util.Set.of(), 0f, 40f, false);
+			player(server).teleportTo(level, base.getX() + 0.5, base.getY() + 7, base.getZ() + 4, Set.of(), 0f, 40f, false);
 		});
 		context.waitTicks(20);
 		context.runOnClient(client -> {
@@ -453,7 +470,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		List<Long> clientPrints = new ArrayList<>();
 		List<Map<BlockPos, String>> clientViews = new ArrayList<>();
 		int[] shownWrong = new int[1];
-		Map<BlockPos, String> lastStill = new java.util.HashMap<>();
+		Map<BlockPos, String> lastStill = new HashMap<>();
 		List<String> problems = new ArrayList<>();
 		boolean[] comparatorOut = new boolean[1];
 		for (int t = 0; t < 240; t++) {
@@ -516,8 +533,8 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		}
 		String summary = compared + " client previews compared with the server's for the same blocks, " + differ + " differ; "
 				+ unmatched + "/" + clientPrints.size() + " client ticks had no matching server tick; " + shownWrong[0] + " drawn wrong";
-		dev.redstonelab.RedstoneLab.LOGGER.info("clientPreviewsMatchServer: {}", summary);
-		problems.forEach(p -> dev.redstonelab.RedstoneLab.LOGGER.info("  {}", p));
+		RedstoneLab.LOGGER.info("clientPreviewsMatchServer: {}", summary);
+		problems.forEach(p -> RedstoneLab.LOGGER.info("  {}", p));
 		if (!comparatorOut[0]) {
 			throw new AssertionError("the comparator-powered piston never extended");
 		}
@@ -526,27 +543,27 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		}
 	}
 
-	private static long fingerprint(net.minecraft.world.level.Level level) {
+	private static long fingerprint(Level level) {
 		long h = 17;
 		for (BlockPos p : BlockPos.betweenClosed(boxMin, boxMax)) {
-			h = h * 0x9E3779B97F4A7C15L + net.minecraft.world.level.block.Block.getId(level.getBlockState(p)) + 1;
+			h = h * 0x9E3779B97F4A7C15L + Block.getId(level.getBlockState(p)) + 1;
 		}
 		return h;
 	}
 
 	/** Label and markers of every still piston in the box, as the player would see them. */
-	private static Map<BlockPos, String> previews(net.minecraft.world.level.Level level) {
-		Map<BlockPos, String> out = new java.util.TreeMap<>();
+	private static Map<BlockPos, String> previews(Level level) {
+		Map<BlockPos, String> out = new TreeMap<>();
 		for (BlockPos p : BlockPos.betweenClosed(boxMin, boxMax)) {
 			if (!(level.getBlockState(p).getBlock() instanceof PistonBaseBlock) || PistonView.isMoving(level, p)) {
 				continue;
 			}
 			PistonView.View view = new PistonView.View(p.immutable());
-			List<dev.redstonelab.net.LabPayloads.MarkerData> markers = new ArrayList<>();
+			List<LabPayloads.MarkerData> markers = new ArrayList<>();
 			PistonView.build(level, view, markers, false);
 			List<String> lines = new ArrayList<>();
 			markers.forEach(m -> lines.add(m.toString()));
-			java.util.Collections.sort(lines);
+			Collections.sort(lines);
 			out.put(p.immutable(), view.headLabel + "\n" + String.join("\n", lines));
 		}
 		return out;
@@ -575,7 +592,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		ServerLevel level = player.level();
 		player.setGameMode(GameType.CREATIVE);
 		base = player.blockPosition();
-		player.teleportTo(level, base.getX() + 0.5, base.getY(), base.getZ() + 0.5, java.util.Set.of(), 0f, 35f, false);
+		player.teleportTo(level, base.getX() + 0.5, base.getY(), base.getZ() + 0.5, Set.of(), 0f, 35f, false);
 		BlockPos o1 = base.offset(0, 0, 4);
 		BlockPos o2 = base.offset(1, 0, 4);
 		BlockPos repeater = base.offset(2, 0, 4);
@@ -608,8 +625,8 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 
 	/** "on 2 off 4" when every complete on run and off run in the samples has the same length. */
 	private static String runs(ClientState.Channel ch) {
-		java.util.Set<Integer> on = new java.util.TreeSet<>();
-		java.util.Set<Integer> off = new java.util.TreeSet<>();
+		Set<Integer> on = new TreeSet<>();
+		Set<Integer> off = new TreeSet<>();
 		int run = 0;
 		boolean current = false;
 		boolean first = true;
@@ -628,7 +645,7 @@ public class RedstoneLabClientTests implements FabricClientGameTest {
 		return "on " + join(on) + " off " + join(off);
 	}
 
-	private static String join(java.util.Set<Integer> values) {
+	private static String join(Set<Integer> values) {
 		StringBuilder sb = new StringBuilder();
 		for (int v : values) {
 			sb.append(sb.isEmpty() ? "" : "/").append(v);

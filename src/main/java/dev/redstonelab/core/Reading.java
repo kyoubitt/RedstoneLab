@@ -1,10 +1,9 @@
 package dev.redstonelab.core;
 
 /**
- * What a meter reads from its block, packed in one int: the power level (0-15), whether the
- * block is <b>active</b> (doing its thing: lamp lit, piston extended, repeater output on...)
- * and whether it is <b>powered</b> (gets a redstone signal). Like Redstone Multimeter, the two
- * are separate: a repeater is powered 2 ticks before it turns on.
+ * What a meter reads from its block, packed in an int: power (0-15), active (lamp lit, piston extended,
+ * repeater output on) and powered (gets a signal). They are separate, like in Redstone Multimeter:
+ * a repeater is powered 2 ticks before it turns on.
  */
 public final class Reading {
 	public static final int ACTIVE = 16;

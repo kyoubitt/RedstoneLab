@@ -1,13 +1,20 @@
 package dev.redstonelab.feature;
 
+import java.awt.Color;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+
+import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -15,7 +22,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -28,49 +34,35 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.RedStoneWireBlock;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.piston.PistonBaseBlock;
-import net.minecraft.world.level.block.RedstoneTorchBlock;
-import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
 import dev.redstonelab.capture.PowerWatch;
 import dev.redstonelab.config.ServerConfig;
-import dev.redstonelab.core.ContainerMath;
 import dev.redstonelab.core.MeterEvent;
-import dev.redstonelab.core.PulseMeter;
+import dev.redstonelab.core.OrderLine;
 import dev.redstonelab.core.Reading;
-import dev.redstonelab.core.RunStats;
-import dev.redstonelab.core.Ticks;
 import dev.redstonelab.core.Sparkline;
-import dev.redstonelab.display.LabBossBar;
+import dev.redstonelab.core.TickPhase;
 import dev.redstonelab.display.MarkerService;
 import dev.redstonelab.net.LabNetworking;
 import dev.redstonelab.net.LabPayloads;
 import dev.redstonelab.server.LabServer;
 import dev.redstonelab.server.Sessions;
-import dev.redstonelab.util.Fmt;
 import dev.redstonelab.util.Msg;
 import dev.redstonelab.util.PowerUtil;
 
 /**
- * Meters, like Redstone Multimeter: put a meter on a block (M key or the Meter Tool)
- * and it gets a coloured outline with a letter, plus a row on the timeline HUD showing when
- * it was on and what happened to it each tick (event marks). Vanilla clients get a boss bar
- * per meter instead of the HUD.
+ * Meters, like Redstone Multimeter: M on a block (or the Meter Tool) gives it an outline with a letter and a row
+ * on the timeline. Vanilla clients get a boss bar per meter instead.
  *
- * <p>Power changes are seen the moment they happen, so a pulse that turns on and off
- * inside one tick (0-tick pulse) still shows up. Nothing is sampled while the game is
- * frozen with {@code /tick freeze}; {@code /tick step} advances one tick at a time.</p>
+ * Power changes are seen as they happen, so a pulse that starts and ends inside one tick still shows.
  */
 public final class MeterFeature {
 	public static final String MARKER_CHANNEL = "meters";
 	public static final String PROBE_KEY = "redstonelab_probe";
-	private static final String LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	static final String LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	/** Most meters one player can have (one per letter). */
 	public static final int MAX_METERS = LABELS.length();
 	public static final int[] COLORS = colors();
@@ -80,444 +72,21 @@ public final class MeterFeature {
 		int[] base = {0xFFFF5555, 0xFF55AAFF, 0xFF55FF55, 0xFFFFFF55, 0xFFDD55FF, 0xFFFF88CC, 0xFFFFFFFF, 0xFFFFAA00};
 		int[] colors = new int[MAX_METERS];
 		for (int i = 0; i < colors.length; i++) {
-			colors[i] = i < base.length ? base[i] : 0xFF000000 | java.awt.Color.HSBtoRGB(((i - base.length) * 0.618034f) % 1f, 0.55f, 1f);
+			colors[i] = i < base.length ? base[i] : 0xFF000000 | Color.HSBtoRGB(((i - base.length) * 0.618034f) % 1f, 0.55f, 1f);
 		}
 		return colors;
 	}
 
-	static final class Meter implements PowerWatch.Listener {
-		final ResourceKey<Level> dimension;
-		/** Changes when a piston moves the block (the meter goes with it). */
-		BlockPos pos;
-		final String label;
-		final int color;
-		final PulseMeter pulses;
-		/** Since when it is off and unpowered (a torch: burnt out after 2t), MAX_VALUE = it isn't. */
-		long offUnpoweredSince = Long.MAX_VALUE;
-		/** Power level 0-15 (what the block gives or gets). */
-		int power;
-		/** Active: lamp lit, piston extended, repeater output on... Pulse lengths are measured on this. */
-		boolean active;
-		/** Gets a redstone signal (repeater input, piston incl. QC...). */
-		boolean powered;
-		/** This tick: bit 4 = turned on, bit 8 = got powered (so a 0-tick pulse still shows). */
-		int tickState;
-		int tickMin;
-		int tickMax;
-		/** {@link MeterEvent} flags seen during the current tick. */
-		int events;
-		/** Power per tick (oldest first) and the event flags of that tick. */
-		final int[] history;
-		final int[] eventHistory;
-		int historyFill;
-		final LabBossBar bossBar;
-		final State owner;
-		/** Block name, refreshed while sampling. */
-		String blockName = "";
-		/** The player's own name for the meter ("clock", "output"), or empty. */
-		String name = "";
-		/** Items inside, or -1 if the block is not a container. */
-		int itemCount = -1;
-		/** The items changed since the last sample (contents text needs a refresh). */
-		boolean itemsChanged;
-		/** Container: what is inside, "10 Stone + 3 Dirt", refreshed while sampling. */
-		String contents = "";
-		/** Container: "3 at 83" (next comparator level), refreshed while sampling. */
-		String nextLevel = "";
-		/** Container: ticks between items going in / out and between dispenser/dropper shots. */
-		final RunStats inGaps = new RunStats(10);
-		final RunStats outGaps = new RunStats(10);
-		final RunStats fireGaps = new RunStats(10);
-		long lastIn = Long.MIN_VALUE;
-		long lastOut = Long.MIN_VALUE;
-		long lastFire = Long.MIN_VALUE;
-		long now;
-
-		Meter(State owner, ResourceKey<Level> dimension, BlockPos pos, int index, int reading) {
-			this.owner = owner;
-			this.dimension = dimension;
-			this.pos = pos;
-			this.label = String.valueOf(LABELS.charAt(index));
-			this.color = COLORS[index];
-			this.pulses = new PulseMeter(ServerConfig.get().pulseWindow);
-			this.power = Reading.level(reading);
-			this.active = Reading.active(reading);
-			this.powered = Reading.powered(reading);
-			this.tickMin = this.power;
-			this.tickMax = this.power;
-			this.tickState = 0;
-			this.history = new int[ServerConfig.get().meterHistoryTicks];
-			this.eventHistory = new int[this.history.length];
-			this.bossBar = new LabBossBar(Component.literal(this.label), LabBossBar.colorFor(index));
-			this.pulses.update(Long.MIN_VALUE, this.active ? 15 : 0);
-		}
-
-		/** 1 = active, 2 = powered. */
-		int stateBits() {
-			return (this.active ? 1 : 0) | (this.powered ? 2 : 0);
-		}
-
-		/** Expected on / off length in ticks, -1 = not checked. */
-		int expectOn = -1;
-		int expectOff = -1;
-		int okCount;
-		int wrongCount;
-		String lastWrong = "";
-		/** A wrong pulse happened this tick: tell the player once. */
-		String alert;
-		/** What happened this tick, in order: (sequence number << 8) | (tick phase << 5) | event ordinal. */
-		final List<Integer> order = new ArrayList<>();
-		/** The last 64 of those, for the game tests. */
-		final java.util.ArrayDeque<long[]> recent = new java.util.ArrayDeque<>();
-
-		/** Notes the event for the "inspect a tick" list (consecutive repeats are skipped). */
-		private void record(MeterEvent event) {
-			if (this.order.size() < 32 && (this.order.isEmpty() || (this.order.get(this.order.size() - 1) & 31) != event.ordinal())) {
-				int packed = nextSeq() << 8 | dev.redstonelab.core.TickPhase.current.ordinal() << 5 | event.ordinal();
-				this.order.add(packed);
-				if (this.recent.size() >= 64) {
-					this.recent.removeFirst();
-				}
-				ServerLevel level = LabServer.level(this.dimension);
-				this.recent.addLast(new long[]{level == null ? 0 : level.getGameTime(), packed});
-			}
-		}
-
-		private void flag(MeterEvent event) {
-			this.events |= event.bit();
-			this.record(event);
-		}
-
-		/** Compares a finished on or off length with the expected one. */
-		private void check(boolean onLength, long ticks) {
-			int expected = onLength ? this.expectOn : this.expectOff;
-			if (expected < 0) {
-				return;
-			}
-			if (ticks == expected) {
-				this.okCount++;
-				return;
-			}
-			this.wrongCount++;
-			this.lastWrong = (onLength ? "on " : "off ") + ticks + "t, want " + expected + "t";
-			this.alert = this.label + ": " + this.lastWrong;
-			this.flag(MeterEvent.WRONG_LENGTH);
-		}
-
-		@Override
-		public void onWatchEvent(MeterEvent event) {
-			this.flag(event);
-		}
-
-		/** Pistons: when they really move, which can be later than their power changes (QC, BUD). */
-		final RunStats extendGaps = new RunStats(8);
-		final RunStats outLengths = new RunStats(8);
-		long lastExtend = Long.MIN_VALUE;
-		boolean piston;
-		boolean comparator;
-		/** Dropper, dispenser, crafter: on = fires (crafts). */
-		boolean fires;
-		/** Chest-like container: on = comparator signal above 0. */
-		boolean signalBased;
-		boolean wire;
-
-		@Override
-		public void onWatchBlockEvent(int type, long gameTime) {
-			if (!this.piston) {
-				return;
-			}
-			if (type == 0) {
-				this.lastExtend = this.addGap(this.extendGaps, this.lastExtend, gameTime);
-			} else if (this.lastExtend != Long.MIN_VALUE && gameTime >= this.lastExtend) {
-				this.outLengths.add(gameTime - this.lastExtend);
-			}
-		}
-
-		@Override
-		public void onWatchChange(PowerWatch.Change change) {
-			if (change.stateChanged()) {
-				BlockState from = change.oldState();
-				BlockState to = change.newState();
-				if (from.is(Blocks.MOVING_PISTON) || to.is(Blocks.MOVING_PISTON) || MOVING.contains(change.pos())) {
-					this.flag(MeterEvent.MOVED);
-				} else if (from.isAir() && !to.isAir()) {
-					this.flag(MeterEvent.PLACED);
-				} else if (!from.isAir() && to.isAir()) {
-					this.flag(MeterEvent.BROKEN);
-				}
-				// A piston passing through (retracting, being pushed) is not a new block.
-				if (!to.isAir() && !to.is(Blocks.MOVING_PISTON) && to.getBlock() != this.kindBlock) {
-					this.kindChanged = true;
-				}
-			}
-			if (change.readingChanged()) {
-				this.apply(change.gameTime(), change.newReading());
-			}
-		}
-
-		/** Takes a new reading: flags what changed and measures the pulses (on = active). */
-		void apply(long time, int reading) {
-			boolean nowPowered = Reading.powered(reading);
-			boolean nowActive = Reading.active(reading);
-			int level = Reading.level(reading);
-			if (nowPowered != this.powered) {
-				this.flag(nowPowered ? MeterEvent.POWERED : MeterEvent.UNPOWERED);
-			}
-			if (nowActive && !this.active) {
-				this.flag(MeterEvent.TURNED_ON);
-				this.onRise(time);
-			} else if (!nowActive && this.active) {
-				this.flag(MeterEvent.TURNED_OFF);
-			} else if (level != this.power && nowActive) {
-				this.flag(MeterEvent.POWER_CHANGED);
-			}
-			if (nowActive || nowPowered) {
-			this.offUnpoweredSince = Long.MAX_VALUE;
-		} else if (this.offUnpoweredSince == Long.MAX_VALUE) {
-			this.offUnpoweredSince = time;
-		}
-		boolean edge = nowActive != this.active;
-			this.tickState |= (nowActive && !this.active ? 4 : 0) | (nowPowered && !this.powered ? 8 : 0);
-			this.power = level;
-			this.active = nowActive;
-			this.powered = nowPowered;
-			this.tickMin = Math.min(this.tickMin, this.power);
-			this.tickMax = Math.max(this.tickMax, this.power);
-			if (!edge) {
-				return;
-			}
-			int dir = this.pulses.update(time, nowActive ? 15 : 0);
-			if (dir < 0 && this.pulses.lastOnLength() >= 0) {
-				this.check(true, this.pulses.lastOnLength());
-			} else if (dir > 0 && this.pulses.lastOffLength() >= 0 && !this.pulses.lastWasPause()) {
-				// a pause (the circuit stopped) is not a wrong pulse
-				this.check(false, this.pulses.lastOffLength());
-			}
-		}
-
-		private void onRise(long time) {
-			int i = this.riseCount++ % this.rises.length;
-			this.rises[i] = time;
-			this.riseSeqs[i] = nextSeq();
-		}
-
-		/** Recent rising edges (ring), for the order line, and their place in the game's order inside the tick. */
-		final long[] rises = new long[8];
-		final int[] riseSeqs = new int[8];
-		int riseCount;
-
-		/** One line for the HUD: "Observer · on 2t · off 4t", "Hopper · 12 items · signal 1". */
-		String status() {
-			StringBuilder sb = new StringBuilder(this.name.isEmpty() ? this.blockName : this.name + " \u00b7 " + this.blockName);
-			if (this.comparator) {
-				// Only reads the world (never changes the meter), so it can't disturb sampling.
-				ServerLevel level = LabServer.level(this.dimension);
-				String info = level == null ? "" : comparatorInfo(level, this.pos, this.power);
-				if (!info.isEmpty()) {
-					sb.append(" \u00b7 ").append(info);
-				}
-			}
-			if (this.itemCount >= 0) {
-				// Containers: items, comparator level and how fast items move.
-				if (this.itemCount == 0) {
-					sb.append(" \u00b7 empty");
-				} else {
-					sb.append(" \u00b7 ").append(this.contents.isEmpty() ? this.itemCount + (this.itemCount == 1 ? " item" : " items") : this.contents);
-					sb.append(" \u00b7 signal ").append(this.power);
-					if (!this.nextLevel.isEmpty()) {
-						sb.append(" (").append(this.nextLevel).append(")");
-					}
-				}
-				ServerLevel level = LabServer.level(this.dimension);
-				if (level != null && loadedAround(level, this.pos) && PowerUtil.chestBlocked(level, this.pos)) {
-					// Vanilla: a chest that can't open gives comparators 0.
-					sb.append(" \u00b7 blocked");
-				}
-				appendRate(sb, "fires", this.fireGaps, this.lastFire);
-				// A dropper firing is its items going out: say it once.
-				boolean firing = !this.fireGaps.isEmpty() && this.recent(this.fireGaps, this.lastFire);
-				boolean in = !this.inGaps.isEmpty() && this.recent(this.inGaps, this.lastIn);
-				boolean out = !firing && !this.outGaps.isEmpty() && this.recent(this.outGaps, this.lastOut);
-				String inText = Ticks.lengths(this.inGaps.values());
-				String outText = Ticks.lengths(this.outGaps.values());
-				if (in && out && inText.equals(outText)) {
-					// A hopper passing items on: "in / out every 8t".
-					sb.append(" \u00b7 in / out every ").append(inText);
-				} else if (in && out) {
-					sb.append(" \u00b7 in / out every ").append(inText).append(" / ").append(outText);
-				} else {
-					appendRate(sb, "in", this.inGaps, this.lastIn);
-					if (!firing) {
-						appendRate(sb, "out", this.outGaps, this.lastOut);
-					}
-				}
-				return sb.toString();
-			}
-			if (this.piston && !this.extendGaps.isEmpty() && this.recent(this.extendGaps, this.lastExtend)) {
-				// Pistons: what they really did, from the game's own piston events.
-				sb.append(" \u00b7 moves every ").append(range(this.extendGaps));
-				if (!this.outLengths.isEmpty()) {
-					sb.append(" \u00b7 out ").append(range(this.outLengths));
-				}
-			} else {
-				// Dust: no "power 15" (texture packs show the level on the dust itself).
-				String info = this.blockInfo();
-				if (!info.isEmpty()) {
-					sb.append(" \u00b7 ").append(info);
-				}
-				String pulses = this.pulses.summary();
-				if (!pulses.isEmpty()) {
-					sb.append(" \u00b7 ").append(pulses);
-				}
-			}
-			if (this.expectOn >= 0 || this.expectOff >= 0) {
-				sb.append(" \u00b7 ").append(this.wrongCount == 0 ? "\u2714 " + this.okCount + " ok"
-						: "\u2716 " + this.wrongCount + " wrong (" + this.lastWrong + ")");
-			}
-			return sb.toString();
-		}
-
-		/**
-		 * What the block's state says that the bars don't: repeater delay and lock, signal strength
-		 * of target blocks / daylight detectors / sculk / weighted plates, a burnt-out torch.
-		 */
-		private String blockInfo() {
-			ServerLevel level = LabServer.level(this.dimension);
-			if (level == null || !loadedAround(level, this.pos)) {
-				return "";
-			}
-			BlockState state = level.getBlockState(this.pos);
-			if (state.getBlock() instanceof RepeaterBlock) {
-				return "delay " + 2 * state.getValue(RepeaterBlock.DELAY) + "t" + (state.getValue(RepeaterBlock.LOCKED) ? " \u00b7 locked" : "");
-			}
-			if (state.hasProperty(BlockStateProperties.POWER) && !(state.getBlock() instanceof RedStoneWireBlock)) {
-				// Target block, daylight detector, sculk sensors, weighted plates: the level matters.
-				int level15 = state.getValue(BlockStateProperties.POWER);
-				return level15 > 0 ? "power " + level15 : "";
-			}
-			if (state.hasAnalogOutputSignal()) {
-				// Composter, cauldron, cake, lectern, beehive, respawn anchor...: what a comparator reads.
-				return "signal " + PowerUtil.comparatorSignal(level, this.pos, state);
-			}
-			if (state.getBlock() instanceof RedstoneTorchBlock) {
-				// Burnt out (8 toggles in 60t): off although its block isn't powered. A working torch
-				// relights 2t after its power goes; the game's toggle list can't be used for long
-				// (any torch ticking anywhere drops entries older than 60t, the torch stays out 160t).
-				boolean burnt = !state.getValue(RedstoneTorchBlock.LIT) && !this.powered
-						&& (level.getGameTime() - this.offUnpoweredSince >= 2
-						|| dev.redstonelab.mixin.RedstoneTorchBlockInvoker.redstonelab$toggledTooOften(level, this.pos, false));
-				return burnt ? "burnt out" : "";
-			}
-			return "";
-		}
-
-		/** It happened within 2 of its own periods (at least 10 s): a slow clock still counts as running. */
-		private boolean recent(RunStats gaps, long last) {
-			return last != Long.MIN_VALUE && this.now - last <= Math.max(200, 2 * gaps.max());
-		}
-
-		/** " · in every 8t" while it keeps happening (hidden after 10 s without it). */
-		private void appendRate(StringBuilder sb, String what, RunStats gaps, long last) {
-			if (gaps.isEmpty() || !this.recent(gaps, last)) {
-				return;
-			}
-			sb.append(" \u00b7 ").append(what).append(" every ").append(Ticks.lengths(gaps.values()));
-		}
-
-		private static String range(RunStats r) {
-			return Ticks.lengths(r.values());
-		}
-
-
-		/** Records the time of an event and the gap since the last one. */
-		private long addGap(RunStats gaps, long last, long time) {
-			if (last != Long.MIN_VALUE && time > last) {
-				gaps.add(time - last);
-			}
-			return time;
-		}
-
-		void push(int value, int events) {
-			System.arraycopy(this.history, 1, this.history, 0, this.history.length - 1);
-			System.arraycopy(this.eventHistory, 1, this.eventHistory, 0, this.eventHistory.length - 1);
-			this.history[this.history.length - 1] = value;
-			this.eventHistory[this.eventHistory.length - 1] = events;
-			this.historyFill = Math.min(this.historyFill + 1, this.history.length);
-		}
-
-		/** "turned on 3 ticks ago" for the newest event within {@code window} ticks, or null. */
-		String lastEvent(int window) {
-			for (int age = 0; age < Math.min(window, this.historyFill); age++) {
-				// Updates and level changes happen all the time: not worth a mention.
-				int flags = this.eventHistory[this.eventHistory.length - 1 - age]
-						& ~(MeterEvent.BLOCK_UPDATE.bit() | MeterEvent.SHAPE_UPDATE.bit() | MeterEvent.POWER_CHANGED.bit());
-				if (flags != 0) {
-					// Lowest ordinal first: power changes and moves matter more than updates.
-					return "last: " + MeterEvent.of(flags).get(0).displayName() + ", " + ago(age);
-				}
-			}
-			return null;
-		}
-
-		/** "ON 15", "OFF · powered", "OFF". */
-		String onOff() {
-			String text = this.active ? "ON" + (this.power > 0 ? " " + this.power : "") : "OFF";
-			// Containers: on = comparator signal, being powered is a different thing, don't mix them.
-			if (this.signalBased || this.powered == this.active) {
-				return text;
-			}
-			return text + (this.powered ? " \u00b7 powered" : " \u00b7 not powered");
-		}
-
-		String name(ServerLevel level) {
-			return Fmt.pretty(level.getBlockState(this.pos));
-		}
-
-		/** A different block is here now (replaced, or placed where the meter was): what to show depends on it. */
-		boolean kindChanged;
-		/** The block the kind was read from. */
-		net.minecraft.world.level.block.Block kindBlock = Blocks.AIR;
-
-		/** Name and kind (piston, comparator, container...) of the block under the meter. */
-		void readKind(ServerLevel level) {
-			BlockState placed = level.getBlockState(this.pos);
-			if (!placed.isAir() && !placed.is(Blocks.MOVING_PISTON)) {
-				this.kindBlock = placed.getBlock();
-			}
-			this.blockName = Fmt.pretty(placed);
-			this.piston = placed.getBlock() instanceof PistonBaseBlock;
-			this.comparator = placed.getBlock() instanceof net.minecraft.world.level.block.ComparatorBlock;
-			this.wire = placed.is(Blocks.REDSTONE_WIRE);
-			this.fires = placed.hasProperty(BlockStateProperties.TRIGGERED);
-			this.itemCount = itemCount(level, this.pos);
-			this.nextLevel = this.itemCount > 0 ? nextLevel(level, this.pos, this.power) : "";
-			this.contents = contents(level, this.pos);
-			this.signalBased = this.itemCount >= 0 && !this.fires && !(placed.getBlock() instanceof net.minecraft.world.level.block.HopperBlock);
-		}
-	}
-
-	static final class State {
-		final List<Meter> meters = new ArrayList<>();
-		/** Saved groups; the active one mirrors {@link #meters}. */
-		MeterStore.Groups groups = new MeterStore.Groups();
-		long lastSampleTime = Long.MIN_VALUE;
-		boolean dirty = true;
-		int statsCountdown;
-		long lastClick = -1000;
-		/** A piston moved a meter: save soon (not on every move, flying machines move a lot). */
-		boolean moved;
-	}
-
-	private static final Map<UUID, State> STATES = new HashMap<>();
+	private static final Map<UUID, MeterState> STATES = new HashMap<>();
 
 	private MeterFeature() {
 	}
 
-	private static State state(ServerPlayer player) {
-		return STATES.computeIfAbsent(player.getUUID(), k -> new State());
+	private static MeterState state(ServerPlayer player) {
+		return STATES.computeIfAbsent(player.getUUID(), k -> new MeterState());
 	}
 
-	private static String ago(int ticks) {
+	static String ago(int ticks) {
 		return ticks == 0 ? "now" : ticks + "t ago";
 	}
 
@@ -586,7 +155,7 @@ public final class MeterFeature {
 
 	/** Adds a meter on the block, or removes it if there is one. */
 	public static void toggle(ServerPlayer player, ServerLevel level, BlockPos pos) {
-		State state = state(player);
+		MeterState state = state(player);
 		for (Meter m : new ArrayList<>(state.meters)) {
 			if (m.dimension == level.dimension() && m.pos.equals(pos)) {
 				remove(player, state, m);
@@ -607,8 +176,8 @@ public final class MeterFeature {
 	}
 
 	/** Removes the meter on {@code pos}, or the newest meter when {@code pos} is null. */
-	public static void removeOne(ServerPlayer player, @org.jetbrains.annotations.Nullable BlockPos pos) {
-		State state = STATES.get(player.getUUID());
+	public static void removeOne(ServerPlayer player, @Nullable BlockPos pos) {
+		MeterState state = STATES.get(player.getUUID());
 		Meter target = null;
 		if (state != null && !state.meters.isEmpty()) {
 			if (pos == null) {
@@ -631,7 +200,7 @@ public final class MeterFeature {
 	}
 
 	public static void clear(ServerPlayer player) {
-		State state = STATES.get(player.getUUID());
+		MeterState state = STATES.get(player.getUUID());
 		int n = state == null ? 0 : state.meters.size();
 		if (state != null) {
 			for (Meter m : new ArrayList<>(state.meters)) {
@@ -642,7 +211,7 @@ public final class MeterFeature {
 		Msg.actionBar(player, Component.literal(n > 0 ? "Removed " + n + " meters" : "No meters").withStyle(ChatFormatting.GRAY));
 	}
 
-	private static Meter addMeter(State state, ServerLevel level, BlockPos pos) {
+	private static Meter addMeter(MeterState state, ServerLevel level, BlockPos pos) {
 		Meter m = new Meter(state, level.dimension(), pos.immutable(), freeIndex(state), PowerUtil.read(level, pos, level.getBlockState(pos)));
 		m.readKind(level);
 		if (!m.active && !m.powered) {
@@ -655,101 +224,16 @@ public final class MeterFeature {
 	}
 
 	/**
-	 * "3 at 83": the next comparator level and the item count that gives it. Only when that is
-	 * exact: the signal is the usual fullness one (not a crafter, bookshelf, jukebox, shelf or
-	 * blocked chest) and every stack has the same stack size (64, 16 or 1), so items count alike.
-	 */
-	private static String nextLevel(ServerLevel level, BlockPos pos, int signal) {
-		net.minecraft.world.Container container = loadedAround(level, pos) ? PowerUtil.container(level, pos) : null;
-		if (container == null || signal != net.minecraft.world.inventory.AbstractContainerMenu.getRedstoneSignalFromContainer(container)
-				|| level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.CrafterBlock
-				|| level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ChiseledBookShelfBlock
-				|| level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.JukeboxBlock
-				|| level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ShelfBlock) {
-			return "";
-		}
-		int maxStack = -1;
-		for (int i = 0; i < container.getContainerSize(); i++) {
-			ItemStack stack = container.getItem(i);
-			if (!stack.isEmpty()) {
-				int size = Math.min(container.getMaxStackSize(stack), stack.getMaxStackSize());
-				if (maxStack >= 0 && size != maxStack) {
-					return "";
-				}
-				maxStack = size;
-			}
-		}
-		long need = ContainerMath.itemsForNextLevel(signal, container.getContainerSize(), maxStack < 0 ? 64 : maxStack);
-		return need < 0 ? "max" : (signal + 1) + " at " + need;
-	}
-
-	/**
-	 * Comparators: "subtract · back 15 · side 14 · out 1", inputs read the same way the game
-	 * does. Empty for other blocks.
-	 */
-	static String comparatorInfo(ServerLevel level, BlockPos pos, int out) {
-		// The inputs are read up to 2 blocks away: don't make the game load chunks for that.
-		if (!level.hasChunkAt(pos.offset(-2, 0, -2)) || !level.hasChunkAt(pos.offset(2, 0, 2))
-				|| !level.hasChunkAt(pos.offset(-2, 0, 2)) || !level.hasChunkAt(pos.offset(2, 0, -2))) {
-			return "";
-		}
-		BlockState state = level.getBlockState(pos);
-		if (!(state.getBlock() instanceof net.minecraft.world.level.block.ComparatorBlock)) {
-			return "";
-		}
-		dev.redstonelab.mixin.DiodeBlockInvoker diode = (dev.redstonelab.mixin.DiodeBlockInvoker) state.getBlock();
-		int back = diode.redstonelab$backInput(level, pos, state);
-		int side = diode.redstonelab$sideInput(level, pos, state);
-		boolean subtract = state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.MODE_COMPARATOR)
-				== net.minecraft.world.level.block.state.properties.ComparatorMode.SUBTRACT;
-		// The output follows the inputs 2 ticks later, so show the three values as they are now.
-		return (subtract ? "subtract" : "compare") + " \u00b7 back " + back + " \u00b7 side " + side + " \u00b7 out " + out;
-	}
-
-	/**
-	 * What is inside: "10 Stone", "10 Stone + 3 Dirt", or "20 items, 4 kinds" (empty string
-	 * when empty or not a container).
-	 */
-	static String contents(ServerLevel level, BlockPos pos) {
-		net.minecraft.world.Container container = loadedAround(level, pos) ? PowerUtil.container(level, pos) : null;
-		if (container == null) {
-			return "";
-		}
-		Map<Item, Integer> kinds = new java.util.LinkedHashMap<>();
-		int total = 0;
-		for (int i = 0; i < container.getContainerSize(); i++) {
-			ItemStack stack = container.getItem(i);
-			if (!stack.isEmpty()) {
-				kinds.merge(stack.getItem(), stack.getCount(), Integer::sum);
-				total += stack.getCount();
-			}
-		}
-		if (kinds.isEmpty()) {
-			return "";
-		}
-		if (kinds.size() > 2) {
-			return total + " items, " + kinds.size() + " kinds";
-		}
-		StringBuilder sb = new StringBuilder();
-		for (Map.Entry<Item, Integer> e : kinds.entrySet()) {
-			sb.append(sb.isEmpty() ? "" : " + ").append(e.getValue()).append(' ').append(Fmt.pretty(e.getKey()));
-		}
-		return sb.toString();
-	}
-
-	/**
-	 * A metered block entity changed (a hopper, dropper or chest gained or lost items): note
-	 * item in / out right away, so the tick list shows it in the part of the tick it happened
-	 * (dropper firing: block ticks; hoppers: block entities). Several changes in one tick are
-	 * all noted (a hopper taking an item in and passing one on).
+	 * A metered block entity gained or lost items: note item in / out right away, so the tick list shows the part of
+	 * the tick it happened in (dropper: block ticks, hopper: block entities). All changes in one tick are noted.
 	 */
 	public static void onContainerChanged(ServerLevel level, BlockPos pos) {
-		for (State state : STATES.values()) {
+		for (MeterState state : STATES.values()) {
 			for (Meter m : state.meters) {
 				if (m.itemCount < 0 || m.dimension != level.dimension() || !m.pos.equals(pos)) {
 					continue;
 				}
-				int items = itemCount(level, pos);
+				int items = ContainerInfo.itemCount(level, pos);
 				if (items >= 0 && items != m.itemCount) {
 					m.flag(items > m.itemCount ? MeterEvent.ITEM_IN : MeterEvent.ITEM_OUT);
 					m.itemCount = items;
@@ -759,28 +243,10 @@ public final class MeterFeature {
 		}
 	}
 
-	/** The block and everything next to it is loaded: reading it never makes the game load a chunk. */
-	private static boolean loadedAround(ServerLevel level, BlockPos pos) {
-		return level.hasChunksAt(pos.offset(-1, 0, -1), pos.offset(1, 0, 1));
-	}
-
-	/** Items inside a hopper, chest (both halves), dropper..., or -1 if the block is not a container. */
-	private static int itemCount(ServerLevel level, BlockPos pos) {
-		net.minecraft.world.Container container = loadedAround(level, pos) ? PowerUtil.container(level, pos) : null;
-		if (container == null) {
-			return -1;
-		}
-		int items = 0;
-		for (int i = 0; i < container.getContainerSize(); i++) {
-			items += container.getItem(i).getCount();
-		}
-		return items;
-	}
-
 	// ------------------------------------------------------------------ groups
 
 	/** Copies the current meters into the active group (in memory only). */
-	private static void snapshot(State state) {
+	private static void snapshot(MeterState state) {
 		List<MeterStore.Saved> list = new ArrayList<>();
 		for (Meter m : state.meters) {
 			list.add(new MeterStore.Saved(m.dimension.identifier().toString(), m.pos, m.expectOn, m.expectOff, m.name));
@@ -788,7 +254,7 @@ public final class MeterFeature {
 		state.groups.groups.put(state.groups.active, list);
 	}
 
-	private static void save(ServerPlayer player, State state) {
+	private static void save(ServerPlayer player, MeterState state) {
 		snapshot(state);
 		MinecraftServer server = LabServer.server();
 		if (server != null) {
@@ -797,7 +263,7 @@ public final class MeterFeature {
 	}
 
 	/** Places the meters of the active group. */
-	private static void restore(MinecraftServer server, State state) {
+	private static void restore(MinecraftServer server, MeterState state) {
 		int max = Math.min(ServerConfig.get().maxMeters, MAX_METERS);
 		for (MeterStore.Saved saved : state.groups.groups.getOrDefault(state.groups.active, List.of())) {
 			if (state.meters.size() >= max) {
@@ -820,7 +286,7 @@ public final class MeterFeature {
 		if (server == null) {
 			return;
 		}
-		State state = state(player);
+		MeterState state = state(player);
 		if (!state.meters.isEmpty()) {
 			return;
 		}
@@ -834,7 +300,7 @@ public final class MeterFeature {
 		if (server == null) {
 			return;
 		}
-		State state = state(player);
+		MeterState state = state(player);
 		save(player, state);
 		for (Meter m : new ArrayList<>(state.meters)) {
 			remove(player, state, m);
@@ -849,7 +315,7 @@ public final class MeterFeature {
 	}
 
 	public static void deleteGroup(ServerPlayer player, String name) {
-		State state = state(player);
+		MeterState state = state(player);
 		if (name.equals(state.groups.active)) {
 			Msg.send(player, Component.literal("Group in use: switch first").withStyle(ChatFormatting.RED));
 			return;
@@ -864,7 +330,7 @@ public final class MeterFeature {
 
 	/** Chat list of the groups; click one to switch. */
 	public static void listGroups(ServerPlayer player) {
-		State state = state(player);
+		MeterState state = state(player);
 		snapshot(state);
 		Msg.send(player, Component.literal("Groups (click to switch, /rlab group <name> = new):").withStyle(ChatFormatting.GOLD));
 		for (Map.Entry<String, List<MeterStore.Saved>> g : state.groups.groups.entrySet()) {
@@ -879,7 +345,7 @@ public final class MeterFeature {
 
 	/** Gives another (online) player a copy of one of your groups. */
 	public static void shareGroup(ServerPlayer player, String name, ServerPlayer target) {
-		State state = state(player);
+		MeterState state = state(player);
 		snapshot(state);
 		List<MeterStore.Saved> list = state.groups.groups.get(name);
 		if (list == null) {
@@ -890,7 +356,7 @@ public final class MeterFeature {
 			Msg.send(player, Component.literal("That's you!").withStyle(ChatFormatting.RED));
 			return;
 		}
-		State other = state(target);
+		MeterState other = state(target);
 		String copyName = name;
 		for (int i = 2; other.groups.groups.containsKey(copyName); i++) {
 			copyName = name + "-" + i;
@@ -907,14 +373,14 @@ public final class MeterFeature {
 		return new ArrayList<>(state(player).groups.groups.keySet());
 	}
 
-	private static void remove(ServerPlayer player, State state, Meter m) {
+	private static void remove(ServerPlayer player, MeterState state, Meter m) {
 		state.meters.remove(m);
 		PowerWatch.remove(m.dimension, m.pos, m);
 		m.bossBar.hide(player);
 		state.dirty = true;
 	}
 
-	private static int freeIndex(State state) {
+	private static int freeIndex(MeterState state) {
 		for (int i = 0; i < MAX_METERS; i++) {
 			boolean used = false;
 			for (Meter m : state.meters) {
@@ -932,7 +398,7 @@ public final class MeterFeature {
 
 	/** Chat view: on/off history of the last 40 ticks, pulse lengths and recent events. */
 	public static void list(ServerPlayer player) {
-		State state = STATES.get(player.getUUID());
+		MeterState state = STATES.get(player.getUUID());
 		if (state == null || state.meters.isEmpty()) {
 			Msg.send(player, Component.literal("No meters. Look at a block and press M (or /rlab tool)"));
 			return;
@@ -958,19 +424,19 @@ public final class MeterFeature {
 	}
 
 	public static int count(ServerPlayer player) {
-		State state = STATES.get(player.getUUID());
+		MeterState state = STATES.get(player.getUUID());
 		return state == null ? 0 : state.meters.size();
 	}
 
 	// ------------------------------------------------------------------ tick
 
 	public static void tick(MinecraftServer server) {
-		for (Map.Entry<UUID, State> e : STATES.entrySet()) {
+		for (Map.Entry<UUID, MeterState> e : STATES.entrySet()) {
 			ServerPlayer player = server.getPlayerList().getPlayer(e.getKey());
 			if (player == null) {
 				continue;
 			}
-			State state = e.getValue();
+			MeterState state = e.getValue();
 			if (state.meters.isEmpty()) {
 				if (state.dirty) {
 					state.dirty = false;
@@ -1012,7 +478,7 @@ public final class MeterFeature {
 		}
 		// Every meter sent its events: start counting again (see nextSeq).
 		boolean pending = false;
-		for (State state : STATES.values()) {
+		for (MeterState state : STATES.values()) {
 			for (Meter m : state.meters) {
 				pending |= !m.order.isEmpty();
 			}
@@ -1023,26 +489,23 @@ public final class MeterFeature {
 	}
 
 	/** Blocks a piston is moving right now: them turning into air is a move, not "broken". */
-	private static final java.util.Set<BlockPos> MOVING = new java.util.HashSet<>();
+	static final Set<BlockPos> MOVING = new HashSet<>();
 
 	public static void beginMove(List<BlockPos> blocks) {
 		MOVING.addAll(blocks);
 	}
 
-	/**
-	 * A piston moved these blocks one step in {@code direction}: meters on them go along (like
-	 * Redstone Multimeter). Runs right after the piston started moving them.
-	 */
-	public static void onBlocksMoved(ServerLevel level, List<BlockPos> moved, net.minecraft.core.Direction direction) {
+	/** A piston moved these blocks one step: meters on them go along. Runs right after the piston started the move. */
+	public static void onBlocksMoved(ServerLevel level, List<BlockPos> moved, Direction direction) {
 		MOVING.clear();
-		java.util.Set<BlockPos> from = new java.util.HashSet<>(moved);
-		java.util.Set<BlockPos> to = new java.util.HashSet<>();
+		Set<BlockPos> from = new HashSet<>(moved);
+		Set<BlockPos> to = new HashSet<>();
 		for (BlockPos p : moved) {
 			to.add(p.relative(direction));
 		}
 		MinecraftServer server = LabServer.server();
-		for (Map.Entry<UUID, State> e : STATES.entrySet()) {
-			State state = e.getValue();
+		for (Map.Entry<UUID, MeterState> e : STATES.entrySet()) {
+			MeterState state = e.getValue();
 			List<Meter> moving = new ArrayList<>();
 			for (Meter m : state.meters) {
 				if (m.dimension == level.dimension() && from.contains(m.pos)) {
@@ -1075,7 +538,7 @@ public final class MeterFeature {
 		}
 	}
 
-	private static void sample(ServerPlayer player, State state, long time) {
+	private static void sample(ServerPlayer player, MeterState state, long time) {
 		int n = state.meters.size();
 		byte[] end = new byte[n];
 		byte[] bits = new byte[n];
@@ -1089,13 +552,13 @@ public final class MeterFeature {
 			// Item meters: item in / out is normally noted the moment it happens
 			// (onContainerChanged); this only catches changes the game didn't announce.
 			ServerLevel meterLevel = LabServer.level(m.dimension);
-			int items = meterLevel == null ? -1 : itemCount(meterLevel, m.pos);
+			int items = meterLevel == null ? -1 : ContainerInfo.itemCount(meterLevel, m.pos);
 			if (items >= 0 && m.itemCount >= 0 && items != m.itemCount) {
 				m.flag(items > m.itemCount ? MeterEvent.ITEM_IN : MeterEvent.ITEM_OUT);
 			}
 			if (items >= 0 && (items != m.itemCount || m.itemsChanged || m.nextLevel.isEmpty() || time % 20 == 0)) {
-				m.nextLevel = items > 0 ? nextLevel(meterLevel, m.pos, m.power) : "";
-				m.contents = contents(meterLevel, m.pos);
+				m.nextLevel = items > 0 ? ContainerInfo.nextLevel(meterLevel, m.pos, m.power) : "";
+				m.contents = ContainerInfo.contents(meterLevel, m.pos);
 			}
 			m.itemCount = items;
 			m.itemsChanged = false;
@@ -1153,22 +616,19 @@ public final class MeterFeature {
 	}
 
 	/**
-	 * Sequence numbers for the "inspect a tick" list. They keep counting until every meter has
-	 * sent its events, so things a player did between two ticks sort before the next tick.
+	 * Sequence numbers for the tick list. They keep counting until every meter has sent its events, so what a
+	 * player did between two ticks sorts before the next tick.
 	 */
 	private static int seq;
 
-	private static int nextSeq() {
+	static int nextSeq() {
 		return Math.min(++seq, 1 << 20);
 	}
 
-	/**
-	 * Sets the expected on / off length of a meter (by letter). Without numbers it takes the
-	 * meter's latest pulse as the expected one. Counting starts over.
-	 */
-	public static void expect(ServerPlayer player, String label, @org.jetbrains.annotations.Nullable Integer on,
-	                          @org.jetbrains.annotations.Nullable Integer off, boolean clear) {
-		State state = STATES.get(player.getUUID());
+	/** Sets the expected on / off length of a meter. Without numbers, takes its latest pulse. Counting starts over. */
+	public static void expect(ServerPlayer player, String label, @Nullable Integer on,
+	                          @Nullable Integer off, boolean clear) {
+		MeterState state = STATES.get(player.getUUID());
 		Meter meter = null;
 		if (state != null) {
 			for (Meter m : state.meters) {
@@ -1208,7 +668,7 @@ public final class MeterFeature {
 
 	/** Gives a meter (by letter) a name shown in front of its text; an empty name removes it. */
 	public static void rename(ServerPlayer player, String label, String name) {
-		State state = STATES.get(player.getUUID());
+		MeterState state = STATES.get(player.getUUID());
 		Meter meter = null;
 		if (state != null) {
 			for (Meter m : state.meters) {
@@ -1229,7 +689,7 @@ public final class MeterFeature {
 
 	/** For the game tests: the HUD text of one meter. */
 	static String statusForTest(ServerPlayer player, String label) {
-		State state = STATES.get(player.getUUID());
+		MeterState state = STATES.get(player.getUUID());
 		if (state != null) {
 			for (Meter m : state.meters) {
 				if (m.label.equals(label)) {
@@ -1241,7 +701,7 @@ public final class MeterFeature {
 	}
 
 	private static Meter meterForTest(ServerPlayer player, String label) {
-		State state = STATES.get(player.getUUID());
+		MeterState state = STATES.get(player.getUUID());
 		if (state != null) {
 			for (Meter m : state.meters) {
 				if (m.label.equals(label)) {
@@ -1260,7 +720,7 @@ public final class MeterFeature {
 	/** For the game tests: the remembered turn-on times. */
 	static String risesForTest(ServerPlayer player, String label) {
 		Meter m = meterForTest(player, label);
-		return java.util.Arrays.toString(m.rises) + " count " + m.riseCount;
+		return Arrays.toString(m.rises) + " count " + m.riseCount;
 	}
 
 	/** For the game tests: the pulse lengths text ("on 2t · off 4t"). */
@@ -1283,7 +743,7 @@ public final class MeterFeature {
 		List<String> list = new ArrayList<>();
 		for (long[] e : meterForTest(player, label).recent) {
 			int packed = (int) e[1];
-			list.add(MeterEvent.values()[packed & 31] + "@" + dev.redstonelab.core.TickPhase.byOrdinal((packed >>> 5) & 7));
+			list.add(MeterEvent.values()[packed & 31] + "@" + TickPhase.byOrdinal((packed >>> 5) & 7));
 		}
 		return list;
 	}
@@ -1312,12 +772,12 @@ public final class MeterFeature {
 
 	/** For the game tests: the order line at game time {@code now}. */
 	static String orderForTest(ServerPlayer player, long now) {
-		State state = STATES.get(player.getUUID());
+		MeterState state = STATES.get(player.getUUID());
 		return state == null ? "" : orderLine(state, now);
 	}
 
 	public static List<String> labels(ServerPlayer player) {
-		State state = STATES.get(player.getUUID());
+		MeterState state = STATES.get(player.getUUID());
 		List<String> list = new ArrayList<>();
 		if (state != null) {
 			for (Meter m : state.meters) {
@@ -1327,7 +787,7 @@ public final class MeterFeature {
 		return list;
 	}
 
-	private static void sendLayout(ServerPlayer player, State state) {
+	private static void sendLayout(ServerPlayer player, MeterState state) {
 		if (!Sessions.get(player).rendersHud()) {
 			return;
 		}
@@ -1341,11 +801,8 @@ public final class MeterFeature {
 				orderLine(state)));
 	}
 
-	/**
-	 * "A C → 2t → B D → 2t → E F": the order the meters turn on in, measured from the first
-	 * meter (put A at the start of your circuit). Same tick = same group.
-	 */
-	static String orderLine(State state) {
+	/** The order line "A C -> 2t -> B D": order the meters turn on, measured from the first meter. Same tick = same group. */
+	static String orderLine(MeterState state) {
 		long now = Long.MIN_VALUE;
 		for (Meter m : state.meters) {
 			now = Math.max(now, m.now);
@@ -1353,19 +810,18 @@ public final class MeterFeature {
 		return orderLine(state, now);
 	}
 
-	static String orderLine(State state, long now) {
-		List<dev.redstonelab.core.OrderLine.Input> inputs = new ArrayList<>();
+	static String orderLine(MeterState state, long now) {
+		List<OrderLine.Input> inputs = new ArrayList<>();
 		for (Meter m : state.meters) {
 			long[] rises = new long[m.rises.length];
-			java.util.Arrays.fill(rises, Long.MIN_VALUE);
+			Arrays.fill(rises, Long.MIN_VALUE);
 			System.arraycopy(m.rises, 0, rises, 0, Math.min(m.riseCount, m.rises.length));
-			inputs.add(new dev.redstonelab.core.OrderLine.Input(m.label, rises, m.riseSeqs.clone()));
+			inputs.add(new OrderLine.Input(m.label, rises, m.riseSeqs.clone()));
 		}
-		return dev.redstonelab.core.OrderLine.compute(inputs, now);
+		return OrderLine.compute(inputs, now);
 	}
 
-
-	private static void updateBossBars(ServerPlayer player, State state) {
+	private static void updateBossBars(ServerPlayer player, MeterState state) {
 		for (Meter m : state.meters) {
 			MutableComponent name = Component.empty()
 					.append(Msg.colored(m.label + " ", m.color))
@@ -1381,7 +837,7 @@ public final class MeterFeature {
 	}
 
 	/** Coloured box + letter around every meter. */
-	private static void showOutlines(ServerPlayer player, State state) {
+	private static void showOutlines(ServerPlayer player, MeterState state) {
 		List<LabPayloads.MarkerData> markers = new ArrayList<>();
 		for (Meter m : state.meters) {
 			if (m.dimension == player.level().dimension()) {
@@ -1398,7 +854,7 @@ public final class MeterFeature {
 			if (!isTool(player.getMainHandItem())) {
 				continue;
 			}
-			State state = STATES.get(player.getUUID());
+			MeterState state = STATES.get(player.getUUID());
 			if (state != null && player.level().getGameTime() - state.lastClick < 60) {
 				continue;
 			}
@@ -1409,14 +865,14 @@ public final class MeterFeature {
 
 	/** The client lost its entities or HUD state (respawn, dimension change): send everything again. */
 	public static void onClientReset(ServerPlayer player) {
-		State state = STATES.get(player.getUUID());
+		MeterState state = STATES.get(player.getUUID());
 		if (state != null) {
 			state.dirty = true;
 		}
 	}
 
 	public static void onLeave(ServerPlayer player) {
-		State state = STATES.remove(player.getUUID());
+		MeterState state = STATES.remove(player.getUUID());
 		if (state != null) {
 			save(player, state);
 			for (Meter m : state.meters) {

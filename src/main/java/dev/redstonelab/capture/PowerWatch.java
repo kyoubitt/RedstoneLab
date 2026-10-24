@@ -5,9 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -16,16 +13,18 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import dev.redstonelab.core.MeterEvent;
 import dev.redstonelab.core.Reading;
+import dev.redstonelab.feature.MeterFeature;
 import dev.redstonelab.util.PowerUtil;
 
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+
 /**
- * Watches the blocks that have a meter on them: power level and block state changes (exact
- * to the moment they happen) plus the game events that reach the block (scheduled ticks,
- * block events, block and shape updates).
+ * Watches the blocks that have a meter: power and state changes as they happen, plus the game events that reach them
+ * (scheduled ticks, block events, block and shape updates).
  *
- * <p>Detection: every successful {@code Level#setBlock}, comparator output change and
- * block entity change inside a 5x5x5 cube around a watched block re-evaluates that block.
- * The quick reject is a single hash lookup.</p>
+ * Every setBlock, comparator output change and block entity change inside a 5x5x5 cube around a watched
+ * block re-checks that block; anything farther away is rejected by one hash lookup.
  */
 public final class PowerWatch {
 	public interface Listener {
@@ -198,8 +197,8 @@ public final class PowerWatch {
 	}
 
 	/**
-	 * Called the moment a block's new state is stored, before it updates its neighbors, so its
-	 * own change is recorded before anything it causes (like Redstone Multimeter).
+	 * Called when a block's new state is stored, before it updates its neighbors, so its own change is recorded
+	 * before anything it causes.
 	 */
 	public static void onStateStored(Level level, BlockPos pos) {
 		if (!(level instanceof ServerLevel serverLevel)) {
@@ -224,7 +223,7 @@ public final class PowerWatch {
 		}
 		Watch w = dim.watches.get(pos.asLong());
 		if (w != null) {
-			dev.redstonelab.feature.MeterFeature.onContainerChanged(serverLevel, pos);
+			MeterFeature.onContainerChanged(serverLevel, pos);
 			evaluate(serverLevel, w);
 			dispatch();
 		}

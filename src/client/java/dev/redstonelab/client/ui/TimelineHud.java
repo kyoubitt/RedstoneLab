@@ -36,7 +36,7 @@ public final class TimelineHud {
 			| MeterEvent.ITEM_IN.bit() | MeterEvent.ITEM_OUT.bit();
 	private static final int LANE_H = 6;
 
-	private static final int PX = 3;
+	private static final int PX = 4;
 
 	/*
 	 * The box only grows while the meters stay the same, so it doesn't jump around when a
@@ -50,7 +50,7 @@ public final class TimelineHud {
 		int visible = Math.min(LabConfig.TIMELINE_TICKS.value, ClientState.CAPACITY);
 		int width = visible * PX;
 		int chH = 11;
-		boolean marks = LabConfig.EVENT_MARKS.value;
+		boolean marks = LabConfig.SUB_TICK.value;
 		boolean showTitle = true;
 		boolean showInfo = LabConfig.SHOW_INFO.value;
 		// The colour legend only while frozen: that's when you read the marks closely.
@@ -206,10 +206,7 @@ public final class TimelineHud {
 	private static final int COLUMN_LINES = 12;
 	private int inspectColW;
 
-	/**
-	 * The timeline is the same size at every GUI scale: 2 screen pixels per font pixel (sharp
-	 * text), times the size setting. Without this it gets huge at GUI scale 3-4.
-	 */
+	/** Same size at every GUI scale: 2 screen pixels per font pixel, times the size setting. */
 	private static float hudScale(Minecraft mc) {
 		double gui = mc.getWindow().getGuiScale();
 		float fit = gui > 2 ? (float) (2.0 / gui) : 1f;
@@ -229,10 +226,7 @@ public final class TimelineHud {
 	private record Inspected(int seq, String text, int color, boolean heading) {
 	}
 
-	/**
-	 * Everything that happened at the meters in the tick {@code age} ticks back, in the order it
-	 * happened, under headings for the part of the tick it happened in (block ticks, block events...).
-	 */
+	/** Everything that happened at the meters {@code age} ticks back, in order, under headings for the part of the tick. */
 	private static List<Inspected> inspect(int age) {
 		List<Inspected> list = new ArrayList<>();
 		int idx = ClientState.sampleIndex(age);
@@ -312,8 +306,8 @@ public final class TimelineHud {
 					// Powered but not on yet (repeater delay, piston waiting): a thin line.
 					ctx.fill(sx, bottom - 3, ex, bottom - 1, barColor);
 				}
-				if (marks && ch.events[idx] != 0) {
-					this.drawMarks(ctx, ch.events[idx], sx, ex, bottom);
+				if (marks) {
+					drawMarks(ctx, ch, idx, sx, bottom);
 				}
 			}
 			if (runStart != Integer.MIN_VALUE && (!present || on != runOn)) {
@@ -351,27 +345,42 @@ public final class TimelineHud {
 		ctx.drawString(font, text, sx + (ex - sx - w) / 2 + 1, top + (chH - font.lineHeight) / 2 + 1, on ? 0xFF000000 : 0xFF888888, false);
 	}
 
+	/** The events of one tick that get a mark, in game order. Block and shape updates need the detail setting. */
+	private static List<MeterEvent> shown(int[] order) {
+		MeterEvent[] all = MeterEvent.values();
+		int hidden = LabConfig.EVENT_MARKS.value ? 0 : MeterEvent.BLOCK_UPDATE.bit() | MeterEvent.SHAPE_UPDATE.bit() | MeterEvent.POWER_CHANGED.bit();
+		List<MeterEvent> list = new ArrayList<>();
+		for (int packed : order) {
+			int ordinal = packed & 31;
+			if (ordinal < all.length && (all[ordinal].bit() & hidden) == 0) {
+				list.add(all[ordinal]);
+			}
+		}
+		return list;
+	}
+
 	/**
-	 * Event lane under a waveform column: the upper row shows what happened to the block, the
-	 * lower row what the game did to it. With several events in one row the most important one
-	 * (lowest {@link MeterEvent} ordinal) wins.
+	 * Marks under a tick's bar, left to right in the order the game ran them. Things that happen to
+	 * the block go in the upper row, what the game did to it in the lower one. More events than the
+	 * column is wide share the last pixels.
 	 */
-	private void drawMarks(GuiGraphics ctx, int flags, int sx, int ex, int bottom) {
-		if (MeterEvent.WRONG_LENGTH.in(flags)) {
-			ctx.fill(sx, bottom + 1, ex, bottom + 6, MeterEvent.WRONG_LENGTH.color());
+	private static void drawMarks(GuiGraphics ctx, ClientState.Channel ch, int idx, int sx, int bottom) {
+		if (MeterEvent.WRONG_LENGTH.in(ch.events[idx])) {
+			ctx.fill(sx, bottom + 1, sx + PX, bottom + 6, MeterEvent.WRONG_LENGTH.color());
 			return;
 		}
-		int blockFlags = flags & BLOCK_EVENTS;
-		int gameFlags = flags & ~BLOCK_EVENTS & ~MeterEvent.WRONG_LENGTH.bit();
-		if (blockFlags != 0) {
-			ctx.fill(sx, bottom + 1, ex, bottom + 3, MeterEvent.of(blockFlags).get(0).color());
-		}
-		if (gameFlags != 0) {
-			ctx.fill(sx, bottom + 4, ex, bottom + 6, MeterEvent.of(gameFlags).get(0).color());
+		List<MeterEvent> events = shown(ch.order[idx]);
+		for (int i = 0; i < events.size(); i++) {
+			MeterEvent e = events.get(i);
+			// one or two events get wide marks, more get one pixel each
+			int w = events.size() <= PX / 2 ? PX / 2 : 1;
+			int slot = events.size() * w <= PX ? i * w : i * PX / events.size();
+			int y = (BLOCK_EVENTS & e.bit()) != 0 ? bottom + 1 : bottom + 4;
+			ctx.fill(sx + slot, y, sx + slot + w, y + 2, e.color());
 		}
 	}
 
-	/** Every event flag drawn somewhere in the visible part of the HUD. */
+	/** Every event drawn somewhere in the visible part of the timeline, for the legend. */
 	private static int visibleEvents(int visible, int scroll) {
 		int flags = 0;
 		for (int i = 0; i < visible; i++) {
@@ -380,18 +389,11 @@ public final class TimelineHud {
 				break;
 			}
 			for (ClientState.Channel ch : ClientState.SCOPE) {
-				int f = ch.events[idx];
-				if (MeterEvent.WRONG_LENGTH.in(f)) {
+				if (MeterEvent.WRONG_LENGTH.in(ch.events[idx])) {
 					flags |= MeterEvent.WRONG_LENGTH.bit();
-					continue;
 				}
-				f &= ~MeterEvent.WRONG_LENGTH.bit();
-				// Only the winner of each row is drawn, see drawMarks.
-				if ((f & BLOCK_EVENTS) != 0) {
-					flags |= MeterEvent.of(f & BLOCK_EVENTS).get(0).bit();
-				}
-				if ((f & ~BLOCK_EVENTS) != 0) {
-					flags |= MeterEvent.of(f & ~BLOCK_EVENTS).get(0).bit();
+				for (MeterEvent e : shown(ch.order[idx])) {
+					flags |= e.bit();
 				}
 			}
 		}

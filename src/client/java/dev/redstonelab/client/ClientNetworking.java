@@ -1,31 +1,32 @@
 package dev.redstonelab.client;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 import dev.redstonelab.RedstoneLab;
+import dev.redstonelab.client.ui.LabConfig;
+import dev.redstonelab.client.ui.LabKeys;
 import dev.redstonelab.net.LabPayloads;
 
-/**
- * Client side of the handshake and all S2C receivers. The client draws the timeline and the
- * outlines itself, so the server sends data instead of boss bars and display entities.
- */
+/** Client side of the handshake and all server-to-client receivers. */
 public final class ClientNetworking {
 	private ClientNetworking() {
 	}
 
 	public static void init() {
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-			if (!dev.redstonelab.client.ui.LabConfig.INTRO_SHOWN.value) {
+			if (!LabConfig.INTRO_SHOWN.value) {
 				// Once, on the very first join: the keys that matter.
-				dev.redstonelab.client.ui.LabConfig.INTRO_SHOWN.value = true;
-				dev.redstonelab.client.ui.LabConfig.save();
-				client.execute(() -> client.gui.getChat().addMessage(net.minecraft.network.chat.Component.literal(
+				LabConfig.INTRO_SHOWN.value = true;
+				LabConfig.save();
+				client.execute(() -> client.gui.getChat().addMessage(Component.literal(
 						"RedstoneLab: M = meter · right-click a piston = preview · "
-								+ dev.redstonelab.client.ui.LabConfig.OPEN_SETTINGS.value.display() + " = settings")
-						.withStyle(net.minecraft.ChatFormatting.GOLD)));
+								+ LabConfig.OPEN_SETTINGS.value.display() + " = settings")
+						.withStyle(ChatFormatting.GOLD)));
 			}
 			ClientState.reset();
 			if (ClientPlayNetworking.canSend(LabPayloads.HelloC2S.TYPE)) {
@@ -57,7 +58,7 @@ public final class ClientNetworking {
 				(payload, context) -> ClientPistons.onServerExtend(payload.pos(), payload.time(), payload.seq()));
 		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.ScopeConfigS2C.TYPE, (payload, context) -> ClientState.applyScopeConfig(payload));
 		ClientPlayNetworking.registerGlobalReceiver(LabPayloads.ScopeSampleS2C.TYPE, (payload, context) -> {
-			if (!dev.redstonelab.client.ui.LabKeys.paused) {
+			if (!LabKeys.paused) {
 				ClientState.addSample(payload);
 			}
 		});

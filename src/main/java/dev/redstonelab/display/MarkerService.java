@@ -29,11 +29,9 @@ import dev.redstonelab.net.LabPayloads.MarkerData;
 import dev.redstonelab.server.Sessions;
 
 /**
- * In-world labels and block outlines, per player and per channel ("meters", "pistorder").
- *
- * <p>Modded clients with world rendering get a {@link LabPayloads.MarkersS2C} payload and draw
- * the markers themselves. Vanilla clients get packet-only display entities (see
- * {@link FakeDisplays}) which are diffed so only changed markers are re-sent.</p>
+ * In-world labels and outlines per player and channel ("meters", "pistorder"). Modded clients get a
+ * MarkersS2C payload and draw them; vanilla clients get packet-only display entities (see FakeDisplays),
+ * diffed so only changed markers are sent again.
  */
 public final class MarkerService {
 	private record Key(BlockPos pos, byte kind, float yOffset) {
@@ -125,10 +123,7 @@ public final class MarkerService {
 		PLAYERS.remove(uuid);
 	}
 
-	/**
-	 * The client lost its entities (respawn / dimension change): forget spawned ids and
-	 * re-send what is still wanted in the player's current dimension.
-	 */
+	/** The client lost its entities (respawn, dimension change): forget the spawned ids and send again what is still wanted. */
 	public static void resync(ServerPlayer player) {
 		PlayerMarkers pm = PLAYERS.get(player.getUUID());
 		if (pm == null) {

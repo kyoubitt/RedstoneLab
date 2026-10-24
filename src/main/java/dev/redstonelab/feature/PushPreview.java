@@ -14,11 +14,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.PushReaction;
 
 /**
- * Works out what a piston would move, following vanilla's {@code PistonStructureResolver}
- * step by step, but without touching the world and remembering <em>why</em> it fails.
- *
- * <p>Vanilla removes the piston head before it resolves a sticky piston's pull; here the head
- * position is simply treated as air ({@link #ignored}).</p>
+ * Works out what a piston would move, following vanilla's PistonStructureResolver step by step without touching
+ * the world, and keeps why it fails. Vanilla removes the head before resolving a sticky pull; here the head
+ * position is treated as air ({@link #ignored}).
  */
 final class PushPreview {
 	static final int MAX_PUSH = 12;

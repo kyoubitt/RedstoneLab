@@ -6,11 +6,16 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.storage.LevelResource;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -19,17 +24,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.storage.LevelResource;
-
 import dev.redstonelab.RedstoneLab;
 
-/**
- * Saves each player's meter groups in the world folder
- * ({@code <world>/redstonelab/meters/<uuid>.json}), so meters come back after a relog or
- * restart and stay with the world they were placed in.
- */
+/** Saves each player's meter groups in <world>/redstonelab/meters/<uuid>.json, so they survive relogs and restarts. */
 final class MeterStore {
 	/** A saved meter: dimension id ("minecraft:overworld"), position, expected on/off length (-1 = none). */
 	record Saved(String dimension, BlockPos pos, int expectOn, int expectOff, String name) {
@@ -121,7 +118,7 @@ final class MeterStore {
 			try (Writer writer = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
 				GSON.toJson(root, writer);
 			}
-			Files.move(tmp, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			Files.move(tmp, path, StandardCopyOption.REPLACE_EXISTING);
 		} catch (IOException e) {
 			RedstoneLab.LOGGER.warn("Could not save meter groups to {}", path, e);
 		}

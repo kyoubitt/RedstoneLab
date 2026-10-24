@@ -15,10 +15,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import dev.redstonelab.capture.Capture;
 import dev.redstonelab.capture.PowerWatch;
 
-/**
- * A block's own change, right when the new state is stored and before it updates its
- * neighbors (onPlace / removal), so it is listed before what it causes.
- */
+/** A block's own change, when the new state is stored and before it updates its neighbors, so it is listed before what it causes. */
 @Mixin(LevelChunk.class)
 public abstract class LevelChunkMixin {
 	@Shadow

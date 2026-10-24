@@ -10,10 +10,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
 
-/**
- * Chat / action bar helpers. Everything here is plain vanilla text components, so vanilla
- * clients see it exactly like modded ones.
- */
+/** Chat and action bar helpers. Plain vanilla text, so vanilla clients see the same. */
 public final class Msg {
 	private Msg() {
 	}
